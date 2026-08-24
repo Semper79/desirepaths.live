@@ -1,0 +1,28 @@
+{
+  "name": "@morph/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Domain model, zod schemas, surface DSL and shared types. Depends on nothing in the workspace.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./surfaces": "./src/surfaces/index.ts",
+    "./db": "./src/db/schema.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.36.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.28.1",
+    "@types/node": "^22.9.0",
+    "vitest": "^2.1.9"
+  }
+}

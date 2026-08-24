@@ -1,0 +1,93 @@
+# =============================================================================
+# MORPH - edge configuration
+# =============================================================================
+# Caddy terminates TLS, serves immutable static assets from cache, and routes the
+# two live paths: the adaptive page render (apps/web) and the event ingest
+# (apps/api). Everything else is closed by default.
+#
+# The ingest path is deliberately the cheapest thing in this file: no compression
+# negotiation, no logging of request bodies, no auth round-trip. At 5k req/s the
+# edge must add microseconds, not milliseconds.
+# =============================================================================
+
+{
+	# Replace with the operator's address; Caddy uses it for ACME registration.
+	email {$ACME_EMAIL:ops@example.com}
+	servers {
+		protocols h1 h2 h3
+	}
+	# Structured logs, so Promtail/Loki can parse them without regex archaeology.
+	log {
+		format json
+	}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# MORPH renders adaptive CSS custom properties, not arbitrary CSS or inline
+		# script. `unsafe-inline` for style is required by Next.js's critical CSS
+		# inlining; script stays nonce-based. Revisit when Next ships nonce-based CSS.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src https://challenges.cloudflare.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+		-Server
+	}
+}
+
+{$MORPH_DOMAIN:localhost} {
+	import security_headers
+	encode zstd gzip
+
+	# --- Event ingest -------------------------------------------------------
+	# Kept first so the matcher short-circuits before any heavier route.
+	handle /i/* {
+		# No compression on a 200-byte beacon: the CPU costs more than the bytes save.
+		encode off
+		reverse_proxy api:3001 {
+			header_up X-Real-IP {remote_host}
+			# The API hashes the IP at the edge of the process and never persists it.
+			# See docs/PRIVACY.md.
+			transport http {
+				keepalive 2m
+				keepalive_idle_conns 256
+			}
+		}
+	}
+
+	# --- Public API ---------------------------------------------------------
+	handle /api/v1/* {
+		reverse_proxy api:3001
+	}
+
+	# --- Immutable build assets --------------------------------------------
+	# Next.js content-hashes these filenames, so a year of caching is safe and
+	# removes them from the origin's problem set entirely.
+	handle /_next/static/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		reverse_proxy web:3000
+	}
+
+	# --- Everything else: the adaptive site --------------------------------
+	handle {
+		reverse_proxy web:3000 {
+			# The variant assignment happens in edge middleware inside Next.js, so
+			# the HTML that leaves this proxy is already adapted. There is no
+			# client-side re-render and therefore no layout flash.
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	log {
+		output stdout
+		format json
+		# Never log the query string of the ingest path: it carries the event payload.
+		level INFO
+	}
+}
+
+admin.{$MORPH_DOMAIN:localhost} {
+	import security_headers
+	reverse_proxy admin:3002
+}

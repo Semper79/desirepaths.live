@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# test / coverage
+coverage/
+.vitest/
+playwright-report/
+test-results/
+
+# turborepo
+.turbo/
+
+# env & secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+
+# local infrastructure state
+infra/.data/
+infra/**/data/
+
+# editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

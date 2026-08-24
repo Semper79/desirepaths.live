@@ -1,0 +1,21 @@
+{
+  "name": "@morph/adaptive",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The bandit engine. Pure, zero runtime dependencies, no I/O, 100% branch coverage.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "sim": "tsx src/sim/cli.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "vitest": "^2.1.9"
+  }
+}

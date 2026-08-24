@@ -1,0 +1,361 @@
+# =============================================================================
+# MORPH - local / single-VPS stack
+# =============================================================================
+# This file is the launch topology AND the Kubernetes rehearsal. Every service is
+# labelled `morph.scaling` with one of:
+#
+#   stateless      - horizontally scalable today, replicas > 1 is safe
+#   stateful-single- holds data on a local volume; scaling means clustering, not replicas
+#   singleton      - MUST run exactly once (cron ownership, migration ownership)
+#
+# `infra/SCALING.md` explains, per service, what the first bottleneck will be and
+# what the migration to Kubernetes looks like. Read it before adding a replica.
+# =============================================================================
+
+name: morph
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '20m'
+    max-file: '5'
+
+x-app-env: &app-env
+  NODE_ENV: ${NODE_ENV:-development}
+  MORPH_PUBLIC_URL: ${MORPH_PUBLIC_URL:-http://localhost:3000}
+  MORPH_TIMEZONE: ${MORPH_TIMEZONE:-Europe/Rome}
+  DATABASE_URL: ${DATABASE_URL:-postgres://morph:morph@postgres:5432/morph}
+  CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}
+  CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-morph}
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER:-morph}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-change-me}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  REDPANDA_BROKERS: ${REDPANDA_BROKERS:-redpanda:9092}
+  ANON_ID_PEPPER: ${ANON_ID_PEPPER:?ANON_ID_PEPPER must be set - see .env.example}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+
+services:
+  # ---------------------------------------------------------------------------
+  # Edge / TLS
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateless
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp' # HTTP/3
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Application services
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      target: web
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateless
+    environment:
+      <<: *app-env
+      PORT: 3000
+    expose:
+      - '3000'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging: *default-logging
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      target: api
+    restart: unless-stopped
+    labels:
+      # The ingest endpoint is the service most likely to need replicas first.
+      morph.scaling: stateless
+    environment:
+      <<: *app-env
+      PORT: 3001
+    expose:
+      - '3001'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    logging: *default-logging
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      target: worker
+    restart: unless-stopped
+    labels:
+      # BullMQ workers are horizontally scalable, BUT the repeatable-job scheduler
+      # (report.hourly, adapt.evolve) must be owned by exactly one process. That
+      # ownership is taken via a Redis lock, not by running a single replica -
+      # see apps/worker/src/scheduler.ts.
+      morph.scaling: stateless
+    environment:
+      <<: *app-env
+      WORKER_HEALTH_PORT: 3003
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      CRAWLER_USER_AGENT: ${CRAWLER_USER_AGENT:-MorphBot/0.1 (+http://localhost:3000/bot)}
+    expose:
+      - '3003'
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    logging: *default-logging
+
+  admin:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+      target: admin
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateless
+    environment:
+      <<: *app-env
+      PORT: 3002
+    expose:
+      - '3002'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Data plane
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateful-single
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-morph}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-morph}
+      POSTGRES_DB: ${POSTGRES_DB:-morph}
+      # Deterministic collation so index ordering never shifts under a libc upgrade.
+      POSTGRES_INITDB_ARGS: '--locale-provider=icu --icu-locale=en-US --encoding=UTF8'
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=6GB
+      - -c
+      - work_mem=32MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - max_connections=200
+      - -c
+      - random_page_cost=1.1 # NVMe, not spinning rust
+      - -c
+      - wal_compression=zstd
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - track_io_timing=on
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - '127.0.0.1:5432:5432' # loopback only - never expose Postgres publicly
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-morph} -d ${POSTGRES_DB:-morph}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateful-single
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-morph}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-morph}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-change-me}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
+      - ./clickhouse/config.d:/etc/clickhouse-server/config.d:ro
+    ports:
+      - '127.0.0.1:8123:8123'
+      - '127.0.0.1:9000:9000'
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8123/ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateful-single
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --appendfsync
+      - everysec
+      # Assignment cache and posteriors are reconstructible; queues are not.
+      # `noeviction` makes an out-of-memory condition loud instead of silently
+      # dropping BullMQ jobs. Size the box, do not let Redis guess.
+      - --maxmemory-policy
+      - noeviction
+      - --maxmemory
+      - 4gb
+    volumes:
+      - redis_data:/data
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging: *default-logging
+
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateful-single
+    command:
+      - redpanda
+      - start
+      - --smp=2
+      - --memory=2G
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092,EXTERNAL://localhost:19092
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    ports:
+      - '127.0.0.1:19092:19092'
+    healthcheck:
+      test: ['CMD-SHELL', 'rpk cluster health | grep -E "Healthy:.+true"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Observability
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.112.0
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateless
+    command: ['--config=/etc/otel/config.yaml']
+    volumes:
+      - ./otel/config.yaml:/etc/otel/config.yaml:ro
+    expose:
+      - '4317'
+      - '4318'
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateful-single
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '127.0.0.1:9090:9090'
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    restart: unless-stopped
+    labels:
+      morph.scaling: stateless
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-morph}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '127.0.0.1:3009:3000'
+    depends_on:
+      - prometheus
+    logging: *default-logging
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+  redis_data:
+  redpanda_data:
+  prometheus_data:
+  grafana_data:
+  caddy_data:
+  caddy_config:
