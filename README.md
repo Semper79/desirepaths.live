@@ -14,15 +14,15 @@ Designed for **5M+ events/day**, p95 page TTFB **under 150 ms**, adaptive decisi
 
 ## Status
 
-| Phase                   |     |                                                 |
-| ----------------------- | --- | ----------------------------------------------- |
-| 0 — Foundations         | ✅  | monorepo, infrastructure, CI, the quality gate  |
-| 1 — Event ingest        | 🟡  | schema and contract done; the collector is next |
-| 2 — The adaptive engine | ✅  | pure, zero dependencies, 100% branch coverage   |
-| 3 — The adaptive site   | 🔜  | blocked on decisions D1–D4                      |
-| 4–8                     | 🔜  | see `docs/ROADMAP.md`                           |
+| Phase                   |     |                                                     |
+| ----------------------- | --- | --------------------------------------------------- |
+| 0 — Foundations         | ✅  | monorepo, infrastructure, CI, the quality gate      |
+| 1 — Event ingest        | 🟡  | schema, contract and the collector done; k6 pending |
+| 2 — The adaptive engine | ✅  | pure, zero dependencies, 100% branch coverage       |
+| 3 — The adaptive site   | 🔜  | blocked on decisions D1–D4                          |
+| 4–8                     | 🔜  | see `docs/ROADMAP.md`                               |
 
-**381 tests passing.** Typecheck, lint, guardrail and coverage gates green.
+**466 tests passing.** Typecheck, lint, guardrail, format and coverage gates green.
 
 ---
 
@@ -30,7 +30,7 @@ Designed for **5M+ events/day**, p95 page TTFB **under 150 ms**, adaptive decisi
 
 ```bash
 pnpm install
-pnpm test          # 381 tests — no Docker needed
+pnpm test          # 466 tests — no Docker needed
 pnpm sim           # watch the bandit converge on a known-truth world
 pnpm report:sample # print a worked example of the hourly Telegram report
 ```
@@ -78,6 +78,15 @@ The typed `SurfaceRegistry` with eleven surfaces and forty-nine variants; WCAG 2
 contrast maths over OKLCH with gamut-preserving chroma reduction; the design-token
 boundary that stops a model-generated variant injecting CSS; the consent model; the
 event contract; the Postgres schema.
+
+### `apps/api` — the collector
+
+The 5,000 req/s path. Its trust boundary is the interesting part: a client may report
+what it _observed_ — viewport, scroll depth, session depth — and never what it _is_. The
+anonymous identifier, bot score, consent mask, device class, country and referrer class
+are all derived server-side from the request, so a hostile payload cannot choose its own
+identity. It answers 202 as soon as the batch reaches the broker, 503 with a retry hint
+when it cannot, and 429 from an in-process token bucket keyed on the derived identifier.
 
 ### `packages/telegram` — the operator's window
 

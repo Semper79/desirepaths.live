@@ -20,7 +20,7 @@ morph/
 ├── tsconfig.base.json             ✅ strict + noUncheckedIndexedAccess + exactOptional
 ├── eslint.config.mjs              ✅ flat config; no-any, no-unjustified-non-null
 ├── vitest.config.ts               ✅ coverage + path-scoped thresholds
-├── vitest.workspace.ts            ✅ the three test projects
+├── vitest.workspace.ts            ✅ the four test projects
 ├── .env.example                   ✅ every variable documented with its failure mode
 ├── .gitattributes                 ✅ LF normalisation
 │
@@ -94,8 +94,18 @@ morph/
 │   ├── social/                    🔜 Phase 7
 │   └── ui/                        🔜 Phase 3
 │
-├── apps/                          🔜 Phases 1, 3, 4, 7
-│   ├── web/ api/ worker/ admin/
+├── apps/
+│   ├── api/                       🟡 the collector; k6 load test pending
+│   │   ├── src/env.ts             ✅ fail-at-boot environment validation
+│   │   ├── src/server.ts          ✅ Fastify, built from injected dependencies
+│   │   ├── src/lib/anon-id.ts     ✅ the daily-rotating identifier
+│   │   ├── src/lib/classify.ts    ✅ device, referrer, source, bot score
+│   │   ├── src/lib/enrich.ts      ✅ the trust boundary
+│   │   ├── src/lib/rate-limit.ts  ✅ token bucket, bounded, LRU-evicting
+│   │   ├── src/lib/producer.ts    ✅ Redpanda sink behind an interface
+│   │   ├── src/routes/            ✅ POST /i, /health, /ready
+│   │   └── test/                  ✅ 3 files
+│   ├── web/ worker/ admin/        🔜 Phases 3, 4, 7
 │
 └── docs/
     ├── ARCHITECTURE.md            ✅
@@ -127,12 +137,8 @@ apps/
 │   ├── src/lib/beacon.ts             batched client collector
 │   └── src/components/consent-gate.tsx
 │
-├── api/                                            Phase 1
-│   ├── src/routes/ingest.ts          POST /i — the 5k req/s path
-│   ├── src/routes/dsr.ts             export and erasure
-│   ├── src/lib/anon-id.ts            the daily rotating hash
-│   ├── src/lib/bot-score.ts
-│   └── src/lib/producer.ts           Redpanda
+├── api/                                            Phase 1 remainder
+│   └── src/routes/dsr.ts             export and erasure endpoints
 │
 ├── worker/                                         Phases 5–7
 │   ├── src/scheduler.ts              repeatable jobs behind a Redis lease

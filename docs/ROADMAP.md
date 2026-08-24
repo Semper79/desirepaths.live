@@ -34,7 +34,7 @@ Monorepo, toolchain, infrastructure topology, the working agreement.
 
 ---
 
-## Phase 1 — Event ingest 🟡 _schema and contract complete; services pending_
+## Phase 1 — Event ingest 🟡 _collector complete; load test pending_
 
 **Done:**
 
@@ -47,8 +47,11 @@ Monorepo, toolchain, infrastructure topology, the working agreement.
 - The anonymous identity scheme and the consent model, with tests
 - Postgres bootstrap: extensions, least-privilege roles, monthly partition maintenance
 
-**Remaining:** `apps/api` (the Fastify collector), the k6 load test, and
-`docs/BENCHMARKS.md` filled with real numbers.
+- `apps/api`: the Fastify collector, its enrichment trust boundary, an in-process
+  token-bucket limiter keyed on the derived identifier, heuristic bot scoring, the
+  Redpanda sink behind an interface, and split liveness/readiness probes
+
+**Remaining:** the k6 load test, and `docs/BENCHMARKS.md` filled with real numbers.
 
 **Gate:** k6 sustains 5,000 req/s on `POST /i` with p99 under 25 ms.
 

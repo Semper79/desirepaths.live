@@ -123,3 +123,58 @@ export const IngestBatchSchema = z.object({
 });
 
 export type IngestBatch = z.infer<typeof IngestBatchSchema>;
+
+// -----------------------------------------------------------------------------
+// The client → collector contract
+// -----------------------------------------------------------------------------
+/**
+ * What a browser is permitted to send.
+ *
+ * Deliberately narrower than `IngestEventSchema`. Everything the server can derive, the
+ * server derives — the anonymous id (the client does not have the pepper), the bot
+ * score (a client would always claim zero), the consent mask (read from the first-party
+ * cookie, not from a field a script can set), and every context field that comes from
+ * request headers.
+ *
+ * The rule this encodes: **a client may report what it observed, never what it is.**
+ * Viewport width and scroll depth are observations only the browser has. Device class,
+ * country and referrer class are claims about identity, and accepting a claim about
+ * identity from the thing making it is how measurement becomes fiction.
+ */
+export const ClientContextSchema = z.object({
+  /** Actual measured CSS pixel width. Bucketed server-side. */
+  viewportWidth: z.number().int().min(0).max(20_000),
+  depth: z.number().int().min(0).max(50),
+  returning: z.boolean(),
+  /** BCP-47 language subtag only. Region is deliberately dropped. */
+  locale: z.string().max(8),
+});
+
+export type ClientContext = z.infer<typeof ClientContextSchema>;
+
+export const ClientEventSchema = z.object({
+  v: z.literal(1),
+  eventId: z.string().uuid(),
+  ts: z.string().datetime({ offset: false }),
+  type: z.enum(EVENT_TYPES),
+  sessionId: z.string().uuid(),
+  ctx: ClientContextSchema,
+  path: z.string().max(256),
+  contentId: z.string().uuid().optional(),
+  surfaces: z.array(z.string().max(48)).max(32),
+  variants: z.array(z.string().max(80)).max(32),
+  assignmentHash: z.string().regex(/^\d{1,20}$/),
+  holdout: z.union([z.literal(0), z.literal(1)]),
+  value: z.number().finite().default(0),
+  props: z.record(z.string().max(32), z.string().max(256)).default({}),
+});
+
+export type ClientEvent = z.infer<typeof ClientEventSchema>;
+
+export const ClientBatchSchema = z.object({
+  events: z.array(ClientEventSchema).min(1).max(50),
+  /** Client-side referrer, used only for classification and never stored. */
+  referrer: z.string().max(2048).optional(),
+});
+
+export type ClientBatch = z.infer<typeof ClientBatchSchema>;

@@ -17,7 +17,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: './coverage',
-      include: ['packages/*/src/**/*.ts'],
+      include: ['packages/*/src/**/*.ts', 'apps/api/src/**/*.ts'],
       exclude: [
         // Re-export barrels: no logic, and covering them measures nothing.
         '**/src/index.ts',
@@ -33,6 +33,13 @@ export default defineConfig({
         // Declarative Drizzle table definitions. There is no behaviour to cover;
         // the schema is verified by the migration test against a real database.
         'packages/core/src/db/**',
+        // Process entry point: boot ordering and signal handling, exercised by running
+        // the service rather than by a unit test that would only assert its own mock.
+        'apps/api/src/index.ts',
+        // Thin adapter over kafkajs. MemorySink implements the same interface and is
+        // what the route tests actually run against; covering this file would be
+        // covering kafkajs.
+        'apps/api/src/lib/producer.ts',
       ],
       thresholds: {
         // Section 7: "100% branch coverage in packages/adaptive (including a statistical

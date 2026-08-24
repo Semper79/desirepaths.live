@@ -67,7 +67,7 @@ explaining why it exists.
 
 ```bash
 pnpm sim              # the convergence harness, with its full output
-pnpm test:coverage    # 381 tests; 100% branches in packages/adaptive
+pnpm test:coverage    # 466 tests; 100% branches in packages/adaptive
 ```
 
 ---
