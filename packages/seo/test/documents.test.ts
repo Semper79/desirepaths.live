@@ -137,7 +137,10 @@ describe('JSON-LD', () => {
     ]);
     const serialised = serialiseJsonLd(doc);
     expect(serialised).not.toContain('</script');
-    expect(() => JSON.parse(serialised) as unknown).not.toThrow();
+
+    // Still valid JSON, and the headline survives the escaping unchanged.
+    const parsed = JSON.parse(serialised) as { '@graph': { headline: string }[] };
+    expect(parsed['@graph'][0]?.headline).toBe('</script><img src=x onerror=alert(1)>');
   });
 });
 

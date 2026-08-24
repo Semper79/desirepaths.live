@@ -1,0 +1,226 @@
+/*
+ * The stylesheet.
+ *
+ * Every value here is a design token, and every token is set by a variant on the
+ * `<html>` element by the server. That is the whole trick: the CSS never changes, the
+ * custom properties do, and because they arrive in the initial HTML there is no
+ * client-side re-render and therefore no layout shift.
+ *
+ * There is deliberately no CSS-in-JS, no utility framework and no theme switcher. A
+ * runtime style system would have to run on the client to apply a variant, which is
+ * exactly the flash this design exists to avoid.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark light;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Reduced motion is honoured unconditionally, above and beyond the `motion.intensity`
+ * surface. The surface decides how much the interface moves for people who have not
+ * expressed a preference; this decides for those who have, and the optimiser does not
+ * get a vote. Section 2.1: "respects prefers-reduced-motion — always".
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- typography ---------------------------------------------------------- */
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-display);
+  line-height: 1.1;
+  margin: 0 0 calc(var(--space-unit) * 2);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2.25rem, 1.4rem + 4.2vw, 4.5rem);
+}
+
+h2 {
+  font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2.25rem);
+}
+
+p {
+  margin: 0 0 calc(var(--space-unit) * 2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+/* --- layout -------------------------------------------------------------- */
+
+.shell {
+  margin-inline: auto;
+  max-width: 72rem;
+  padding-inline: clamp(1rem, 4vw, 3rem);
+}
+
+section {
+  padding-block: var(--section-gap);
+  border-bottom: 1px solid var(--color-border);
+}
+
+section:last-of-type {
+  border-bottom: 0;
+}
+
+.stack > * + * {
+  margin-block-start: calc(var(--space-unit) * 2);
+}
+
+.grid {
+  display: grid;
+  gap: calc(var(--space-unit) * 3);
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--space-unit) * 1.5);
+  padding: calc(var(--space-unit) * 3);
+}
+
+/* --- the call to action -------------------------------------------------- */
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  min-width: var(--tap-min);
+  padding: var(--cta-pad-y) var(--cta-pad-x);
+  border: 0;
+  border-radius: var(--cta-radius);
+  background: var(--cta-bg);
+  color: var(--cta-fg);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--motion-duration) var(--motion-ease);
+}
+
+.cta:hover {
+  transform: translateY(calc(var(--motion-distance) * -0.25));
+}
+
+/*
+ * A visible focus ring, always. Removing it is the single most common accessibility
+ * regression on the web, and on a site whose colours are chosen by an optimiser the
+ * ring has to be derived from a token that is contrast-checked rather than from
+ * whatever the browser would have picked.
+ */
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* --- the hero ------------------------------------------------------------ */
+
+.hero {
+  display: grid;
+  gap: calc(var(--space-unit) * 4);
+  align-items: center;
+  padding-block: calc(var(--section-gap) * 1.5);
+}
+
+@media (min-width: 60rem) {
+  .hero {
+    grid-template-columns: 1.2fr 1fr;
+  }
+}
+
+.hero-media {
+  aspect-ratio: 4 / 3;
+  border-radius: calc(var(--space-unit) * 2);
+  background: linear-gradient(
+    135deg,
+    var(--hero-gradient-from, var(--color-surface)),
+    var(--hero-gradient-to, var(--color-accent))
+  );
+}
+
+/* --- provider buttons ---------------------------------------------------- */
+
+.providers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-unit);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.provider {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min);
+  padding: 0 calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--space-unit));
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+/* --- utilities ----------------------------------------------------------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: -9999px;
+}
+
+.skip-link:focus {
+  inset-inline-start: calc(var(--space-unit) * 2);
+  inset-block-start: calc(var(--space-unit) * 2);
+  z-index: 10;
+  padding: var(--space-unit) calc(var(--space-unit) * 2);
+  background: var(--color-surface);
+  color: var(--color-text);
+}

@@ -20,14 +20,14 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { CONSENT_DEFAULT } from '@morph/core';
+import type { VisitorIdentity } from '@morph/core';
 import { enrich, type RequestMeta } from '../lib/enrich.js';
-import type { SaltCache } from '../lib/anon-id.js';
 import type { EventSink } from '../lib/producer.js';
 import { INGEST_BUCKET, TokenBucketLimiter } from '../lib/rate-limit.js';
 
 export interface IngestDeps {
   readonly sink: EventSink;
-  readonly saltCache: SaltCache;
+  readonly identity: VisitorIdentity;
   readonly selfHost: string;
   readonly timezone: string;
   readonly metrics: IngestMetrics;
@@ -126,8 +126,8 @@ export function registerIngestRoute(app: FastifyInstance, deps: IngestDeps): voi
       now,
     };
 
-    const result = enrich(request.body, meta, {
-      saltCache: deps.saltCache,
+    const result = await enrich(request.body, meta, {
+      identity: deps.identity,
       selfHost: deps.selfHost,
       timezone: deps.timezone,
     });

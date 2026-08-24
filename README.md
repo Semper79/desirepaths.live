@@ -19,10 +19,10 @@ Designed for **5M+ events/day**, p95 page TTFB **under 150 ms**, adaptive decisi
 | 0 — Foundations         | ✅  | monorepo, infrastructure, CI, the quality gate      |
 | 1 — Event ingest        | 🟡  | schema, contract and the collector done; k6 pending |
 | 2 — The adaptive engine | ✅  | pure, zero dependencies, 100% branch coverage       |
-| 3 — The adaptive site   | 🔜  | blocked on decisions D1–D4                          |
+| 3 — The adaptive site   | 🟡  | site, SEO/AEO and the crawler rule; auth is Phase 4 |
 | 4–8                     | 🔜  | see `docs/ROADMAP.md`                               |
 
-**466 tests passing.** Typecheck, lint, guardrail, format and coverage gates green.
+**595 tests passing.** Typecheck, lint, guardrail, format and coverage gates green.
 
 ---
 
@@ -30,7 +30,7 @@ Designed for **5M+ events/day**, p95 page TTFB **under 150 ms**, adaptive decisi
 
 ```bash
 pnpm install
-pnpm test          # 466 tests — no Docker needed
+pnpm test          # 595 tests — no Docker needed
 pnpm sim           # watch the bandit converge on a known-truth world
 pnpm report:sample # print a worked example of the hourly Telegram report
 ```
@@ -87,6 +87,25 @@ anonymous identifier, bot score, consent mask, device class, country and referre
 are all derived server-side from the request, so a hostile payload cannot choose its own
 identity. It answers 202 as soon as the batch reaches the broker, 503 with a retry hint
 when it cannot, and 429 from an in-process token bucket keyed on the derived identifier.
+
+### `apps/web` and `@morph/seo` — the adaptive site, and staying findable
+
+The HTML that leaves the origin is already adapted: the chosen variants' design tokens
+are written into a single declaration block in `<head>`, so the first paint is correct
+and the adaptive layer contributes no layout shift. A site that adapted by re-rendering
+on the client would fail the very CLS budget the optimiser is judged against.
+
+Making that indexable needs one rule, and it is the most important decision in Phase 3:
+**every automated request receives the baseline** — byte for byte what the 5% holdout
+cohort sees. Otherwise the indexed version of a page is whichever variant the bandit drew
+for the crawler that day, and the site is serving search engines systematically different
+content from humans. Crawler traffic is also excluded from the posteriors, because a
+crawler never converts and counting it would teach the optimiser that every variant is bad.
+
+On top of that: JSON-LD with machine generation stated rather than hidden and sources
+carried in `isBasedOn`, RSS and Atom, a sitemap whose `lastmod` comes from the content
+row and never from the clock, and `/llms.txt` — with a notes section that states the
+things a model would otherwise keep guessing wrong. AI crawlers are welcomed explicitly.
 
 ### `packages/telegram` — the operator's window
 

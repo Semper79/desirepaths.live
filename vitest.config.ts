@@ -17,7 +17,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: './coverage',
-      include: ['packages/*/src/**/*.ts', 'apps/api/src/**/*.ts'],
+      include: ['packages/*/src/**/*.ts', 'apps/api/src/**/*.ts', 'apps/web/src/lib/**/*.ts'],
       exclude: [
         // Re-export barrels: no logic, and covering them measures nothing.
         '**/src/index.ts',

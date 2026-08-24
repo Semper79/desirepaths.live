@@ -21,9 +21,9 @@ import {
   validateEvent,
   type IngestEvent,
   type VisitorContext,
+  type VisitorIdentity,
 } from '@morph/core';
 import { botScore, classifyReferrer, deviceClass, viewportBucket } from './classify.js';
-import type { SaltCache } from './anon-id.js';
 
 export interface RequestMeta {
   /** Used to derive the anonymous id, then discarded. Never stored, never logged. */
@@ -60,7 +60,12 @@ export interface EnrichResult {
 }
 
 export interface EnrichOptions {
-  readonly saltCache: SaltCache;
+  /**
+   * Shared with edge middleware through `@morph/core`. One implementation, because
+   * two that disagree by a byte would stop the assignment joining the behaviour it
+   * produced — silently, with nothing failing and the numbers quietly wrong.
+   */
+  readonly identity: VisitorIdentity;
   /** The site's own hostname, so self-referrals are classified as internal. */
   readonly selfHost: string;
   /** IANA timezone used for the hour-of-week feature. */
@@ -99,7 +104,11 @@ export function hourOfWeek(at: Date, timezone: string): number {
  * bad event keeps the rest: a single client bug should not cost a session's entire
  * measurement.
  */
-export function enrich(body: unknown, meta: RequestMeta, options: EnrichOptions): EnrichResult {
+export async function enrich(
+  body: unknown,
+  meta: RequestMeta,
+  options: EnrichOptions,
+): Promise<EnrichResult> {
   const parsed = ClientBatchSchema.safeParse(body);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
@@ -118,7 +127,7 @@ export function enrich(body: unknown, meta: RequestMeta, options: EnrichOptions)
   }
 
   const batch = parsed.data;
-  const anonId = options.saltCache.idFor(meta.ip, meta.userAgent ?? '', meta.now);
+  const anonId = await options.identity.idFor(meta.ip, meta.userAgent ?? '', meta.now);
 
   const device = deviceClass({
     chUaMobile: meta.chUaMobile,

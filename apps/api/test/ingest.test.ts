@@ -3,8 +3,8 @@ import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../src/server.js';
 import { MemorySink } from '../src/lib/producer.js';
 import { CountingMetrics, consentMaskFromCookie } from '../src/routes/ingest.js';
+import { VisitorIdentity } from '@morph/core';
 import { enrich, hourOfWeek } from '../src/lib/enrich.js';
-import { SaltCache } from '../src/lib/anon-id.js';
 import { loadEnv } from '../src/env.js';
 
 const PEPPER = 'p'.repeat(64);
@@ -84,7 +84,11 @@ describe('consentMaskFromCookie', () => {
 });
 
 describe('enrich — the trust boundary', () => {
-  const options = { saltCache: new SaltCache(PEPPER), selfHost: SELF, timezone: 'Europe/Rome' };
+  const options = {
+    identity: new VisitorIdentity(PEPPER),
+    selfHost: SELF,
+    timezone: 'Europe/Rome',
+  };
   const meta = {
     ip: '203.0.113.7',
     userAgent: 'Mozilla/5.0 (iPhone) Mobile',
@@ -97,8 +101,8 @@ describe('enrich — the trust boundary', () => {
     now: NOW,
   };
 
-  it('derives every identity field server-side', () => {
-    const result = enrich(
+  it('derives every identity field server-side', async () => {
+    const result = await enrich(
       { events: [clientEvent()], referrer: 'https://www.tiktok.com/@x' },
       meta,
       options,
@@ -114,19 +118,19 @@ describe('enrich — the trust boundary', () => {
     expect(event?.consentMask).toBe(3);
   });
 
-  it('accepts what the browser observed', () => {
-    const event = enrich({ events: [clientEvent()] }, meta, options).events[0];
+  it('accepts what the browser observed', async () => {
+    const event = (await enrich({ events: [clientEvent()] }, meta, options)).events[0];
     expect(event?.ctx.viewport).toBe('xs'); // bucketed from 390
     expect(event?.ctx.depth).toBe(1);
     expect(event?.ctx.returning).toBe(false);
   });
 
-  it('drops the region from the locale', () => {
-    const event = enrich({ events: [clientEvent()] }, meta, options).events[0];
+  it('drops the region from the locale', async () => {
+    const event = (await enrich({ events: [clientEvent()] }, meta, options)).events[0];
     expect(event?.ctx.locale).toBe('it');
   });
 
-  it('ignores an identity a hostile client tries to assert', () => {
+  it('ignores an identity a hostile client tries to assert', async () => {
     const forged = clientEvent();
     // A client that adds these fields is trying to choose its own identity. The schema
     // strips them, and even if it did not, enrichment overwrites them.
@@ -144,22 +148,23 @@ describe('enrich — the trust boundary', () => {
       },
     });
 
-    const event = enrich({ events: [forged] }, { ...meta, consentMask: 1 }, options).events[0];
+    const event = (await enrich({ events: [forged] }, { ...meta, consentMask: 1 }, options))
+      .events[0];
     expect(event?.anonId).not.toBe('f'.repeat(32));
     expect(event?.consentMask).toBe(1);
     expect(event?.ctx.device).toBe('phone');
     expect(event?.ctx.country).toBe('IT');
   });
 
-  it('rejects a malformed body wholesale', () => {
-    const result = enrich({ nope: true }, meta, options);
+  it('rejects a malformed body wholesale', async () => {
+    const result = await enrich({ nope: true }, meta, options);
     expect(result.events).toEqual([]);
     expect(result.anonId).toBeNull();
     expect(result.rejected[0]?.index).toBe(-1);
   });
 
-  it('keeps the good events when one is bad', () => {
-    const result = enrich(
+  it('keeps the good events when one is bad', async () => {
+    const result = await enrich(
       {
         events: [
           clientEvent(),
@@ -176,20 +181,22 @@ describe('enrich — the trust boundary', () => {
     expect(result.rejected[0]?.reason).toContain('percentage');
   });
 
-  it('attaches the user id only when the session is authenticated', () => {
-    const anonymous = enrich({ events: [clientEvent()] }, meta, options).events[0];
+  it('attaches the user id only when the session is authenticated', async () => {
+    const anonymous = (await enrich({ events: [clientEvent()] }, meta, options)).events[0];
     expect(anonymous?.userId).toBeUndefined();
 
-    const authed = enrich(
-      { events: [clientEvent()] },
-      { ...meta, userId: '018f1f8c-2f3a-7c2a-9e2b-3d5a6f7b8c9f' },
-      options,
+    const authed = (
+      await enrich(
+        { events: [clientEvent()] },
+        { ...meta, userId: '018f1f8c-2f3a-7c2a-9e2b-3d5a6f7b8c9f' },
+        options,
+      )
     ).events[0];
     expect(authed?.userId).toBe('018f1f8c-2f3a-7c2a-9e2b-3d5a6f7b8c9f');
   });
 
-  it('scores automated traffic and lets it through, marked', () => {
-    const result = enrich(
+  it('scores automated traffic and lets it through, marked', async () => {
+    const result = await enrich(
       { events: [clientEvent()] },
       { ...meta, userAgent: 'Googlebot/2.1', acceptLanguage: undefined, hasCookies: false },
       options,

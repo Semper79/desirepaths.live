@@ -8,7 +8,7 @@
  */
 
 import Fastify, { type FastifyInstance } from 'fastify';
-import { SaltCache } from './lib/anon-id.js';
+import { VisitorIdentity } from '@morph/core';
 import type { EventSink } from './lib/producer.js';
 import { CountingMetrics, registerIngestRoute, type IngestMetrics } from './routes/ingest.js';
 import { registerHealthRoutes } from './routes/health.js';
@@ -43,7 +43,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
 
   registerIngestRoute(app, {
     sink: options.sink,
-    saltCache: new SaltCache(options.pepper),
+    identity: new VisitorIdentity(options.pepper),
     selfHost: options.selfHost,
     timezone: options.timezone,
     metrics: options.metrics ?? new CountingMetrics(),

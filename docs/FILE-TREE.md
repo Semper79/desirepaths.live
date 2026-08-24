@@ -20,7 +20,7 @@ morph/
 ├── tsconfig.base.json             ✅ strict + noUncheckedIndexedAccess + exactOptional
 ├── eslint.config.mjs              ✅ flat config; no-any, no-unjustified-non-null
 ├── vitest.config.ts               ✅ coverage + path-scoped thresholds
-├── vitest.workspace.ts            ✅ the four test projects
+├── vitest.workspace.ts            ✅ the six test projects
 ├── .env.example                   ✅ every variable documented with its failure mode
 ├── .gitattributes                 ✅ LF normalisation
 │
@@ -90,9 +90,22 @@ morph/
 │   │   │   └── sample.ts          ✅ the worked example
 │   │   └── test/                  ✅ 2 files
 │   │
+│   ├── seo/                       ✅ JSON-LD, sitemap, feeds, robots, llms.txt
+│   │   ├── src/xml.ts             ✅ escaping, CDATA splitting, date formats
+│   │   ├── src/embed.ts           ✅ safe embedding of generated data in HTML
+│   │   ├── src/jsonld.ts          ✅ entities, provenance, source attribution
+│   │   ├── src/sitemap.ts         ✅ urlset, index, chunking
+│   │   ├── src/feed.ts            ✅ RSS 2.0 and Atom 1.0
+│   │   ├── src/aeo.ts             ✅ robots.txt and llms.txt
+│   │   ├── src/meta.ts            ✅ canonical URLs, Open Graph, Twitter cards
+│   │   └── test/                  ✅ 2 files
+│   │
+│   ├── ui/                        🟡 the token contract; components land with the beacon
+│   │   ├── src/tokens.ts          ✅ required set, fallback bag, composition
+│   │   └── test/                  ✅ 1 file
+│   │
 │   ├── crawler/                   🔜 Phase 5
-│   ├── social/                    🔜 Phase 7
-│   └── ui/                        🔜 Phase 3
+│   └── social/                    🔜 Phase 7
 │
 ├── apps/
 │   ├── api/                       🟡 the collector; k6 load test pending
@@ -105,7 +118,15 @@ morph/
 │   │   ├── src/lib/producer.ts    ✅ Redpanda sink behind an interface
 │   │   ├── src/routes/            ✅ POST /i, /health, /ready
 │   │   └── test/                  ✅ 3 files
-│   ├── web/ worker/ admin/        🔜 Phases 3, 4, 7
+│   ├── web/                       🟡 the adaptive site; beacon and consent UI pending
+│   │   ├── src/middleware.ts      ✅ derives the visitor context, strips the raw inputs
+│   │   ├── src/lib/assignment.ts  ✅ resolution, and the crawler rule
+│   │   ├── src/lib/render.ts      ✅ assignment → token bag and typed payloads
+│   │   ├── src/lib/request-context.ts ✅ device, referrer, consent, edge bot score
+│   │   ├── src/lib/site.ts        ✅ identity and the content index
+│   │   ├── src/app/               ✅ layout, page, sitemap, robots, feeds, llms.txt
+│   │   └── test/                  ✅ 2 files
+│   ├── worker/ admin/             🔜 Phases 5, 7
 │
 └── docs/
     ├── ARCHITECTURE.md            ✅

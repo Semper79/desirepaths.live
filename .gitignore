@@ -38,3 +38,7 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Next.js
+.next/
+next-env.d.ts

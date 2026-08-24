@@ -81,21 +81,31 @@ That second number is why the phase took longer than planned — see D9 in
 
 ---
 
-## Phase 3 — The adaptive site 🔜
+## Phase 3 — The adaptive site 🟡 _site and SEO/AEO complete; auth is Phase 4_
 
-`apps/web`. The surface registry and design-token system are done; what remains is the
-rendering.
+**Done:**
 
-- Edge middleware: resolve or compute the assignment, write tokens onto `<html>`
-- React Server Components for every section; only the adaptive shell is dynamic
-- `packages/ui`: components that read tokens and nothing else
-- The client beacon: batched, `sendBeacon` on unload, offline queue
-- Consent gate as a real gate
+- `apps/web`: Next.js 15 App Router, edge middleware deriving the visitor context, the
+  assignment resolved server-side before render, and the token bag written into
+  `<head>` so the first paint is already correct
+- The crawler rule: every automated request gets the baseline, and is excluded from the
+  posteriors
+- `@morph/ui`: the token contract, its required set, and a fallback bag verified to
+  pass WCAG AA on every pair the palette surface declares
+- `@morph/seo`: JSON-LD (Organization, WebSite, Article, FAQPage) with generation
+  provenance and `isBasedOn` attribution, RSS, Atom, sitemap, robots.txt welcoming AI
+  crawlers, and `/llms.txt`
+- Split `/api/health` and `/api/ready`
 
-**Gate:** a live site that visibly reshapes itself, with zero layout flash, LCP under
-2.0 s on a mid-range phone, and axe clean on every variant.
+Verified by `next build` and by running the production server: the tokens are in the
+initial HTML, the structured data parses, and a Googlebot user agent receives the
+baseline while a browser does not.
 
-**Blocked on:** D1 (subject), D2 (domain), D3 (hosting), D4 (controller).
+**Remaining in this phase:** the client beacon, the consent gate UI, per-article pages,
+and dynamic OG images.
+
+**Gate:** LCP under 2.0 s on a mid-range phone and axe clean on every variant — both
+need the Lighthouse and axe CI jobs, which need a deployed URL (D2, D3).
 
 ---
 
