@@ -88,9 +88,9 @@ describe('token values', () => {
 
 describe('TokenMap', () => {
   it('accepts a well-formed bag', () => {
-    expect(
-      TokenMap.safeParse({ '--color-bg': '#0b0b12', '--space-unit': '8px' }).success,
-    ).toBe(true);
+    expect(TokenMap.safeParse({ '--color-bg': '#0b0b12', '--space-unit': '8px' }).success).toBe(
+      true,
+    );
   });
 
   it('rejects a bag with one bad entry', () => {
@@ -102,9 +102,9 @@ describe('TokenMap', () => {
 
 describe('tokensToStyleAttribute', () => {
   it('renders a deterministic, sorted declaration list', () => {
-    expect(
-      tokensToStyleAttribute({ '--color-text': '#fff', '--color-bg': '#000' }),
-    ).toBe('--color-bg:#000;--color-text:#fff');
+    expect(tokensToStyleAttribute({ '--color-text': '#fff', '--color-bg': '#000' })).toBe(
+      '--color-bg:#000;--color-text:#fff',
+    );
   });
 
   it('renders an empty bag as an empty string', () => {

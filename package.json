@@ -21,11 +21,12 @@
     "report:sample": "pnpm --filter @morph/telegram run sample",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build",
+    "verify": "pnpm typecheck && pnpm lint && pnpm guardrails && pnpm test:coverage && pnpm build",
     "typecheck:direct": "node scripts/run-all.mjs typecheck",
     "build:direct": "node scripts/run-all.mjs build",
-    "verify:direct": "pnpm typecheck:direct && pnpm lint && pnpm test:coverage && pnpm build:direct",
-    "lint:fix": "eslint . --fix"
+    "verify:direct": "pnpm typecheck:direct && pnpm lint && pnpm guardrails && pnpm test:coverage && pnpm build:direct",
+    "lint:fix": "eslint . --fix",
+    "guardrails": "node scripts/check-guardrails.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

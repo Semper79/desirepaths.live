@@ -1,0 +1,24 @@
+# Datasources as code. A dashboard that only exists in someone's browser is not a
+# dashboard, it is a rumour.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      timeInterval: 15s
+
+  - name: ClickHouse
+    type: grafana-clickhouse-datasource
+    access: proxy
+    jsonData:
+      host: clickhouse
+      port: 9000
+      protocol: native
+      defaultDatabase: morph
+      username: ${CLICKHOUSE_USER}
+    secureJsonData:
+      password: ${CLICKHOUSE_PASSWORD}

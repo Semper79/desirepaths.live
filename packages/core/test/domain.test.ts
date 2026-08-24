@@ -19,11 +19,7 @@ import {
 } from '../src/context.js';
 import { categoriesOf, CONSENT_BIT, hasConsent, maskOf, mayAdapt } from '../src/consent.js';
 import { IngestEventSchema, validateEvent, type IngestEvent } from '../src/events.js';
-import {
-  DEFAULT_ENGINE_CONFIG,
-  EngineConfigSchema,
-  RewardWeightsSchema,
-} from '../src/config.js';
+import { DEFAULT_ENGINE_CONFIG, EngineConfigSchema, RewardWeightsSchema } from '../src/config.js';
 
 // -----------------------------------------------------------------------------
 // Branded primitives
@@ -251,9 +247,7 @@ describe('ingest events', () => {
   });
 
   it('rejects an unknown event type', () => {
-    expect(() =>
-      IngestEventSchema.parse({ ...event(), type: 'mystery' }),
-    ).toThrow();
+    expect(() => IngestEventSchema.parse({ ...event(), type: 'mystery' })).toThrow();
   });
 
   it('requires surfaces and variants to line up', () => {

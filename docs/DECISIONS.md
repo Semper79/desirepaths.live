@@ -1,0 +1,223 @@
+# Open decisions
+
+Section 9.5 of the brief: "A list of every open decision you need me to make, with your
+recommendation for each."
+
+Each entry states the decision, why it cannot be deferred indefinitely, the options,
+and a recommendation with its reasoning. Where a decision was already forced by
+building Phases 0–2, it is marked **Taken** with the rationale, so it can be revisited
+deliberately rather than discovered by accident.
+
+Decisions are grouped by when they bite. Nothing in "Blocking Phase 3" can be worked
+around; everything else has a defensible default already implemented.
+
+---
+
+## Blocking Phase 3 (the public site)
+
+### D1 — What is MORPH actually about?
+
+The adaptive machinery is content-agnostic, but the site is not. Every headline, every
+trend-scoring weight and every safety rule depends on what the site is _for_, and the
+"audience interest vector" that scores trend clusters cannot be bootstrapped without a
+starting position.
+
+| Option                                                                                                         | Consequence                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **A. Meta-product**: the site is about itself — a public, live demonstration of a website that rebuilds itself | Strongest launch story, zero content dependency, naturally viral among the technical audience. Ceiling on total addressable audience. |
+| B. Vertical publication (e.g. emerging technology and internet culture)                                        | Larger audience, real SEO/AEO surface, but needs sustained editorial judgement and competes with established publishers.              |
+| C. Utility with an adaptive shell (a tool that happens to adapt)                                               | Highest retention, but the adaptive engine becomes decoration rather than the product.                                                |
+
+**Recommendation: A, with a path to B.** The hand-authored variants in
+`packages/core/src/surfaces/registry.ts` are written for A — "This page is not the same
+page it was", "Watch it learn". A is the only option where the product and its own
+marketing are the same artefact, which at zero traffic is worth more than a larger
+theoretical audience. Section 3's trend pipeline then feeds a `/trending` section that
+is _about_ what the web finds interesting, which is B arriving gradually and with
+evidence rather than as an editorial bet on day one.
+
+**What I need:** confirmation, or a one-paragraph description of the subject if not A.
+
+---
+
+### D2 — Domain and brand name
+
+Needed for OAuth callback registration, the crawler's User-Agent contact URL, ACME
+certificate issuance and every platform's app review. Several of those have multi-day
+turnarounds, so this blocks more than it looks like it does.
+
+**Recommendation:** register the domain before Phase 4 begins. Provider app review
+(TikTok and Meta in particular) takes days to weeks and cannot start without a live
+privacy policy at a stable URL.
+
+**What I need:** the domain.
+
+---
+
+### D3 — Hosting and jurisdiction
+
+| Option                                         | Notes                                                                                                                      |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **A. Hetzner CCX23, Falkenstein (DE)**         | The brief's own suggestion. 8 vCPU / 32 GB, ~€49/mo, EU jurisdiction, no US transfer question.                             |
+| B. Hetzner CCX33 (16 vCPU / 64 GB)             | ~€100/mo. Buys roughly 3× the headroom on ClickHouse merges, which `infra/SCALING.md` identifies as the second bottleneck. |
+| C. Managed (Neon + ClickHouse Cloud + Upstash) | 4–8× the cost at this scale, far less operational work, and the compliance story becomes a list of sub-processors.         |
+
+**Recommendation: A.** The load-test target is 5,000 req/s on ingest; a single CCX23
+handles that with the async-insert configuration already in the compose file. Moving to
+B is a one-line change with no migration. Choosing C at launch means paying for elastic
+scale before the traffic that would justify it exists.
+
+**What I need:** confirmation, plus who holds the account (this matters for GDPR
+controller identification).
+
+---
+
+### D4 — Legal identity of the data controller
+
+Not deferrable: `docs/PRIVACY.md` must name a controller and a contact address, and it
+must be published before the first visitor is measured. A sole trader, an SRL and a
+foreign entity have materially different obligations.
+
+**Recommendation:** name the operating entity, or the individual if there is no company
+yet. If EU-based with no establishment elsewhere, no Article 27 representative is
+needed. If processing scales past "regular and systematic monitoring on a large scale" —
+which 5M events/day plausibly is — a DPO becomes a live question; see `docs/PRIVACY.md`.
+
+**What I need:** legal entity name, registered address, and a contact email for
+data-subject requests.
+
+---
+
+## Blocking Phase 4 (sign-up)
+
+### D5 — Which OAuth providers ship at launch
+
+Ten providers are specified. Each one is a developer account, an app review, a set of
+callback URLs and a maintenance surface — and the adaptive provider-ordering surface
+needs _fewer_ options than you might expect to work well, because each one has to earn
+its own evidence.
+
+**Recommendation: launch with five** — Google, Apple, Discord, TikTok, and passkeys —
+plus email magic link as the no-social path. Rationale: Google and Apple cover the
+mainstream and the iOS default; Discord and TikTok are where the target audience
+actually is; passkeys are the fastest path for returning visitors and a genuine
+differentiator. X, Reddit, Twitch, Spotify and Instagram are all declared in
+`.env.example` and simply stay unset — the registry handles absent providers by
+removing them from the variant space, so adding one later is a credential, not a
+release.
+
+**What I need:** agreement, or a different five.
+
+---
+
+### D6 — Does the site require sign-up to be useful?
+
+This decides whether the composite reward's 40% sign-up weight is measuring value or
+measuring a wall.
+
+| Option                                                         | Consequence                                                                                                                              |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **A. Fully open, sign-up adds personalisation and the digest** | Best for SEO/AEO and for the trend pipeline's value; sign-up rate will be low (1–3%) and the optimiser has to work hard for every point. |
+| B. Metered (n free pieces, then sign-up)                       | Higher conversion, materially worse organic acquisition, and it makes the site adversarial in a way that contradicts its own pitch.      |
+
+**Recommendation: A.** Organic search and AI-answer citation are named in section 6 as the
+largest sustainable acquisition channels, and a wall is the single most reliable way to
+lose both. A 2% sign-up rate on large traffic beats 8% on small traffic, and the
+holdout-lift measurement stays honest either way.
+
+---
+
+## Blocking Phase 5 (crawling and content)
+
+### D7 — Which sources, concretely
+
+Section 3 gives a preference order, not a list. Every source needs a robots review, a ToS
+review and, for the API sources, a credential. X API v2 in particular now costs real
+money for anything beyond trivial volume.
+
+**Recommendation for launch:** Hacker News API, Reddit API, GitHub Trending, Wikipedia
+pageviews, YouTube Data API, plus RSS/Atom from a curated list of 40–60 publications.
+All are free or cheap, all have documented terms, none needs paid access. Defer X API
+until there is evidence the audience is there — at current pricing it is the most
+expensive source per unit of signal by a wide margin.
+
+**What I need:** approval of the list, and whether to budget for X API.
+
+---
+
+### D8 — How much autonomy over published content
+
+`SOCIAL_AUTONOMY` defaults to `review`, and `content.status` cannot reach `published`
+for generated content without a `reviewed_at` timestamp — enforced by a database CHECK
+constraint, not by application code.
+
+**Recommendation:** stay at `review` for at least the first month, then consider `auto`
+for one narrow, templated content type only (the trend digest), keeping long-form
+permanently in review. The asymmetry is the reason: a good piece published an hour
+earlier is worth very little; a bad piece published without review can end the project.
+
+---
+
+## Already taken, revisit deliberately
+
+### D9 — Exponential forgetting on the posteriors — **Taken**
+
+The convergence harness showed that the exploration floor alone does not let the engine
+recover when the best variant changes: terminal best share fell to 2% and stayed there,
+because a posterior built from 20,000 observations cannot be moved by 2% of traffic.
+Exponential forgetting (`decayPosterior`, `decayArm`) brings recovery to 93% and cuts
+terminal regret by an order of magnitude.
+
+The cost is real: forgetting bounds the effective sample size, so the engine is
+permanently slightly less certain than it could be, and needs a larger true effect to
+act. Default `gamma = 0.98` at the hourly cadence is about two days of memory. Both
+behaviours are asserted in `packages/adaptive/test/sim.test.ts` so the mechanism cannot
+be removed without the test explaining why it exists.
+
+### D10 — `cta.copy` and `cta.style` are two surfaces, not one — **Taken**
+
+The brief writes this as `copy × (pill / block / underline / floating)`. As one surface
+that is 32 variants needing 32,000 impressions for a single round of evidence. As two
+surfaces the marginals are learned independently and the interaction is still reachable
+through the contextual layer. Revisit if the report shows a champion pair that neither
+marginal predicts.
+
+### D11 — Reward components are stored, the reward is not — **Taken**
+
+ClickHouse stores signups, engaged sessions, scroll sum, returns, shares and bounces;
+`packages/adaptive/src/reward.ts` applies the live weights. A weight change therefore
+takes effect on the next decision with no backfill, and history stays comparable
+forever. `rewardVersion` is stamped on every adaptation-log entry so two epochs are
+never silently compared.
+
+### D12 — Surface ids are validated but not branded in the type — **Taken**
+
+A branded key cannot index a mapped record type, and `SURFACES['theme.palette']`
+resolving to its exact surface type is worth more than a brand on a value nothing else
+consumes. The runtime shape check still runs in `defineSurface`.
+
+### D13 — ClickHouse consumes Redpanda directly — **Taken**
+
+The Kafka engine table plus a materialised view replaces a hand-written consumer that
+would have to reimplement offset management, batching and back-pressure. All enrichment
+that needs request context (IP hashing, geo, bot scoring, consent) already happens in the
+edge collector, so nothing downstream of the buffer needs application logic. Revisit if
+enrichment ever has to happen after the buffer; the `events` table is unchanged either
+way.
+
+---
+
+## Deferred, but worth naming now
+
+- **APCA vs WCAG 2.2 for the contrast gate.** `apcaLc` is implemented and recorded as an
+  advisory score; the gate is the WCAG 2.2 ratio because that is the normative
+  obligation. One-line switch when WCAG 3 lands.
+- **Personalised adaptation.** Everything shipped so far runs on aggregate anonymous
+  data under legitimate interest. Per-visitor adaptation needs explicit
+  `personalisation` consent and a genuine DPIA. Recommend deferring past launch.
+- **Embedding model for the trend pipeline.** `crawl_document.embedding` is 768
+  dimensions, which fits most open sentence-transformer models. Committing to a specific
+  one is a Phase 5 decision; changing it later means a re-embed of the 30-day corpus,
+  which is a few hours of compute, not a migration.
+- **Multi-region.** `infra/SCALING.md` covers it. Not before the single node is
+  measurably saturated.

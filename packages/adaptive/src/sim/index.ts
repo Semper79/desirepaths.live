@@ -128,7 +128,11 @@ export function simulate(spec: SimulationSpec): SimulationResult {
     if (spec.decayEvery !== undefined && step > 0 && step % spec.decayEvery === 0) {
       const gamma = spec.decayGamma ?? 0.9;
       for (const t of spec.truth) {
-        const p = posteriors.get(t.variantId) as { alpha: number; beta: number; impressions: number };
+        const p = posteriors.get(t.variantId) as {
+          alpha: number;
+          beta: number;
+          impressions: number;
+        };
         const decayed = decayPosterior(p, { alpha: 1, beta: 1 }, gamma);
         p.alpha = decayed.alpha;
         p.beta = decayed.beta;

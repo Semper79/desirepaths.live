@@ -17,7 +17,12 @@
  * the assignment layer simply cannot reach a surface whose tier is not granted.
  */
 
-export const CONSENT_CATEGORIES = ['necessary', 'analytics', 'personalisation', 'marketing'] as const;
+export const CONSENT_CATEGORIES = [
+  'necessary',
+  'analytics',
+  'personalisation',
+  'marketing',
+] as const;
 export type ConsentCategory = (typeof CONSENT_CATEGORIES)[number];
 
 /**

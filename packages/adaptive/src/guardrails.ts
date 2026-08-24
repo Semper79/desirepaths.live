@@ -215,7 +215,9 @@ export function evaluateHealth(
     );
   }
   if (sample.p75Cls > thresholds.maxCls) {
-    breaches.push(`CLS p75 ${sample.p75Cls.toFixed(3)} exceeds the ${thresholds.maxCls.toFixed(3)} budget.`);
+    breaches.push(
+      `CLS p75 ${sample.p75Cls.toFixed(3)} exceeds the ${thresholds.maxCls.toFixed(3)} budget.`,
+    );
   }
   if (sample.p75InpMs > thresholds.maxInpMs) {
     breaches.push(

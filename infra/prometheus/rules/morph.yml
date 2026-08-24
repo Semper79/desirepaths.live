@@ -1,0 +1,94 @@
+# =============================================================================
+# Alerting rules
+# =============================================================================
+# These fire into the Telegram bot, not into a dashboard nobody is looking at.
+# Section 5 of the specification: "Escalate genuine alerts immediately rather than
+# waiting for the top of the hour."
+#
+# Every rule has a `for` clause. A threshold without one fires on a single scrape
+# and trains the operator to ignore alerts, which is worse than having none.
+
+groups:
+  - name: morph-availability
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"morph-.*"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: '{{ $labels.service }} is not responding'
+          runbook: docs/RUNBOOK.md#service-down
+
+      - alert: IngestErrorRate
+        expr: |
+          sum(rate(morph_ingest_errors_total[5m]))
+            / sum(rate(morph_ingest_requests_total[5m])) > 0.01
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Event ingest is dropping more than 1% of requests'
+          runbook: docs/RUNBOOK.md#ingest-errors
+
+  - name: morph-pipeline
+    interval: 30s
+    rules:
+      - alert: ClickHouseIngestLag
+        expr: histogram_quantile(0.95, sum(rate(morph_ingest_lag_ms_bucket[5m])) by (le)) > 5000
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'p95 ingest lag above 5s - the buffer is absorbing but not draining'
+          runbook: docs/RUNBOOK.md#ingest-lag
+
+      - alert: QueueBacklog
+        expr: morph_queue_waiting > 10000
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: 'BullMQ backlog on {{ $labels.queue }} is not draining'
+
+  - name: morph-adaptive
+    interval: 60s
+    rules:
+      # The number that decides whether the whole system is worth running. A
+      # sustained negative lift means the optimiser is making the site worse and
+      # the correct response is /pause_adaptation, not a tuning session.
+      - alert: NegativeHoldoutLift
+        expr: morph_holdout_lift_relative < -0.02
+        for: 6h
+        labels: { severity: critical }
+        annotations:
+          summary: 'The adaptive system is measurably underperforming its own baseline'
+          runbook: docs/RUNBOOK.md#negative-lift
+
+      - alert: DecisionLatency
+        expr: histogram_quantile(0.95, sum(rate(morph_decision_duration_ms_bucket[5m])) by (le)) > 5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: 'p95 adaptive decision latency above the 5ms budget'
+
+      - alert: ExplorationCollapsed
+        expr: morph_exploration_rate < 0.005
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Exploration has fallen below the configured floor - the engine has stopped learning'
+
+  - name: morph-experience
+    interval: 60s
+    rules:
+      - alert: LcpBudgetBreach
+        expr: morph_web_vital_p75{metric="lcp"} > 2000
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: 'p75 LCP above the 2.0s budget on {{ $labels.device_class }}'
+
+      - alert: VariantQuarantined
+        expr: increase(morph_variants_quarantined_total[10m]) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: 'A variant was quarantined by the rollback guardrail'

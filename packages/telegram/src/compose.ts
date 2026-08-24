@@ -87,9 +87,7 @@ export function composeBrief(input: ReportInput): string {
 // -----------------------------------------------------------------------------
 
 function header(input: ReportInput): string {
-  const health = input.services
-    .map((s) => `${STATUS_ICON[s.status]} ${escape(s.name)}`)
-    .join('  ');
+  const health = input.services.map((s) => `${STATUS_ICON[s.status]} ${escape(s.name)}`).join('  ');
   return [
     bold('MORPH · hourly report'),
     `${escape(formatHour(input.hourStart, input.timezone))} · uptime ${escape(formatUptime(input.uptimeSeconds))}`,
@@ -99,7 +97,10 @@ function header(input: ReportInput): string {
 
 function traffic(input: ReportInput): string {
   const t = input.traffic;
-  const rows = (label: string, items: readonly { label: string; value: number; deltaVsLastWeek: number }[]): string =>
+  const rows = (
+    label: string,
+    items: readonly { label: string; value: number; deltaVsLastWeek: number }[],
+  ): string =>
     [
       italic(label),
       ...items.map(
@@ -134,7 +135,8 @@ function conversion(input: ReportInput): string {
     '',
     italic('By provider'),
     ...c.byProvider.map(
-      (p) => `  ${escape(p.provider)} — ${escape(String(p.signups))} ${escape(`(${percent(p.conversionRate, 1)} of views)`)}`,
+      (p) =>
+        `  ${escape(p.provider)} — ${escape(String(p.signups))} ${escape(`(${percent(p.conversionRate, 1)} of views)`)}`,
     ),
     '',
     italic('Funnel'),
@@ -159,7 +161,9 @@ function adaptation(input: ReportInput): string {
   const lines = [bold('3 · How MORPH reacted')];
 
   if (a.entries.length === 0) {
-    lines.push(italic('No adaptations this hour — every surface is inside its decision thresholds.'));
+    lines.push(
+      italic('No adaptations this hour — every surface is inside its decision thresholds.'),
+    );
   } else {
     for (const e of a.entries) {
       const icon = ACTION_ICON[e.action] ?? '•';

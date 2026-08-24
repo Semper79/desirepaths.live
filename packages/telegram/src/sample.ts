@@ -189,9 +189,7 @@ export const SAMPLE_REPORT_INPUT: ReportInput = {
         documentCount: 38,
       },
     ],
-    published: [
-      { title: 'Why your watch is becoming the interface', slug: 't/ambient-computing' },
-    ],
+    published: [{ title: 'Why your watch is becoming the interface', slug: 't/ambient-computing' }],
     queued: [{ title: 'Small models, big rooms: what actually runs on a laptop now' }],
     rejected: [
       {
@@ -267,9 +265,7 @@ export const SAMPLE_REPORT_INPUT: ReportInput = {
       'Re-test hero.media#canvas on desktop only, where its LCP budget is not the binding constraint.',
       'Extend the Discord-first provider ordering to the phone|direct bucket, where the posteriors now overlap.',
     ],
-    needsOperator: [
-      'Two posts are waiting in the approval queue and will expire in 4 hours.',
-    ],
+    needsOperator: ['Two posts are waiting in the approval queue and will expire in 4 hours.'],
   },
 };
 

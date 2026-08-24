@@ -87,7 +87,10 @@ describe('contrastRatio', () => {
   });
 
   it('is order-independent', () => {
-    expect(contrastRatio('#123456', '#abcdef')).toBeCloseTo(contrastRatio('#abcdef', '#123456'), 12);
+    expect(contrastRatio('#123456', '#abcdef')).toBeCloseTo(
+      contrastRatio('#abcdef', '#123456'),
+      12,
+    );
   });
 
   it('is 1:1 for a colour against itself', () => {

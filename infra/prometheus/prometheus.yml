@@ -1,0 +1,42 @@
+# =============================================================================
+# Prometheus
+# =============================================================================
+# Scrapes the application services and the collector. Deliberately short retention
+# (30 days, set on the command line in docker-compose.yml): Prometheus is for
+# operating the system this week, ClickHouse is for analysing it this year.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: '${MORPH_ENVIRONMENT_NAME}'
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: morph-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api:9464']
+        labels: { service: api }
+
+  - job_name: morph-web
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ['web:3000']
+        labels: { service: web }
+
+  - job_name: morph-worker
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['worker:9464']
+        labels: { service: worker }
+
+  - job_name: otel-collector
+    static_configs:
+      - targets: ['otel-collector:8889']

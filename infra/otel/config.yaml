@@ -1,0 +1,92 @@
+# =============================================================================
+# OpenTelemetry Collector
+# =============================================================================
+# Every service exports here rather than to a vendor directly, so swapping the
+# backend is a change to this file and nothing else. At 5M events/day the tail
+# sampler below is what keeps the trace bill finite while still capturing every
+# trace that actually matters: all errors, all slow requests, and 5% of the rest.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Bound memory before the collector becomes the thing that takes the site down.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Strip anything that could carry a visitor identifier. The collector is the last
+  # place to catch an attribute somebody added to a span without thinking.
+  attributes/scrub:
+    actions:
+      - key: http.client_ip
+        action: delete
+      - key: user_agent.original
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+      - key: http.request.header.authorization
+        action: delete
+      - key: url.query
+        action: delete
+
+  resource:
+    attributes:
+      - key: deployment.environment
+        from_attribute: MORPH_ENVIRONMENT_NAME
+        action: insert
+
+  # Sampling policy, in priority order. A trace matching any policy is kept.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100000
+    expected_new_traces_per_sec: 2000
+    policies:
+      - name: errors
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: slow-page-render
+        type: latency
+        latency: { threshold_ms: 500 }
+      - name: adaptive-decisions
+        type: string_attribute
+        string_attribute: { key: morph.surface, values: ['.*'], enabled_regex_matching: true }
+      - name: baseline-sample
+        type: probabilistic
+        probabilistic: { sampling_percentage: 5 }
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Local development: traces to stdout. Replace with otlphttp to a real backend
+  # in production; nothing upstream changes.
+  debug:
+    verbosity: normal
+
+service:
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/scrub, tail_sampling, batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus]

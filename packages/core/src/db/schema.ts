@@ -223,7 +223,10 @@ export const authSession = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     expires: timestamp('expires', { withTimezone: true }).notNull(),
   },
-  (t) => [index('auth_session_user_idx').on(t.userId), index('auth_session_expires_idx').on(t.expires)],
+  (t) => [
+    index('auth_session_user_idx').on(t.userId),
+    index('auth_session_expires_idx').on(t.expires),
+  ],
 );
 
 export const verificationToken = pgTable(
@@ -551,7 +554,10 @@ export const trendSignal = pgTable(
   (t) => [
     index('trend_signal_score_idx').on(t.safetyVerdict, t.momentum, t.audienceFit),
     index('trend_signal_recent_idx').on(t.lastSeenAt),
-    check('trend_scores_normalised', sql`${t.momentum} BETWEEN 0 AND 1 AND ${t.audienceFit} BETWEEN 0 AND 1`),
+    check(
+      'trend_scores_normalised',
+      sql`${t.momentum} BETWEEN 0 AND 1 AND ${t.audienceFit} BETWEEN 0 AND 1`,
+    ),
   ],
 );
 
@@ -575,7 +581,9 @@ export const content = pgTable(
      * Mandatory attribution (section 3). A generated piece with no sources does not get
      * published; the check below makes that a database invariant rather than a hope.
      */
-    sources: jsonb('sources').$type<{ url: string; title: string; publisher: string }[]>().notNull(),
+    sources: jsonb('sources')
+      .$type<{ url: string; title: string; publisher: string }[]>()
+      .notNull(),
     /** Provenance record: "generated, human-reviewable". */
     generatedBy: varchar('generated_by', { length: 48 }),
     generationPrompt: text('generation_prompt'),

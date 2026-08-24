@@ -789,7 +789,8 @@ export const signupProvidersOrder = defineSurface({
   baseline: 'default',
   invariants: (p) => {
     const problems: string[] = [];
-    if (new Set(p.order).size !== p.order.length) problems.push('Provider order contains duplicates.');
+    if (new Set(p.order).size !== p.order.length)
+      problems.push('Provider order contains duplicates.');
     // Section 4 requires a no-social path. Burying it behind "more" is technically a
     // path and practically a dead end, so it must be in the visible three.
     const visible = p.order.slice(0, 3);
@@ -873,7 +874,11 @@ export const motionIntensity = defineSurface({
       payload: {
         level: 'subtle',
         reducedMotionSafe: true,
-        tokens: { '--motion-duration': '180ms', '--motion-distance': '8px', '--motion-ease': 'cubic-bezier(0.2, 0, 0, 1)' },
+        tokens: {
+          '--motion-duration': '180ms',
+          '--motion-distance': '8px',
+          '--motion-ease': 'cubic-bezier(0.2, 0, 0, 1)',
+        },
       },
       ...baseline,
     },
@@ -883,7 +888,11 @@ export const motionIntensity = defineSurface({
       payload: {
         level: 'none',
         reducedMotionSafe: true,
-        tokens: { '--motion-duration': '0ms', '--motion-distance': '0px', '--motion-ease': 'linear' },
+        tokens: {
+          '--motion-duration': '0ms',
+          '--motion-distance': '0px',
+          '--motion-ease': 'linear',
+        },
       },
     },
     {
@@ -892,7 +901,11 @@ export const motionIntensity = defineSurface({
       payload: {
         level: 'expressive',
         reducedMotionSafe: false,
-        tokens: { '--motion-duration': '420ms', '--motion-distance': '24px', '--motion-ease': 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
+        tokens: {
+          '--motion-duration': '420ms',
+          '--motion-distance': '24px',
+          '--motion-ease': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        },
       },
     },
   ],
@@ -932,7 +945,8 @@ export const contentFeedRanking = defineSurface({
   schema: FeedRankingPayload,
   baseline: 'hybrid',
   invariants: (p) => {
-    if (p.strategy !== 'hybrid') return p.weights ? ['Weights are only valid for the hybrid strategy.'] : [];
+    if (p.strategy !== 'hybrid')
+      return p.weights ? ['Weights are only valid for the hybrid strategy.'] : [];
     if (!p.weights) return ['The hybrid strategy requires weights.'];
     const sum = p.weights.recency + p.weights.trend + p.weights.engagement;
     return Math.abs(sum - 1) < 1e-6 ? [] : [`Hybrid weights sum to ${sum.toFixed(3)}, not 1.`];

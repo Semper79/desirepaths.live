@@ -1,0 +1,17 @@
+# Normalise line endings so a Windows checkout and a Linux CI runner agree on file
+# contents. Without this, every file looks modified after a cross-platform clone and
+# `git blame` becomes useless.
+* text=auto eol=lf
+
+# Binary assets must never be touched.
+*.png binary
+*.jpg binary
+*.avif binary
+*.webp binary
+*.woff2 binary
+*.mp4 binary
+*.pdf binary
+
+# Generated - collapse in diffs and exclude from language statistics.
+pnpm-lock.yaml linguist-generated=true -diff
+coverage/** linguist-generated=true

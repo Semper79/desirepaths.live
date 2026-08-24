@@ -141,7 +141,11 @@ export function decide(input: AssignmentInput): AssignmentDecision {
   // 2. Frozen by /pause_adaptation or /kill. The site keeps working on the current
   //    champion; it simply stops learning.
   if (!input.adaptationEnabled) {
-    return { variantId: leaderOf(input.arms).variantId, reason: 'adaptation_paused', isHoldout: holdout };
+    return {
+      variantId: leaderOf(input.arms).variantId,
+      reason: 'adaptation_paused',
+      isHoldout: holdout,
+    };
   }
 
   // 3. No consent, no measurement, no adaptation. The baseline is not a degraded

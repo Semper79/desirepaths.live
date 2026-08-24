@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!--
+  ClickHouse server overrides for MORPH.
+
+  Every setting here exists for a reason tied to the workload: a 5M+ events/day
+  append-only stream with five-minute aggregation refreshes on a single 8-vCPU node.
+  Defaults are tuned for a cluster with more memory than this box has.
+-->
+<clickhouse>
+    <!-- Refreshable materialised views are how `surface_rewards_hourly` stays fresh
+         without an insert trigger that would double-count sessions. Still flagged
+         experimental in 24.x; the alternative is an external scheduler, which is more
+         moving parts for the same result. -->
+    <allow_experimental_refreshable_materialized_view>1</allow_experimental_refreshable_materialized_view>
+
+    <!-- Async inserts are the single most important ingest setting. Without them,
+         every small insert becomes its own part and the merge scheduler drowns.
+         With them, the server batches, and a single node absorbs the target rate. -->
+    <async_insert>1</async_insert>
+    <wait_for_async_insert>0</wait_for_async_insert>
+    <async_insert_max_data_size>10485760</async_insert_max_data_size>
+    <async_insert_busy_timeout_ms>1000</async_insert_busy_timeout_ms>
+
+    <!-- Leave headroom for the OS page cache, which does more for query latency on
+         this workload than giving ClickHouse the memory would. -->
+    <max_server_memory_usage_to_ram_ratio>0.7</max_server_memory_usage_to_ram_ratio>
+    <mark_cache_size>2147483648</mark_cache_size>
+    <uncompressed_cache_size>4294967296</uncompressed_cache_size>
+
+    <!-- Merges compete with queries for the same cores. Capping background pools keeps
+         a merge storm from making the report time out. -->
+    <background_pool_size>8</background_pool_size>
+    <background_merges_mutations_concurrency_ratio>2</background_merges_mutations_concurrency_ratio>
+
+    <!-- A single query must not be able to take the node down. The bandit's aggregation
+         is bounded by construction; anything unbounded is a mistake and should fail. -->
+    <max_memory_usage>8589934592</max_memory_usage>
+    <max_execution_time>60</max_execution_time>
+
+    <!-- Retain enough query history to answer "what was slow last week" without
+         retaining so much that the log itself becomes a storage problem. -->
+    <query_log>
+        <database>system</database>
+        <table>query_log</table>
+        <ttl>event_date + INTERVAL 14 DAY DELETE</ttl>
+        <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    </query_log>
+
+    <logger>
+        <level>warning</level>
+    </logger>
+</clickhouse>

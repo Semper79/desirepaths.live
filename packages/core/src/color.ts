@@ -52,8 +52,7 @@ export class ColorParseError extends Error {
 // -----------------------------------------------------------------------------
 
 const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
-const OKLCH_RE =
-  /^oklch\(\s*([0-9.]+)%?\s+([0-9.]+)\s+([0-9.]+)(?:deg)?\s*\)$/i;
+const OKLCH_RE = /^oklch\(\s*([0-9.]+)%?\s+([0-9.]+)\s+([0-9.]+)(?:deg)?\s*\)$/i;
 
 /**
  * Accepts `#abc`, `#aabbcc` and `oklch(L C H)`.

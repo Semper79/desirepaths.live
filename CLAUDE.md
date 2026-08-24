@@ -47,7 +47,7 @@ If a task appears to require one of these, stop and say so rather than finding a
 - Behavioural analytics are first-party, cookieless and anonymous by default: a rotating
   daily salted hash of IP + User-Agent. The raw IP never leaves the edge process.
 - Consent gate with TCF-style categories. Aggregate adaptation runs under legitimate
-  interest; *personalised* adaptation only after explicit consent.
+  interest; _personalised_ adaptation only after explicit consent.
 - Export + erasure endpoints, 90-day raw retention then aggregates only.
 - `docs/PRIVACY.md` and `docs/COMPLIANCE.md` are part of the product, not paperwork.
 
@@ -87,7 +87,7 @@ docs/   architecture, decisions, privacy, compliance, scaling, benchmarks, runbo
 - TypeScript `strict`, plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`.
   No `any`. No non-null assertion without an `eslint-disable-next-line` carrying the reason.
 - All identifiers, comments, copy, docs and commit messages in **English**.
-- Comments explain *why*, never *what*. If a comment restates the code, delete it.
+- Comments explain _why_, never _what_. If a comment restates the code, delete it.
 - Zod schemas are the boundary. Anything crossing a process boundary (HTTP body, queue
   payload, LLM output, external API response) is parsed, never cast.
 - Money-shaped numbers and probabilities are never `number` without a branded type.

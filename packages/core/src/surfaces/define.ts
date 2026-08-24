@@ -141,7 +141,12 @@ export interface ValidationIssue {
   readonly message: string;
 }
 
-const err = (surface: string, rule: string, message: string, variant?: string): ValidationIssue => ({
+const err = (
+  surface: string,
+  rule: string,
+  message: string,
+  variant?: string,
+): ValidationIssue => ({
   severity: 'error',
   surface,
   rule,
@@ -149,7 +154,12 @@ const err = (surface: string, rule: string, message: string, variant?: string): 
   ...(variant === undefined ? {} : { variant }),
 });
 
-const warn = (surface: string, rule: string, message: string, variant?: string): ValidationIssue => ({
+const warn = (
+  surface: string,
+  rule: string,
+  message: string,
+  variant?: string,
+): ValidationIssue => ({
   severity: 'warning',
   surface,
   rule,
@@ -193,7 +203,11 @@ export function validateSurface(surface: AnySurface): readonly ValidationIssue[]
   const baseline = surface.variants.find((v) => v.id === surface.baselineVariantId);
   if (!baseline) {
     issues.push(
-      err(sid, 'surface/baseline-exists', `Baseline ${surface.baselineVariantId} is not a variant.`),
+      err(
+        sid,
+        'surface/baseline-exists',
+        `Baseline ${surface.baselineVariantId} is not a variant.`,
+      ),
     );
   } else if (baseline.provenance.origin !== 'baseline') {
     issues.push(
@@ -237,7 +251,12 @@ export function validateSurface(surface: AnySurface): readonly ValidationIssue[]
     if (!parsed.success) {
       for (const problem of parsed.error.issues) {
         issues.push(
-          err(sid, 'variant/schema', `${problem.path.join('.') || '(root)'}: ${problem.message}`, v.id),
+          err(
+            sid,
+            'variant/schema',
+            `${problem.path.join('.') || '(root)'}: ${problem.message}`,
+            v.id,
+          ),
         );
       }
       // Everything below reads the payload; a payload that failed its schema cannot

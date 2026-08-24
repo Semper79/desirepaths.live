@@ -37,7 +37,8 @@ export default tseslint.config(
         'error',
         {
           selector: 'TSAsExpression > TSUnknownKeyword',
-          message: 'Do not cast through `unknown` to defeat the type checker; parse with zod instead.',
+          message:
+            'Do not cast through `unknown` to defeat the type checker; parse with zod instead.',
         },
       ],
     },

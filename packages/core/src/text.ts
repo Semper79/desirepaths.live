@@ -73,7 +73,10 @@ export function readability(text: string): ReadabilityScore {
   }
 
   // A headline with no terminal punctuation is still one sentence.
-  const sentences = Math.max(1, text.split(SENTENCE_SPLIT).filter((s) => s.trim().length > 0).length);
+  const sentences = Math.max(
+    1,
+    text.split(SENTENCE_SPLIT).filter((s) => s.trim().length > 0).length,
+  );
   const syllables = words.reduce((sum, w) => sum + syllablesIn(w), 0);
 
   const wordsPerSentence = words.length / sentences;

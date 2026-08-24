@@ -98,7 +98,8 @@ export function msprt(
 ): MsprtResult {
   if (control.n <= 0 || treatment.n <= 0) return NOT_DECIDED;
   if (!(tau > 0)) throw new RangeError(`tau must be positive, got ${String(tau)}`);
-  if (!(alpha > 0 && alpha < 1)) throw new RangeError(`alpha must be in (0, 1), got ${String(alpha)}`);
+  if (!(alpha > 0 && alpha < 1))
+    throw new RangeError(`alpha must be in (0, 1), got ${String(alpha)}`);
 
   const v = control.variance / control.n + treatment.variance / treatment.n;
 
@@ -110,7 +111,8 @@ export function msprt(
   const delta = treatment.mean - control.mean;
   const tau2 = tau * tau;
 
-  const lambda = Math.sqrt(v / (v + tau2)) * Math.exp((tau2 * delta * delta) / (2 * v * (v + tau2)));
+  const lambda =
+    Math.sqrt(v / (v + tau2)) * Math.exp((tau2 * delta * delta) / (2 * v * (v + tau2)));
 
   const pValue = Math.min(1, 1 / lambda);
 

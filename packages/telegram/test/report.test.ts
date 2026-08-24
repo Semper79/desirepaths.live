@@ -177,7 +177,10 @@ describe('the full hourly report', () => {
         if (!RESERVED.includes(ch)) continue;
         // Emphasis markers we emit deliberately are the only exception.
         if (ch === '*' || ch === '_') continue;
-        expect(withoutCode[i - 1], `unescaped ${ch} at ${String(i)} in: ${withoutCode.slice(Math.max(0, i - 40), i + 10)}`).toBe('\\');
+        expect(
+          withoutCode[i - 1],
+          `unescaped ${ch} at ${String(i)} in: ${withoutCode.slice(Math.max(0, i - 40), i + 10)}`,
+        ).toBe('\\');
       }
     }
   });

@@ -83,9 +83,7 @@ function validateArgs(command: ParsedCommand): string | null {
   switch (command.name) {
     case 'promote':
     case 'pin':
-      return command.args.length === 2
-        ? null
-        : `Usage: /${command.name} <surface> <variant>`;
+      return command.args.length === 2 ? null : `Usage: /${command.name} <surface> <variant>`;
     case 'rollback':
       return command.args.length === 1 ? null : 'Usage: /rollback <surface>';
     case 'autonomy':

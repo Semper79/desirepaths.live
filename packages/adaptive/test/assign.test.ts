@@ -47,7 +47,9 @@ const HOLDOUT_ID = (() => {
 
 describe('decide - order of precedence', () => {
   it('honours an operator pin above everything else', () => {
-    const d = decide(base({ anonId: HOLDOUT_ID, pinnedVariantId: 's#c', adaptationEnabled: false }));
+    const d = decide(
+      base({ anonId: HOLDOUT_ID, pinnedVariantId: 's#c', adaptationEnabled: false }),
+    );
     expect(d.variantId).toBe('s#c');
     expect(d.reason).toBe('pinned');
   });
@@ -204,8 +206,14 @@ describe('decide - distributional behaviour', () => {
 
 describe('assignmentHash', () => {
   it('is stable and order-independent', () => {
-    const a = assignmentHash({ 'hero.headline': 'hero.headline#v0', 'theme.palette': 'theme.palette#dark-neon' });
-    const b = assignmentHash({ 'theme.palette': 'theme.palette#dark-neon', 'hero.headline': 'hero.headline#v0' });
+    const a = assignmentHash({
+      'hero.headline': 'hero.headline#v0',
+      'theme.palette': 'theme.palette#dark-neon',
+    });
+    const b = assignmentHash({
+      'theme.palette': 'theme.palette#dark-neon',
+      'hero.headline': 'hero.headline#v0',
+    });
     expect(a).toBe(b);
   });
 

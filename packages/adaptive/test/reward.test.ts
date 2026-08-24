@@ -53,11 +53,7 @@ describe('compositeReward', () => {
   });
 
   it('weights each component correctly in isolation', () => {
-    const onlySignups = compositeReward(
-      components({ impressions: 200, signups: 100 }),
-      WEIGHTS,
-      0,
-    );
+    const onlySignups = compositeReward(components({ impressions: 200, signups: 100 }), WEIGHTS, 0);
     expect(onlySignups.perImpression).toBeCloseTo(0.4 * 0.5, 12);
     expect(onlySignups.breakdown.signup).toBeCloseTo(0.2, 12);
     expect(onlySignups.breakdown.share).toBe(0);
@@ -127,19 +123,20 @@ describe('foldPosterior', () => {
   const prior = { alpha: 1, beta: 1 };
 
   it('adds the observed reward mass to alpha and the rest to beta', () => {
-    const post = foldPosterior(
-      prior,
-      components({ impressions: 1000, signups: 250 }),
-      WEIGHTS,
-      0,
-    );
+    const post = foldPosterior(prior, components({ impressions: 1000, signups: 250 }), WEIGHTS, 0);
     // reward per impression = 0.4 * 0.25 = 0.1
     expect(post.alpha).toBeCloseTo(1 + 100, 6);
     expect(post.beta).toBeCloseTo(1 + 900, 6);
   });
 
   it('down-weights a novel variant', () => {
-    const full = foldPosterior(prior, components({ impressions: 1000, signups: 250 }), WEIGHTS, 0, 1);
+    const full = foldPosterior(
+      prior,
+      components({ impressions: 1000, signups: 250 }),
+      WEIGHTS,
+      0,
+      1,
+    );
     const novel = foldPosterior(
       prior,
       components({ impressions: 1000, signups: 250 }),
@@ -164,12 +161,7 @@ describe('foldPosterior', () => {
   });
 
   it('never produces a non-positive parameter', () => {
-    const post = foldPosterior(
-      { alpha: 1e-9, beta: 1e-9 },
-      EMPTY_COMPONENTS,
-      WEIGHTS,
-      0,
-    );
+    const post = foldPosterior({ alpha: 1e-9, beta: 1e-9 }, EMPTY_COMPONENTS, WEIGHTS, 0);
     expect(post.alpha).toBeGreaterThan(0);
     expect(post.beta).toBeGreaterThan(0);
   });

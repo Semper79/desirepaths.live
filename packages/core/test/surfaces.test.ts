@@ -76,15 +76,10 @@ describe('the accessibility gate', () => {
       const tokens = (variant.payload as { tokens: Record<string, string> }).tokens;
       for (const requirement of palette.a11y.contrast ?? []) {
         const [fg, bg] = requirement.pair;
-        const result = checkContrast(
-          tokens[fg] as string,
-          tokens[bg] as string,
-          requirement.role,
+        const result = checkContrast(tokens[fg] as string, tokens[bg] as string, requirement.role);
+        expect(result.passes, `${variant.id}: ${fg} on ${bg} is ${String(result.ratio)}:1`).toBe(
+          true,
         );
-        expect(
-          result.passes,
-          `${variant.id}: ${fg} on ${bg} is ${String(result.ratio)}:1`,
-        ).toBe(true);
       }
     }
   });
@@ -207,7 +202,9 @@ describe('the accessibility gate', () => {
       a11y: { animates: true },
       schema: z.object({ reducedMotionSafe: z.boolean() }),
       baseline: 'wild',
-      variants: [{ slug: 'wild', label: 'Wild', origin: 'baseline', payload: { reducedMotionSafe: false } }],
+      variants: [
+        { slug: 'wild', label: 'Wild', origin: 'baseline', payload: { reducedMotionSafe: false } },
+      ],
     });
     expect(validateSurface(motion).map((i) => i.rule)).toContain('a11y/reduced-motion-fallback');
   });
@@ -255,7 +252,13 @@ describe('structural validation', () => {
   it('rejects a quarantined baseline', () => {
     const surface = minimal({
       variants: [
-        { slug: 'a', label: 'A', origin: 'baseline', status: 'quarantined', payload: { text: 'hi' } },
+        {
+          slug: 'a',
+          label: 'A',
+          origin: 'baseline',
+          status: 'quarantined',
+          payload: { text: 'hi' },
+        },
         { slug: 'b', label: 'B', payload: { text: 'ho' } },
       ],
     });
@@ -264,7 +267,9 @@ describe('structural validation', () => {
 
   it('rejects a surface with nothing left to render', () => {
     const surface = minimal({
-      variants: [{ slug: 'a', label: 'A', origin: 'baseline', status: 'retired', payload: { text: 'hi' } }],
+      variants: [
+        { slug: 'a', label: 'A', origin: 'baseline', status: 'retired', payload: { text: 'hi' } },
+      ],
     });
     const rules = validateSurface(surface).map((i) => i.rule);
     expect(rules).toContain('surface/has-active');
@@ -350,7 +355,10 @@ describe('registry invariants that encode product rules', () => {
 
   it('keeps every density variant above the 44px tap-target floor', () => {
     for (const v of SURFACES['layout.density'].variants) {
-      const tap = Number.parseInt((v.payload as { tokens: Record<string, string> }).tokens['--tap-min'] ?? '0', 10);
+      const tap = Number.parseInt(
+        (v.payload as { tokens: Record<string, string> }).tokens['--tap-min'] ?? '0',
+        10,
+      );
       expect(tap).toBeGreaterThanOrEqual(44);
     }
   });
@@ -363,7 +371,10 @@ describe('registry invariants that encode product rules', () => {
 
   it('makes hybrid feed weights sum to one', () => {
     for (const v of SURFACES['content.feed_ranking'].variants) {
-      const p = v.payload as { strategy: string; weights?: { recency: number; trend: number; engagement: number } };
+      const p = v.payload as {
+        strategy: string;
+        weights?: { recency: number; trend: number; engagement: number };
+      };
       if (p.strategy === 'hybrid' && p.weights) {
         expect(p.weights.recency + p.weights.trend + p.weights.engagement).toBeCloseTo(1, 10);
       }

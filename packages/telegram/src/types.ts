@@ -62,13 +62,7 @@ export interface ConversionSection {
 }
 
 export type AdaptationAction =
-  | 'generated'
-  | 'promoted'
-  | 'retired'
-  | 'quarantined'
-  | 'released'
-  | 'pinned'
-  | 'rolled_back';
+  'generated' | 'promoted' | 'retired' | 'quarantined' | 'released' | 'pinned' | 'rolled_back';
 
 export interface AdaptationEntry {
   readonly action: AdaptationAction;

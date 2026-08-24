@@ -140,19 +140,40 @@ describe('serialisation', () => {
 
   it('rejects an inconsistent design matrix', () => {
     expect(() =>
-      deserialiseArm({ dim: 2, lambda: 1, updates: 0, a: [1, 0, 0], aInv: [1, 0, 0, 1], b: [0, 0] }),
+      deserialiseArm({
+        dim: 2,
+        lambda: 1,
+        updates: 0,
+        a: [1, 0, 0],
+        aInv: [1, 0, 0, 1],
+        b: [0, 0],
+      }),
     ).toThrow(RangeError);
   });
 
   it('rejects an inconsistent inverse', () => {
     expect(() =>
-      deserialiseArm({ dim: 2, lambda: 1, updates: 0, a: [1, 0, 0, 1], aInv: [1, 0, 0], b: [0, 0] }),
+      deserialiseArm({
+        dim: 2,
+        lambda: 1,
+        updates: 0,
+        a: [1, 0, 0, 1],
+        aInv: [1, 0, 0],
+        b: [0, 0],
+      }),
     ).toThrow(RangeError);
   });
 
   it('rejects an inconsistent vector', () => {
     expect(() =>
-      deserialiseArm({ dim: 2, lambda: 1, updates: 0, a: [1, 0, 0, 1], aInv: [1, 0, 0, 1], b: [0] }),
+      deserialiseArm({
+        dim: 2,
+        lambda: 1,
+        updates: 0,
+        a: [1, 0, 0, 1],
+        aInv: [1, 0, 0, 1],
+        b: [0],
+      }),
     ).toThrow(RangeError);
   });
 });
@@ -185,7 +206,11 @@ describe('invert', () => {
     let arm = createArm(5);
     const rng = createRng('invert-roundtrip');
     for (let i = 0; i < 200; i += 1) {
-      arm = updateArm(arm, Array.from({ length: 5 }, () => rng.next()), rng.next());
+      arm = updateArm(
+        arm,
+        Array.from({ length: 5 }, () => rng.next()),
+        rng.next(),
+      );
     }
     const recomputed = invert(arm.a, 5);
     // The incrementally maintained inverse and a fresh inversion must agree, or
@@ -231,7 +256,11 @@ describe('decayArm', () => {
     let arm = createArm(4);
     const rng = createRng('decay-consistency');
     for (let i = 0; i < 300; i += 1) {
-      arm = updateArm(arm, Array.from({ length: 4 }, () => rng.next()), rng.next());
+      arm = updateArm(
+        arm,
+        Array.from({ length: 4 }, () => rng.next()),
+        rng.next(),
+      );
     }
     const decayed = decayArm(arm, 0.9);
     const recomputed = invert(decayed.a, 4);

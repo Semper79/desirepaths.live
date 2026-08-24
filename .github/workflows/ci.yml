@@ -1,0 +1,269 @@
+name: CI
+
+# Read-only by default; the deploy job is the only place that needs more, and it
+# asks for it explicitly. A workflow with blanket write access is one compromised
+# action away from a supply-chain incident.
+permissions: read-all
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Deterministic across every job. A test that passes in one timezone and fails in
+  # another is a test nobody trusts, and hour-of-week features make that a real risk.
+  TZ: Europe/Rome
+  NODE_OPTIONS: --max-old-space-size=4096
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Fast feedback. These three run in parallel and cover everything that does not
+  # need a database, which is most of the interesting code.
+  # ---------------------------------------------------------------------------
+  quality:
+    name: ${{ matrix.task }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [typecheck, lint, format:check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm ${{ matrix.task }}
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Coverage thresholds are enforced inside Vitest (vitest.config.ts):
+      # 100% branches in packages/adaptive, 80% elsewhere. A drop fails here.
+      - run: pnpm test:coverage
+
+      # The convergence proof runs in CI, not only on a developer's machine. It is
+      # deterministic, so a change in its output is a change in the engine's
+      # behaviour and shows up in the log diff.
+      - name: Bandit convergence harness
+        run: pnpm sim
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [quality, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: |
+            apps/*/dist
+            apps/*/.next
+          retention-days: 3
+
+  # ---------------------------------------------------------------------------
+  # Integration. Needs the data plane, so it is slower and runs after the fast jobs.
+  # ---------------------------------------------------------------------------
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [test]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: morph
+          POSTGRES_PASSWORD: morph
+          POSTGRES_DB: morph
+        options: >-
+          --health-cmd "pg_isready -U morph"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+        ports: ['5432:5432']
+      clickhouse:
+        image: clickhouse/clickhouse-server:24.8-alpine
+        env:
+          CLICKHOUSE_DB: morph
+          CLICKHOUSE_USER: morph
+          CLICKHOUSE_PASSWORD: morph
+        ports: ['8123:8123']
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+        ports: ['6379:6379']
+    env:
+      DATABASE_URL: postgres://morph:morph@localhost:5432/morph
+      CLICKHOUSE_URL: http://localhost:8123
+      CLICKHOUSE_USER: morph
+      CLICKHOUSE_PASSWORD: morph
+      REDIS_URL: redis://localhost:6379
+      ANON_ID_PEPPER: ci-only-pepper-not-a-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply schemas
+        run: |
+          pnpm --filter @morph/core run db:migrate
+          for f in infra/clickhouse/init/*.sql; do
+            curl -sSf --data-binary "@$f" \
+              "http://localhost:8123/?user=morph&password=morph&allow_experimental_refreshable_materialized_view=1" \
+              || { echo "Failed applying $f"; exit 1; }
+          done
+      - run: pnpm test:integration
+
+  # ---------------------------------------------------------------------------
+  # Experience gates. These run against the ADAPTED pages, not the baseline -
+  # section 7 is explicit about that, and a budget that only holds for the variant
+  # nobody sees is not a budget.
+  # ---------------------------------------------------------------------------
+  experience:
+    name: lighthouse + axe
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: Start the stack
+        run: |
+          docker compose -f infra/docker-compose.yml up -d --wait postgres clickhouse redis redpanda
+          pnpm --filter @morph/core run db:migrate
+          pnpm --filter @morph/web run start &
+          npx wait-on http://localhost:3000/api/health --timeout 90000
+        env:
+          ANON_ID_PEPPER: ci-only-pepper-not-a-secret
+
+      # Every palette, density and layout variant is rendered and audited. A
+      # generated variant that fails axe must never reach a visitor, and the
+      # registry gate plus this job are the two places that guarantee it.
+      - name: axe across every variant
+        run: pnpm test:a11y
+
+      - name: Lighthouse budgets
+        run: pnpm exec lhci autorun
+        env:
+          LHCI_BUDGET_LCP_MS: '2000'
+          LHCI_BUDGET_CLS: '0.05'
+          LHCI_BUDGET_INP_MS: '200'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse
+          path: .lighthouseci/
+          retention-days: 14
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps
+      - run: pnpm test:e2e
+        env:
+          ANON_ID_PEPPER: ci-only-pepper-not-a-secret
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  security:
+    name: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=high
+
+      # A secret in the repository is a rotation emergency, not a review comment.
+      - name: Scan for committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The guardrails in section 0 are not merely policy. This grep is the mechanical
+      # check that nobody added the forbidden capability back "temporarily".
+      - name: Forbidden-capability check
+        run: node scripts/check-guardrails.mjs
+
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [build, integration, experience, e2e, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        run: echo "Deployment is wired in Phase 8; see docs/RUNBOOK.md#deploy."

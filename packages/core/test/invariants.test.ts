@@ -82,9 +82,9 @@ describe('layout.order invariants', () => {
   });
 
   it('rejects a list that is not a permutation', () => {
-    expect(run(surface, { sections: ['hero', 'hero', 'trending', 'how_it_works', 'signup', 'signup'] })).toContain(
-      'Section order must be a permutation: every section exactly once.',
-    );
+    expect(
+      run(surface, { sections: ['hero', 'hero', 'trending', 'how_it_works', 'signup', 'signup'] }),
+    ).toContain('Section order must be a permutation: every section exactly once.');
   });
 
   it('refuses to move the hero, which is the LCP anchor', () => {
@@ -160,7 +160,10 @@ describe('content.feed_ranking invariants', () => {
 
   it('requires hybrid weights to sum to one', () => {
     expect(
-      run(surface, { strategy: 'hybrid', weights: { recency: 0.5, trend: 0.5, engagement: 0.5 } })[0],
+      run(surface, {
+        strategy: 'hybrid',
+        weights: { recency: 0.5, trend: 0.5, engagement: 0.5 },
+      })[0],
     ).toContain('sum to 1.500');
   });
 

@@ -89,8 +89,12 @@ describe('authorise', () => {
   });
 
   it('allows read-only commands from any user in the right chat', () => {
-    expect(authorise(cmd('/status'), { chatId: '-100123', userId: '42' }, POLICY).allowed).toBe(true);
-    expect(authorise(cmd('/surfaces'), { chatId: '-100123', userId: '42' }, POLICY).allowed).toBe(true);
+    expect(authorise(cmd('/status'), { chatId: '-100123', userId: '42' }, POLICY).allowed).toBe(
+      true,
+    );
+    expect(authorise(cmd('/surfaces'), { chatId: '-100123', userId: '42' }, POLICY).allowed).toBe(
+      true,
+    );
   });
 
   it('restricts every mutating command to an admin', () => {

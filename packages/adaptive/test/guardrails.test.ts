@@ -217,7 +217,14 @@ describe('evaluateHealth', () => {
 
   it('reports every breach, not just the first', () => {
     const v = evaluateHealth(
-      { ...healthy, p75LcpMs: 5_000, p75Cls: 0.3, p75InpMs: 900, clientErrorRate: 0.5, bounceRate: 0.9 },
+      {
+        ...healthy,
+        p75LcpMs: 5_000,
+        p75Cls: 0.3,
+        p75InpMs: 900,
+        clientErrorRate: 0.5,
+        bounceRate: 0.9,
+      },
       0.4,
       thresholds,
     );
