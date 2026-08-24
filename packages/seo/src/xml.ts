@@ -36,6 +36,7 @@ export function escapeXml(value: string): string {
  * the kind of thing this pattern exists to remove.
  */
 const INVALID_XML_CHARS = new RegExp(
+  // eslint-disable-next-line no-control-regex -- matching control characters is the entire purpose of this pattern
   '[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]',
   'g',
 );

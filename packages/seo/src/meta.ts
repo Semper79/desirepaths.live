@@ -1,0 +1,139 @@
+/**
+ * Page metadata: canonical URLs, Open Graph, Twitter cards.
+ *
+ * THE ONE THAT MATTERS: THE CANONICAL URL AND THE ADAPTIVE LAYER
+ *
+ * MORPH serves different headlines, palettes and layouts to different visitors. A
+ * search crawler is a visitor. Left alone, that combination produces two problems, one
+ * technical and one closer to a policy violation:
+ *
+ *  1. The indexed version of a page becomes whichever variant the bandit happened to
+ *     draw for the crawler that day, and it changes between crawls. Ranking signals
+ *     accumulate against a moving target.
+ *  2. Serving a crawler systematically different content from a human is the shape of
+ *     cloaking, and the fact that it is a bandit rather than a person deciding does not
+ *     make it look better in a manual review.
+ *
+ * The answer is upstream of this file — `apps/web` serves the **baseline assignment**
+ * to any request scoring above the bot threshold, so a crawler sees exactly what the
+ * 5% holdout cohort sees, every time. What this file contributes is the second half:
+ * one canonical URL per piece of content, never varied, never parameterised by variant.
+ * There is deliberately no way to put a variant id into a canonical URL here.
+ */
+
+import { escapeHtmlAttribute, singleLine } from './embed.js';
+
+/** Limits are practical, not normative: past these, engines truncate. */
+export const TITLE_MAX = 60;
+export const DESCRIPTION_MAX = 155;
+export const OG_TITLE_MAX = 88;
+export const OG_DESCRIPTION_MAX = 200;
+
+export interface PageMetaInput {
+  readonly origin: string;
+  readonly siteName: string;
+  /** Path only. Query strings and fragments are stripped: they never belong in a canonical. */
+  readonly path: string;
+  readonly title: string;
+  readonly description: string;
+  readonly imagePath?: string;
+  readonly type?: 'website' | 'article';
+  readonly publishedAt?: string;
+  readonly modifiedAt?: string;
+  readonly locale?: string;
+  /** Set for pages that exist but should not be indexed: previews, thin tag pages. */
+  readonly noindex?: boolean;
+}
+
+export interface MetaTag {
+  readonly name?: string;
+  readonly property?: string;
+  readonly content: string;
+}
+
+export interface PageMeta {
+  readonly title: string;
+  readonly canonical: string;
+  readonly tags: readonly MetaTag[];
+}
+
+/**
+ * Canonical URL.
+ *
+ * Query and fragment are dropped, the path is lower-cased, and a trailing slash is
+ * removed except at the root. Every one of those is a rule about *sameness*: `/T/Foo`,
+ * `/t/foo/` and `/t/foo?utm_source=x` are one page, and saying so once here is cheaper
+ * than discovering three copies of it in a search console.
+ */
+export function canonicalUrl(origin: string, path: string): string {
+  const url = new URL(path, origin);
+  url.search = '';
+  url.hash = '';
+  url.pathname = url.pathname.toLowerCase();
+  if (url.pathname.length > 1 && url.pathname.endsWith('/')) {
+    url.pathname = url.pathname.slice(0, -1);
+  }
+  return url.toString();
+}
+
+export function pageMeta(input: PageMetaInput): PageMeta {
+  const canonical = canonicalUrl(input.origin, input.path);
+  const title = singleLine(input.title, TITLE_MAX);
+  const description = singleLine(input.description, DESCRIPTION_MAX);
+  const imageUrl = input.imagePath
+    ? new URL(input.imagePath, input.origin).toString()
+    : new URL('/opengraph-image', input.origin).toString();
+
+  const tags: MetaTag[] = [
+    { name: 'description', content: description },
+    { property: 'og:site_name', content: input.siteName },
+    { property: 'og:type', content: input.type ?? 'website' },
+    { property: 'og:url', content: canonical },
+    { property: 'og:title', content: singleLine(input.title, OG_TITLE_MAX) },
+    { property: 'og:description', content: singleLine(input.description, OG_DESCRIPTION_MAX) },
+    { property: 'og:image', content: imageUrl },
+    { property: 'og:locale', content: input.locale ?? 'en_GB' },
+    // `summary_large_image` rather than `summary`: the card is the entire preview on a
+    // platform where the audience actually is, and the small variant wastes it.
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: singleLine(input.title, OG_TITLE_MAX) },
+    { name: 'twitter:description', content: singleLine(input.description, OG_DESCRIPTION_MAX) },
+    { name: 'twitter:image', content: imageUrl },
+  ];
+
+  if (input.type === 'article') {
+    if (input.publishedAt) {
+      tags.push({ property: 'article:published_time', content: input.publishedAt });
+    }
+    if (input.modifiedAt) {
+      tags.push({ property: 'article:modified_time', content: input.modifiedAt });
+    }
+  }
+
+  if (input.noindex === true) {
+    tags.push({ name: 'robots', content: 'noindex, follow' });
+  } else {
+    // `max-image-preview:large` and `max-snippet:-1` are what make a rich result and a
+    // quotable answer possible. Omitting them leaves the default, which is a thumbnail
+    // and a truncated snippet - the opposite of the diffusion this site is optimising for.
+    tags.push({
+      name: 'robots',
+      content: 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+    });
+  }
+
+  return { title, canonical, tags };
+}
+
+/** Render meta tags as HTML, for the rare place that needs a string rather than JSX. */
+export function renderMetaTags(meta: PageMeta): string {
+  const lines = [`<link rel="canonical" href="${escapeHtmlAttribute(meta.canonical)}" />`];
+  for (const tag of meta.tags) {
+    const key = tag.property ? 'property' : 'name';
+    const value = tag.property ?? tag.name ?? '';
+    lines.push(
+      `<meta ${key}="${escapeHtmlAttribute(value)}" content="${escapeHtmlAttribute(tag.content)}" />`,
+    );
+  }
+  return lines.join('\n');
+}
