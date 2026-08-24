@@ -3,7 +3,9 @@
   "compilerOptions": {
     "rootDir": ".",
     "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM"],
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts"]
 }
