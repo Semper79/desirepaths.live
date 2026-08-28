@@ -100,7 +100,7 @@ morph/
 │   │   ├── src/meta.ts            ✅ canonical URLs, Open Graph, Twitter cards
 │   │   └── test/                  ✅ 2 files
 │   │
-│   ├── ui/                        🟡 the token contract; components land with the beacon
+│   ├── ui/                        ✅ the token contract
 │   │   ├── src/tokens.ts          ✅ required set, fallback bag, composition
 │   │   └── test/                  ✅ 1 file
 │   │
@@ -118,14 +118,18 @@ morph/
 │   │   ├── src/lib/producer.ts    ✅ Redpanda sink behind an interface
 │   │   ├── src/routes/            ✅ POST /i, /health, /ready
 │   │   └── test/                  ✅ 3 files
-│   ├── web/                       🟡 the adaptive site; beacon and consent UI pending
+│   ├── web/                       ✅ the adaptive site
 │   │   ├── src/middleware.ts      ✅ derives the visitor context, strips the raw inputs
 │   │   ├── src/lib/assignment.ts  ✅ resolution, and the crawler rule
 │   │   ├── src/lib/render.ts      ✅ assignment → token bag and typed payloads
-│   │   ├── src/lib/request-context.ts ✅ device, referrer, consent, edge bot score
+│   │   ├── src/lib/request-context.ts ✅ device, referrer, edge bot score
+│   │   ├── src/lib/consent.ts     ✅ one reader for the consent cookie, used by all four
+│   │   ├── src/lib/beacon-queue.ts ✅ batching, persistence, sendBeacon chunking
 │   │   ├── src/lib/site.ts        ✅ identity and the content index
-│   │   ├── src/app/               ✅ layout, page, sitemap, robots, feeds, llms.txt
-│   │   └── test/                  ✅ 2 files
+│   │   ├── src/components/        ✅ consent gate (no JS), beacon
+│   │   ├── src/app/               ✅ home, privacy, how-it-works, live, /t/[slug],
+│   │   │                             sitemap, robots, feeds, llms.txt, icon, OG image
+│   │   └── test/                  ✅ 4 files
 │   ├── worker/ admin/             🔜 Phases 5, 7
 │
 └── docs/

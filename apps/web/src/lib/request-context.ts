@@ -25,12 +25,8 @@
  * So middleware computes the *context*; the layout resolves the *assignment*.
  */
 
-import {
-  CONSENT_DEFAULT,
-  VisitorContextSchema,
-  type VisitorContext,
-  type VisitorIdentity,
-} from '@morph/core';
+import { VisitorContextSchema, type VisitorContext, type VisitorIdentity } from '@morph/core';
+import { maskFromCookieHeader } from './consent.js';
 
 /** Headers middleware writes and the layout reads. Prefixed so they cannot collide. */
 export const CONTEXT_HEADER = 'x-morph-context';
@@ -107,16 +103,7 @@ export function edgeBotScore(headers: EdgeRequest['headers']): number {
 }
 
 /** Consent mask from the first-party cookie. Never from a query string or a header. */
-export function consentFrom(cookieHeader: string | null): number {
-  if (cookieHeader === null) return CONSENT_DEFAULT;
-  for (const part of cookieHeader.split(';')) {
-    const [name, value] = part.split('=');
-    if ((name ?? '').trim() !== 'morph_consent') continue;
-    const parsed = Number.parseInt((value ?? '').trim(), 10);
-    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 15 ? parsed : CONSENT_DEFAULT;
-  }
-  return CONSENT_DEFAULT;
-}
+export const consentFrom = maskFromCookieHeader;
 
 const SOCIAL = [
   'tiktok.',

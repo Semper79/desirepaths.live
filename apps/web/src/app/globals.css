@@ -267,3 +267,61 @@ section:last-of-type {
   background: var(--color-surface);
   color: var(--color-text);
 }
+
+/* --- the consent gate ----------------------------------------------------- */
+
+/*
+ * Fixed to the bottom, and deliberately small.
+ *
+ * A banner that fills the viewport is the pattern regulators single out: it makes
+ * refusing feel like an obstruction rather than a choice, and on a phone it is
+ * indistinguishable from a modal. The copy here is two sentences; the detail lives on
+ * /privacy, one link away, where a reader who wants it will actually read it.
+ */
+.consent {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 20;
+  background: var(--color-surface);
+  border-block-start: 1px solid var(--color-border);
+  padding-block: calc(var(--space-unit) * 2);
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 35%);
+}
+
+.consent-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  justify-content: space-between;
+}
+
+.consent-copy {
+  flex: 1 1 24rem;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.consent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-unit);
+}
+
+/*
+ * Both choices are the same element with the same weight, so neither is the "obvious"
+ * one. The refusal is first because a reader scanning should meet "no" before "yes".
+ */
+.consent-actions .cta {
+  font-size: 0.9375rem;
+  padding: calc(var(--cta-pad-y) * 0.75) calc(var(--cta-pad-x) * 0.75);
+}
+
+/*
+ * Space for the banner, so it never hides the end of the page. Applied only while the
+ * gate is present — once a choice is made the class goes with it.
+ */
+body:has(.consent) main {
+  padding-block-end: 12rem;
+}

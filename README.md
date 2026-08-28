@@ -14,15 +14,15 @@ Designed for **5M+ events/day**, p95 page TTFB **under 150 ms**, adaptive decisi
 
 ## Status
 
-| Phase                   |     |                                                     |
-| ----------------------- | --- | --------------------------------------------------- |
-| 0 — Foundations         | ✅  | monorepo, infrastructure, CI, the quality gate      |
-| 1 — Event ingest        | 🟡  | schema, contract and the collector done; k6 pending |
-| 2 — The adaptive engine | ✅  | pure, zero dependencies, 100% branch coverage       |
-| 3 — The adaptive site   | 🟡  | site, SEO/AEO and the crawler rule; auth is Phase 4 |
-| 4–8                     | 🔜  | see `docs/ROADMAP.md`                               |
+| Phase                   |     |                                                       |
+| ----------------------- | --- | ----------------------------------------------------- |
+| 0 — Foundations         | ✅  | monorepo, infrastructure, CI, the quality gate        |
+| 1 — Event ingest        | 🟡  | schema, contract and the collector done; k6 pending   |
+| 2 — The adaptive engine | ✅  | pure, zero dependencies, 100% branch coverage         |
+| 3 — The adaptive site   | ✅  | site, consent gate, beacon, SEO/AEO, the crawler rule |
+| 4–8                     | 🔜  | see `docs/ROADMAP.md`                                 |
 
-**595 tests passing.** Typecheck, lint, guardrail, format and coverage gates green.
+**625 tests passing.** Typecheck, lint, guardrail, format and coverage gates green.
 
 ---
 
@@ -30,7 +30,7 @@ Designed for **5M+ events/day**, p95 page TTFB **under 150 ms**, adaptive decisi
 
 ```bash
 pnpm install
-pnpm test          # 595 tests — no Docker needed
+pnpm test          # 625 tests — no Docker needed
 pnpm sim           # watch the bandit converge on a known-truth world
 pnpm report:sample # print a worked example of the hourly Telegram report
 ```

@@ -23,6 +23,8 @@ import { graph, organisation, pageMeta, serialiseJsonLd, website } from '@morph/
 import { assignmentForRequest } from '../lib/resolve.js';
 import { tokensFor } from '../lib/render.js';
 import { isIndexable, siteIdentity } from '../lib/site.js';
+import { Beacon } from '../components/beacon.js';
+import { ConsentGate } from '../components/consent-gate.js';
 import './globals.css';
 
 export function generateMetadata(): Metadata {
@@ -98,6 +100,7 @@ export default async function RootLayout({
           Skip to content
         </a>
         {children}
+        <ConsentGate />
         {/*
           The assignment, exposed to the client so the beacon can attribute events to
           exactly what was rendered. Not a secret: it is what the visitor is looking at.
@@ -115,6 +118,8 @@ export default async function RootLayout({
             }),
           }}
         />
+        {/* Attaches no listener without consent, and none at all for a crawler. */}
+        <Beacon />
       </body>
     </html>
   );

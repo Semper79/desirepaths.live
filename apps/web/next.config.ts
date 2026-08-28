@@ -41,6 +41,24 @@ const config: NextConfig = {
     optimizePackageImports: ['@morph/core', '@morph/ui'],
   },
 
+  /**
+   * Send the beacon to the collector in local development.
+   *
+   * In production Caddy routes `/i` to `apps/api`; locally there is no Caddy, so the
+   * beacon would POST to the Next server and get a 404. Rather than teaching the client
+   * a different URL for development — which would mean the thing being tested is not
+   * the thing that ships — the rewrite reproduces what the edge does.
+   *
+   * Development only. In production this must not exist: a rewrite that quietly proxies
+   * to a hard-coded localhost port is a failure waiting for the first deploy where the
+   * collector is somewhere else.
+   */
+  async rewrites() {
+    if (process.env.NODE_ENV === 'production') return [];
+    const collector = process.env.MORPH_COLLECTOR_URL ?? 'http://localhost:3001';
+    return [{ source: '/i', destination: `${collector}/i` }];
+  },
+
   // Security headers duplicated from the Caddyfile on purpose: in local development
   // there is no Caddy, and a CSP that only exists in production is a CSP nobody
   // develops against and everybody fights on the day of the deploy.

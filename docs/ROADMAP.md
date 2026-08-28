@@ -81,7 +81,7 @@ That second number is why the phase took longer than planned — see D9 in
 
 ---
 
-## Phase 3 — The adaptive site 🟡 _site and SEO/AEO complete; auth is Phase 4_
+## Phase 3 — The adaptive site ✅
 
 **Done:**
 
@@ -101,11 +101,20 @@ Verified by `next build` and by running the production server: the tokens are in
 initial HTML, the structured data parses, and a Googlebot user agent receives the
 baseline while a browser does not.
 
-**Remaining in this phase:** the client beacon, the consent gate UI, per-article pages,
-and dynamic OG images.
+- The consent gate: a form POST, no client JavaScript, so a refusal is recordable with
+  scripts blocked. Refusing is the same element at the same weight as accepting, and the
+  banner is two sentences rather than a viewport-filling modal.
+- The client beacon: batched, persisted, `sendBeacon` on `pagehide`, chunked under the
+  64 KB limit, and inert without consent or for a request the server marked unmeasurable.
+- `/privacy`, `/how-it-works`, `/live` and `/t/[slug]`, so the sitemap stops advertising
+  pages that do not exist. `/live` reports the variant of every surface this visitor was
+  served and why, read from the same decision object the renderer used.
+- Icon and social card generated from the design tokens, so the mark cannot drift from
+  the palette and structured data never points at a 404.
 
-**Gate:** LCP under 2.0 s on a mid-range phone and axe clean on every variant — both
-need the Lighthouse and axe CI jobs, which need a deployed URL (D2, D3).
+**Gate:** LCP under 2.0 s on a mid-range phone and axe clean on every variant still need
+the Lighthouse and axe CI jobs, which need a deployed URL (D2, D3). Everything else in
+this phase is verified by `next build` and against a running server.
 
 ---
 
