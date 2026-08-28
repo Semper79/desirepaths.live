@@ -183,11 +183,39 @@ export interface PublishedContent {
   readonly trendSignalId: string | null;
 }
 
+/** A draft waiting for a human, as the approval queue shows it. */
+export interface PendingDraft {
+  readonly id: string;
+  readonly slug: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly wordCount: number;
+  readonly sources: readonly ContentSource[];
+  readonly generatedBy: string | null;
+  readonly createdAt: number;
+}
+
 export interface ContentRepository {
   slugExists(slug: string): Promise<boolean>;
   createDraft(draft: ContentDraft, at: number): Promise<{ readonly id: string }>;
   /** Everything currently readable on the site, for the audience computation. */
   published(): Promise<readonly PublishedContent[]>;
+  /** Drafts awaiting review, oldest first — the operator's backlog in order. */
+  pendingReview(limit: number): Promise<readonly PendingDraft[]>;
+  byId(contentId: string): Promise<PendingDraft | null>;
+  /**
+   * Publish a reviewed draft.
+   *
+   * `reviewer` is not decoration: `content_generated_needs_review` refuses to let a
+   * generated row reach `published` without a `reviewed_at`, so approving without naming
+   * a human is a constraint violation rather than a silent shortcut.
+   *
+   * Returns `false` when the row was not in a reviewable state — already published,
+   * already rejected, or gone. A second tap on an inline keyboard is the normal way that
+   * happens, and it is not an error.
+   */
+  approve(contentId: string, reviewer: string, at: number): Promise<boolean>;
+  reject(contentId: string, reviewer: string, at: number): Promise<boolean>;
 }
 
 /**

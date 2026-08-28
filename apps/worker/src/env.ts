@@ -26,6 +26,8 @@ export const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   MORPH_TIMEZONE: z.string().min(1).default('Europe/Rome'),
   WORKER_HEALTH_PORT: z.coerce.number().int().min(1).max(65_535).default(3003),
+  /** Used for the preview link on every card in the approval queue. */
+  MORPH_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
 
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
@@ -60,6 +62,16 @@ export const EnvSchema = z.object({
   EMBEDDING_DIMENSIONS: z.coerce.number().int().min(64).max(4_096).default(768),
   EMBEDDING_API_KEY: z.string().optional(),
   EMBEDDING_BASE_URL: z.string().url().optional(),
+
+  /**
+   * The bot. Optional as a pair: a deployment without a token simply does not run the
+   * bot, which is a reasonable state for a worker whose only job is the crawl. The
+   * refinement below refuses a half-configured one, because a token with no chat id is a
+   * bot that starts, polls, and can never answer.
+   */
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(),
+  TELEGRAM_ADMIN_USER_IDS: csv.default(''),
 
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL_GENERATION: z.string().default('claude-opus-5'),
@@ -117,6 +129,27 @@ export function refineEnv(env: Env): readonly EnvProblem[] {
     problems.push({
       variable: 'ANTHROPIC_API_KEY',
       message: 'The generate job cannot run without it, and it is scheduled.',
+    });
+  }
+
+  const botToken = (env.TELEGRAM_BOT_TOKEN ?? '') !== '';
+  const chatId = (env.TELEGRAM_CHAT_ID ?? '') !== '';
+
+  if (botToken !== chatId) {
+    problems.push({
+      variable: botToken ? 'TELEGRAM_CHAT_ID' : 'TELEGRAM_BOT_TOKEN',
+      message:
+        'The bot needs both a token and a chat id. One without the other is a bot that starts, polls, and can never answer.',
+    });
+  }
+
+  if (botToken && chatId && env.TELEGRAM_ADMIN_USER_IDS.length === 0) {
+    // Approving a draft is a mutating action limited to named users. With no admin ids
+    // the queue is visible and nothing in it can ever be published, which looks like a
+    // broken bot rather than a configuration gap.
+    problems.push({
+      variable: 'TELEGRAM_ADMIN_USER_IDS',
+      message: 'With no admin ids, nobody can approve anything in the review queue.',
     });
   }
 

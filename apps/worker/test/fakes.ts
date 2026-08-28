@@ -27,6 +27,7 @@ import type {
   StoredCluster,
   EngagementRepository,
   PageEngagement,
+  PendingDraft,
   PublishedContent,
   StoredDocument,
   TrendRepository,
@@ -282,6 +283,48 @@ export class FakeContent implements ContentRepository {
 
   published(): Promise<readonly PublishedContent[]> {
     return Promise.resolve(this.live);
+  }
+
+  readonly pending: PendingDraft[] = [];
+  readonly decisions: { id: string; action: 'approve' | 'reject'; reviewer: string }[] = [];
+
+  queue(draft: Partial<PendingDraft> & Pick<PendingDraft, 'id'>): PendingDraft {
+    const full: PendingDraft = {
+      slug: `slug-${draft.id}`,
+      title: `Title ${draft.id}`,
+      summary: `Summary for ${draft.id}.`,
+      wordCount: 420,
+      sources: [{ url: 'https://example.com/a', title: 'A source', publisher: 'example.com' }],
+      generatedBy: 'claude-opus-5',
+      createdAt: 0,
+      ...draft,
+    };
+    this.pending.push(full);
+    return full;
+  }
+
+  pendingReview(limit: number): Promise<readonly PendingDraft[]> {
+    return Promise.resolve(this.pending.slice(0, limit));
+  }
+
+  byId(contentId: string): Promise<PendingDraft | null> {
+    return Promise.resolve(this.pending.find((d) => d.id === contentId) ?? null);
+  }
+
+  approve(contentId: string, reviewer: string): Promise<boolean> {
+    return Promise.resolve(this.decide(contentId, reviewer, 'approve'));
+  }
+
+  reject(contentId: string, reviewer: string): Promise<boolean> {
+    return Promise.resolve(this.decide(contentId, reviewer, 'reject'));
+  }
+
+  /** Mirrors the real repository: a row can only be decided once. */
+  private decide(contentId: string, reviewer: string, action: 'approve' | 'reject'): boolean {
+    if (!this.pending.some((d) => d.id === contentId)) return false;
+    if (this.decisions.some((d) => d.id === contentId)) return false;
+    this.decisions.push({ id: contentId, action, reviewer });
+    return true;
   }
 
   slugExists(slug: string): Promise<boolean> {

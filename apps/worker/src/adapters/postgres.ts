@@ -20,15 +20,17 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { and, asc, desc, eq, gte, isNull, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, isNotNull, lt, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { audienceVector, content, crawlDocument, crawlSource, trendSignal } from '@morph/core/db';
 import { fromStoredVerdict, toStoredVerdict } from '@morph/core';
+import { bodyWordCount, parseContentBody } from '@morph/core';
 import type {
   AudienceRepository,
   AudienceSnapshot,
   ContentDraft,
   ContentRepository,
+  PendingDraft,
   PublishedContent,
   CrawlSource,
   DocumentRepository,
@@ -368,6 +370,23 @@ export function trendRepository(db: Database): TrendRepository {
   };
 }
 
+/** A row, as the approval queue shows it. */
+function toPendingDraft(row: typeof content.$inferSelect): PendingDraft {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    summary: row.summary ?? '',
+    // Computed rather than stored: it exists so a reviewer can see at a glance whether a
+    // draft is a piece or a stub, and a column would be one more thing to keep in step
+    // with a body that is already there.
+    wordCount: bodyWordCount(parseContentBody(row.body)),
+    sources: row.sources,
+    generatedBy: row.generatedBy,
+    createdAt: row.createdAt.getTime(),
+  };
+}
+
 export function contentRepository(db: Database): ContentRepository {
   return {
     async published() {
@@ -389,6 +408,58 @@ export function contentRepository(db: Database): ContentRepository {
         summary: row.summary ?? '',
         trendSignalId: row.trendSignalId,
       }));
+    },
+
+    async pendingReview(limit) {
+      const rows = await db
+        .select()
+        .from(content)
+        .where(inArray(content.status, ['draft', 'pending_review']))
+        // Oldest first: the operator's backlog in the order it accumulated, so nothing
+        // sits at the bottom of the queue forever because newer drafts keep arriving.
+        .orderBy(asc(content.createdAt))
+        .limit(limit);
+
+      return rows.map(toPendingDraft);
+    },
+
+    async byId(contentId) {
+      const [row] = await db.select().from(content).where(eq(content.id, contentId)).limit(1);
+      return row === undefined ? null : toPendingDraft(row);
+    },
+
+    async approve(contentId, reviewer, at) {
+      // The WHERE clause is the idempotency: a row already published or rejected does not
+      // match, so a second tap on an inline keyboard updates nothing and returns false.
+      // Checking first and then updating would be the same logic with a race in it.
+      const updated = await db
+        .update(content)
+        .set({
+          status: 'published',
+          reviewedBy: reviewer,
+          reviewedAt: toDate(at),
+          publishedAt: toDate(at),
+          updatedAt: toDate(at),
+        })
+        .where(and(eq(content.id, contentId), inArray(content.status, ['draft', 'pending_review'])))
+        .returning({ id: content.id });
+
+      return updated.length > 0;
+    },
+
+    async reject(contentId, reviewer, at) {
+      const updated = await db
+        .update(content)
+        .set({
+          status: 'rejected',
+          reviewedBy: reviewer,
+          reviewedAt: toDate(at),
+          updatedAt: toDate(at),
+        })
+        .where(and(eq(content.id, contentId), inArray(content.status, ['draft', 'pending_review'])))
+        .returning({ id: content.id });
+
+      return updated.length > 0;
     },
 
     async slugExists(slug) {

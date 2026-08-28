@@ -124,6 +124,9 @@ importers:
       '@morph/crawler':
         specifier: workspace:*
         version: link:../../packages/crawler
+      '@morph/telegram':
+        specifier: workspace:*
+        version: link:../../packages/telegram
       bullmq:
         specifier: ^5.34.0
         version: 5.81.4

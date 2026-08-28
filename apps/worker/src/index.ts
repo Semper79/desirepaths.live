@@ -45,6 +45,8 @@ import { runCluster } from './jobs/cluster.js';
 import { runAudience } from './jobs/audience.js';
 import { runGenerate } from './jobs/generate.js';
 import { runPrune } from './jobs/prune.js';
+import { dispatch } from './jobs/dispatch.js';
+import { telegramClient, type TelegramClient } from './adapters/telegram-api.js';
 import type { EmbeddingProvider, Logger } from './ports.js';
 
 const env: Env = loadEnv(process.env);
@@ -105,6 +107,18 @@ const generator = anthropicGenerator({
 });
 
 const now = (): number => Date.now();
+
+/**
+ * The bot, when it is configured.
+ *
+ * Null is a supported state, not a degraded one: a worker whose job is the crawl does not
+ * need a Telegram token, and `refineEnv` has already refused the half-configured case
+ * where a token exists without a chat id.
+ */
+const bot: TelegramClient | null =
+  env.TELEGRAM_BOT_TOKEN !== undefined && env.TELEGRAM_CHAT_ID !== undefined
+    ? telegramClient({ botToken: env.TELEGRAM_BOT_TOKEN, chatId: env.TELEGRAM_CHAT_ID })
+    : null;
 
 /**
  * The audience interest vector, as of the last time the audience job produced one.
@@ -244,14 +258,91 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   });
 }
 
+/**
+ * The update loop.
+ *
+ * Long polling, sequential, and deliberately not a queue. Telegram's `offset` is the
+ * acknowledgement — asking for updates after N is what tells the server the ones before N
+ * were handled — so an update that is enqueued and then lost is an update Telegram
+ * believes was delivered. Handling one at a time and advancing the offset afterwards
+ * means a crash re-delivers rather than drops.
+ *
+ * A failure to handle one update must not stop the loop: the operator's next message is
+ * the most likely way anybody finds out something is wrong, and a bot that stopped
+ * listening cannot be asked.
+ */
+async function pollForever(client: TelegramClient): Promise<void> {
+  let offset = 0;
+
+  for (;;) {
+    try {
+      const updates = await client.poll(offset);
+
+      for (const update of updates) {
+        offset = update.update_id + 1;
+
+        try {
+          await handleUpdate(client, update.raw);
+        } catch (error) {
+          log.error('telegram.handler-failed', {
+            updateId: update.update_id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    } catch (error) {
+      log.error('telegram.poll-failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      // Telegram is down, the network is out, or the token was revoked. Backing off keeps
+      // a hard failure from becoming a tight loop against their API.
+      await wait(5_000);
+    }
+  }
+}
+
+async function handleUpdate(client: TelegramClient, raw: unknown): Promise<void> {
+  const outcome = await dispatch(
+    {
+      content,
+      policy: {
+        allowedChatId: env.TELEGRAM_CHAT_ID ?? '',
+        adminUserIds: env.TELEGRAM_ADMIN_USER_IDS,
+      },
+      origin: env.MORPH_PUBLIC_URL,
+      now,
+      log,
+    },
+    raw,
+  );
+
+  // Acknowledged first: until this returns, Telegram shows the button spinning, and a
+  // slow edit would leave the operator watching a loader wondering whether it worked.
+  if (outcome.acknowledge !== undefined) {
+    await client.answerCallback(outcome.acknowledge.callbackId, outcome.acknowledge.text);
+  }
+
+  for (const reply of outcome.replies) {
+    if (reply.editMessageId === undefined) await client.send(reply.text, reply.keyboard);
+    else await client.edit(reply.editMessageId, reply.text);
+  }
+}
+
 await registerSchedules();
 health.listen(env.WORKER_HEALTH_PORT);
+
+if (bot !== null) {
+  // Not awaited: the loop never returns. Failures inside it are logged, and the process
+  // stays up for the queues.
+  void pollForever(bot);
+}
 
 log.info('worker.started', {
   queues: Object.values(QUEUE),
   embeddings: embeddings.name,
   healthPort: env.WORKER_HEALTH_PORT,
   timezone: env.MORPH_TIMEZONE,
+  bot: bot === null ? 'not configured' : 'polling',
 });
 
 function buildEmbeddings(config: Env, logger: Logger): EmbeddingProvider {

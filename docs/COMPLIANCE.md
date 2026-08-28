@@ -144,7 +144,22 @@ deliberately empty rather than filled with plausible-looking references — see 
 
 ## 4. The approval queue
 
-Every outbound post passes through `outbound_post`. Autonomy has three levels
+**On-site content.** A generated draft reaches `content.status = 'published'` only through
+`/queue` in Telegram: a card per draft with its title, length, sources in full and a
+preview link, and two buttons. Three properties are enforced rather than intended, and each
+is asserted in `apps/worker/test/telegram.test.ts`:
+
+| Property                             | How                                                                                                 |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Only a named operator can publish    | A callback is authorised as `/promote` — the right chat _and_ an admin user id (D22)                |
+| Publishing cannot happen twice       | `WHERE status IN ('draft','pending_review')`, so a second tap matches no row                        |
+| Publishing cannot happen anonymously | The Telegram user id becomes `content.reviewed_by`, which `content_generated_needs_review` requires |
+
+A message from any other chat is dropped without a reply. Answering "you are not
+authorised" confirms that a bot exists and is listening, which is what somebody probing
+for it is trying to learn.
+
+**Outbound posts.** Every outbound post passes through `outbound_post`. Autonomy has three levels
 (`SOCIAL_AUTONOMY`), defaulting to `review`:
 
 | Level    | Behaviour                                                                                                                               |

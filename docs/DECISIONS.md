@@ -377,6 +377,43 @@ change. The cost is one unresolvable case, and it is reported rather than silent
 with engagement and no matching content row is counted and logged, and a rising count
 there means the path filter is wrong.
 
+### D21 — The bot long-polls rather than taking a webhook — **Taken**
+
+A webhook needs a public HTTPS URL with a valid certificate, which needs the domain in D2.
+Long polling needs nothing: it works from a laptop, from behind a NAT, and from a machine
+that has no inbound route at all.
+
+At one operator's message volume the difference in latency is about a second, and the cost
+is one held HTTP connection. When there is a domain, moving to a webhook changes
+`adapters/telegram-api.ts` and nothing above it — the dispatcher already takes an update
+as `unknown` and does not know where it came from.
+
+The offset is the acknowledgement, which shapes the loop: asking for updates after N is
+what tells Telegram the ones before N were handled. So updates are processed one at a time
+and the offset advances afterwards — a crash re-delivers rather than drops. Enqueuing them
+for later would mean an update Telegram believes was delivered and nothing has.
+
+### D22 — Approving is held to the `/promote` bar, not the chat bar — **Taken**
+
+Commands are authorised in two tiers: the right chat is enough to read, and a named user
+is required to change anything. An inline keyboard sits somewhere in between — it is
+visible to everyone in the chat, and tapping it is a mutating action.
+
+So a callback is authorised as though it were `/promote`: the right chat _and_ a named
+operator. Anyone else in the chat can see the queue and gets a toast saying the decision
+is not theirs to make.
+
+Two properties follow, and both are asserted:
+
+**Approving is idempotent.** The update is `WHERE status IN ('draft', 'pending_review')`,
+so a second tap — the normal case, because the button stays on screen — matches no row and
+reports "already decided" rather than acting twice. Checking and then updating would be the
+same logic with a race in it.
+
+**Approving names a reviewer.** The Telegram user id goes into `content.reviewed_by`, and
+`content_generated_needs_review` refuses the row without it. Publishing anonymously is a
+constraint violation, not a shortcut.
+
 ---
 
 ## Deferred, but worth naming now

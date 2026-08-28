@@ -256,3 +256,51 @@ describe('the environment', () => {
     expect(problems.length).toBeGreaterThan(1);
   });
 });
+
+describe('the bot environment', () => {
+  const base: Record<string, string> = {
+    DATABASE_URL: 'postgres://morph@localhost:5432/morph',
+    REDIS_URL: 'redis://localhost:6379',
+    CRAWLER_USER_AGENT: 'MorphBot/0.1 (+https://example.com/bot)',
+    ANTHROPIC_API_KEY: 'sk-ant-test',
+  };
+
+  const env = (overrides: Record<string, string> = {}): Env =>
+    EnvSchema.parse({ ...base, ...overrides });
+
+  /**
+   * A worker whose job is the crawl does not need a bot, so no configuration at all is a
+   * supported state rather than a degraded one.
+   */
+  it('accepts a worker with no bot configured', () => {
+    expect(refineEnv(env())).toEqual([]);
+  });
+
+  /**
+   * A token with no chat id is a bot that starts, polls, and can never answer.
+   */
+  it('refuses half a bot', () => {
+    expect(refineEnv(env({ TELEGRAM_BOT_TOKEN: 't' })).map((p) => p.variable)).toContain(
+      'TELEGRAM_CHAT_ID',
+    );
+    expect(refineEnv(env({ TELEGRAM_CHAT_ID: '-100' })).map((p) => p.variable)).toContain(
+      'TELEGRAM_BOT_TOKEN',
+    );
+  });
+
+  /**
+   * Approving is limited to named users. With none, the queue is visible and nothing in it
+   * can ever be published — which reads as a broken bot rather than a configuration gap.
+   */
+  it('refuses a bot nobody can approve anything with', () => {
+    const problems = refineEnv(env({ TELEGRAM_BOT_TOKEN: 't', TELEGRAM_CHAT_ID: '-100' }));
+    expect(problems.map((p) => p.variable)).toContain('TELEGRAM_ADMIN_USER_IDS');
+  });
+
+  it('accepts a fully configured bot', () => {
+    const problems = refineEnv(
+      env({ TELEGRAM_BOT_TOKEN: 't', TELEGRAM_CHAT_ID: '-100', TELEGRAM_ADMIN_USER_IDS: '55501' }),
+    );
+    expect(problems).toEqual([]);
+  });
+});

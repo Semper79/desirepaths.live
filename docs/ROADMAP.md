@@ -162,9 +162,9 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 - `safety.ts`: nine categorical rules, `block` beating `review` beating `allow`, each
   firing rule named in the output.
 
-**Done — `apps/worker`, 153 tests:**
+**Done — `apps/worker`, 196 tests:**
 
-Six scheduled jobs, each written against `src/ports.ts` and nothing else — no database
+Six scheduled jobs and the bot, each written against `src/ports.ts` and nothing else — no database
 client, no queue, no clock. That is what makes "a source is due, robots disallows the
 path, so it is recorded as skipped rather than failed" a unit test instead of a
 docker-compose and a fixture database.
@@ -180,6 +180,9 @@ docker-compose and a fixture database.
   the sources actually offered; anything else is discarded and logged as an invented
   citation.
 - `prune` — the 30-day retention window, which until now was a comment in the schema.
+- The Telegram bot: long polling, the command dispatcher, and the approval queue that
+  moves a draft to `published`. Long polling rather than a webhook because a webhook
+  needs the domain in D2; swapping to one changes the client and nothing above it.
 - `audience` — the interest vector: per-page engagement from ClickHouse, ranked by the
   same `compositeReward` the bandit optimises, centroid of the above-median half. This is
   the term that makes the trend score about _this site_ rather than about the web.
@@ -205,8 +208,14 @@ section-boundary message packing, quiet-hour discipline, the command grammar and
 authorisation model, and a worked example that is generated from the same code path the
 bot uses.
 
-**Remaining:** the bot transport in `apps/worker`, inline keyboards for `/queue`, the
-LLM prose pass over the same structured input, and immediate alert escalation.
+The transport now exists in `apps/worker`: the Bot API client (splitting at 4096
+characters, honouring `retry_after`, treating `ok: false` as the failure it is), the
+update loop, the command dispatcher, and `/queue` with inline keyboards that publish or
+reject a draft.
+
+**Remaining:** the hourly report _job_ — the composer has been ready since Phase 6 and
+needs the ClickHouse queries that fill its nine sections. Also the LLM prose pass over the
+same structured input, and immediate alert escalation.
 
 **Gate:** a report every hour for a week with no missed hours and no 400s from Telegram.
 
