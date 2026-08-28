@@ -1,8 +1,10 @@
 # Roadmap
 
-> **Current phase: 3 — the public site.**
-> Phases 0, 1 (schema and contract), and 2 are complete and verified. Phase 3 is blocked
-> on decisions D1–D4 in `docs/DECISIONS.md`.
+> **Current phase: 5 — web intelligence.**
+> Phases 0, 2 and 3 are complete and verified; 1 and 6 are complete apart from work that
+> needs Docker or a deployed URL. Phase 4 (sign-up) is deferred by the operator, so 5 was
+> taken out of order. The crawler package is complete; the worker jobs that drive it are
+> not, and need the source list in D7.
 
 Each phase ends with the gate green:
 
@@ -133,15 +135,39 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 
 ---
 
-## Phase 5 — Web intelligence
+## Phase 5 — Web intelligence 🟡 _`packages/crawler` complete; the jobs that drive it are not_
 
-`packages/crawler` and the trend pipeline: polite fetcher, robots parser with cache,
-Readability extraction, SimHash dedup, pgvector embeddings, HDBSCAN clustering,
-momentum / audience-fit / saturation / durability scoring, the safety classifier, content
-generation with mandatory attribution, and the approval queue.
+**Done — `packages/crawler`, 243 tests:**
+
+- `robots.ts`: RFC 9309 parsing with longest-match precedence, `Allow` winning ties,
+  wildcards and `$`, and metacharacters treated as literals because a `robots.txt` is
+  attacker-controlled input. 404 means allowed; 5xx and 401/403 mean the whole host is
+  off limits.
+- `politeness.ts`: one concurrent request per host enforced by a lease rather than a
+  counter, `Crawl-delay` honoured and clamped, a global QPS ceiling, and a per-host
+  circuit breaker. Time is a parameter, so "waits 1.1 s then retries" is a test rather
+  than a sleep.
+- `fetch.ts`: the only outbound request in MORPH. Composes the two above, sends
+  `ETag` / `If-Modified-Since`, re-checks robots on every redirect hop, caps body size
+  and redirect count, and injects `fetch`, the clock and `sleep` so the whole thing is
+  testable without a network.
+- `feed.ts`: RSS 2.0, Atom 1.0 and RSS 1.0/RDF normalised into one `FeedItem`.
+- `extract.ts`: Readability-style extraction — link density against text length, with
+  class/id hints breaking the ties density cannot.
+- `simhash.ts`: 64-bit SimHash over word shingles, Hamming distance, batch deduplication.
+- `cluster.ts`: incremental nearest-centroid assignment with a running-mean update —
+  **not HDBSCAN**, see D14.
+- `score.ts`: momentum (velocity × direction), audience fit, saturation, durability,
+  weighted into one number that always reports its components and a plain-language reason.
+- `safety.ts`: nine categorical rules, `block` beating `review` beating `allow`, each
+  firing rule named in the output.
+
+**Remaining:** the worker jobs (`crawl`, `embed`, `cluster`, `generate`), pgvector
+embeddings, content generation with mandatory attribution, and the approval queue. All
+of them need the source list agreed in D7, and the workers need Docker.
 
 **Gate:** a week of crawling with zero robots violations, and the classifier's rejection
-list reviewed by hand for false negatives.
+list reviewed by hand for false negatives. Neither is possible until the workers run.
 
 ---
 

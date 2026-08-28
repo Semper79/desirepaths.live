@@ -104,7 +104,17 @@ morph/
 │   │   ├── src/tokens.ts          ✅ required set, fallback bag, composition
 │   │   └── test/                  ✅ 1 file
 │   │
-│   ├── crawler/                   🔜 Phase 5
+│   ├── crawler/                   ✅ the trend pipeline — 243 tests
+│   │   ├── src/robots.ts          ✅ RFC 9309: longest match, Allow wins ties
+│   │   ├── src/politeness.ts      ✅ one request per host, delay, QPS, breaker
+│   │   ├── src/fetch.ts           ✅ the only outbound request in MORPH
+│   │   ├── src/feed.ts            ✅ RSS 2.0 · Atom 1.0 · RDF → one FeedItem
+│   │   ├── src/extract.ts         ✅ link density beats per-site rules
+│   │   ├── src/simhash.ts         ✅ 64-bit fingerprint, Hamming distance
+│   │   ├── src/cluster.ts         ✅ incremental, so cluster ids survive a run
+│   │   ├── src/score.ts           ✅ momentum · fit · saturation · durability
+│   │   ├── src/safety.ts          ✅ nine rules; block beats review beats allow
+│   │   └── test/                  ✅ 9 files
 │   └── social/                    🔜 Phase 7
 │
 ├── apps/

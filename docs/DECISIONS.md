@@ -205,6 +205,56 @@ edge collector, so nothing downstream of the buffer needs application logic. Rev
 enrichment ever has to happen after the buffer; the `events` table is unchanged either
 way.
 
+### D14 — Incremental nearest-centroid clustering, not HDBSCAN — **Taken**
+
+The brief names HDBSCAN, and on a static corpus it is the better algorithm: it finds
+clusters of varying density and labels the rest as noise without being told how many to
+look for. Two things make it the wrong fit.
+
+**Cluster identity does not survive a re-run.** HDBSCAN reclusters everything on every
+run, and nothing ties this hour's cluster 7 to last hour's. A `trend_signal` whose id
+changes every hour cannot accumulate a momentum history — and momentum over time is the
+entire point of the pipeline. Incremental assignment against the clusters already in the
+database keeps ids stable by construction.
+
+**It would be the package's only native dependency**, to solve a problem the simpler
+algorithm solves adequately.
+
+The cost, stated plainly: cluster quality depends on arrival order, and an early
+outlier can anchor a cluster somewhere unhelpful. Three mitigations — a running-mean
+centroid update rather than a midpoint (so one arrival cannot move a 40-member cluster
+halfway), periodic re-centroiding over the members still inside the retention window, and
+a `cohesion()` measure that reports a cluster which has drifted into covering two topics.
+Splitting is reported to the operator rather than done automatically, because a split
+discards the momentum history that justified the whole design.
+
+Revisit if the report shows clusters whose cohesion is routinely below the join threshold.
+
+### D15 — The safety classifier is rules, not a model — **Taken**
+
+A model would classify better on average. Three properties beat average accuracy here.
+
+**Auditability.** The operator has to be able to ask "why was this blocked" and get a rule
+with a name, not a probability. `assessSafety` returns every category that fired and the
+exact terms that fired it, so a bad rule is visible and fixable.
+
+**Determinism.** The same topic must get the same verdict on every run, or the review
+queue fills with topics that were allowed yesterday and blocked today.
+
+**The asymmetry.** A false block costs one article; a false allow costs the site's
+credibility and possibly somebody real. The rules are deliberately blunt and
+over-trigger, and `review` — which queues rather than discards — is the default for
+anything ambiguous.
+
+A model belongs _after_ this gate, narrowing what survives it. Never replacing it.
+
+**The gap this leaves, named:** `docs/COMPLIANCE.md` §5 also lists "anything naming a
+private individual". Term matching cannot detect that — it needs named-entity recognition
+plus a judgement about whether the person is public — so it is **not** enforced in code.
+It is carried by `SOCIAL_AUTONOMY` staying at `review`, where a human sees the draft. A
+claim in a compliance document that no code implements is worse than an acknowledged
+limitation.
+
 ---
 
 ## Deferred, but worth naming now

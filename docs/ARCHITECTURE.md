@@ -184,7 +184,43 @@ dashboard nobody is watching.
 
 ---
 
-## 6. What this architecture is not good at
+## 6. The trend pipeline
+
+Nine stages, each a module in `packages/crawler`, each pure except the one that touches
+the network:
+
+```
+robots  →  politeness  →  fetch  →  feed / extract  →  simhash  →  cluster  →  score  →  safety
+  what a     how fast      the only    a publisher's   the same     stories     which are   which never
+  host       we may ask    outbound    words, not      story,       into        worth       are
+  permits                  request     their nav       forty times  topics      writing
+```
+
+**Why purity is the design and not a preference.** Everything except `fetch` takes plain
+data and returns plain data, which is what allows a one-minute crawl delay, a topic
+peaking six hours ago and a near-duplicate to be asserted in a test suite that runs in
+under a second. `fetch` itself takes `fetch`, the clock and `sleep` as injected
+dependencies, so even the network stage is tested offline — the whole compliance
+position is proven by 227 tests with no network and no sleeping.
+
+**Where the cheap filter goes.** SimHash runs before embeddings, not after. It answers a
+narrow question — is this the same text with a byte changed — in a 64-bit integer
+comparison, and removes the overwhelming majority of duplicates before anything expensive
+is computed on them. Clustering then answers the broader question SimHash cannot: are
+these two different articles about the same thing.
+
+**Why deduplication comes before scoring at all.** Without it, momentum measures
+syndication rather than interest, and the topic that wins is whichever press release had
+the widest distribution list.
+
+**Ordering inside the fetcher.** Robots is checked before the rate limiter, so a
+disallowed path never consumes a rate-limit slot and the audit trail records "we did not
+ask" rather than "we waited, then did not ask". Host constraints always beat global ones:
+being under the global QPS budget is never permission to hit one host twice at once.
+
+---
+
+## 7. What this architecture is not good at
 
 Stated plainly, because an architecture document that only lists strengths is marketing.
 

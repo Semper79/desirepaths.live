@@ -36,6 +36,13 @@ jitter whose stated purpose is to defeat automation detection is not, because it
 purpose is deception. The difference is the intent, and the intent is legible in the
 code and the comments.
 
+There is exactly one place randomness enters our request timing:
+`PolitenessScheduler.backOff` spreads retries within an exponentially growing window,
+and only after a host has already returned 429 or 503. It exists so that several queued
+jobs for one host do not all return in the same instant — it makes the traffic gentler
+on the host, not less detectable — and the reasoning is written at the injection point
+so the distinction survives the next reader.
+
 ---
 
 ## 2. Crawling
@@ -65,12 +72,38 @@ hourly.
 
 ### robots.txt interpretation
 
-- Longest-match wins for `Allow` / `Disallow`, per the de-facto standard.
+- Longest-match wins for `Allow` / `Disallow`, per the de-facto standard; `Allow` wins a
+  tie at equal length.
 - A missing `robots.txt` (404) is treated as _allowed_; a 5xx is treated as
-  _disallowed_, because a server having a bad day is not consent.
+  _disallowed_, because a server having a bad day is not consent. A 401/403 on
+  `robots.txt` itself is also treated as disallowed: rules behind an auth wall are rules
+  we have not been given.
 - `Crawl-delay` is honoured even though it is not in the original standard: a host that
-  asks for a delay gets it.
-- Wildcards (`*`, `$`) are supported.
+  asks for a delay gets it. It is clamped to a minute so one misconfigured host cannot
+  stall the queue, and never reduced below our own default — a host asking for less does
+  not get to speed us up.
+- Wildcards (`*`, `$`) are supported, and pattern metacharacters are matched literally
+  because a `robots.txt` is attacker-controlled input from our point of view.
+- A redirect is re-checked against the destination's own `robots.txt`, so a redirect
+  cannot be used to reach a path — or a host — that would otherwise be disallowed.
+
+### Where these are enforced, and how they are proven
+
+Not conventions every caller has to remember: `packages/crawler` exports no raw fetch
+wrapper, so `PoliteFetcher` is the only path from MORPH to a third-party host.
+
+| Claim                                       | Code                                 | Test                           |
+| ------------------------------------------- | ------------------------------------ | ------------------------------ |
+| robots.txt parsed to the rules above        | `packages/crawler/src/robots.ts`     | `test/robots.test.ts` (27)     |
+| One concurrent request per host             | `packages/crawler/src/politeness.ts` | `test/politeness.test.ts` (26) |
+| Delay measured from completion, not start   | `politeness.ts` — `end()`            | `test/politeness.test.ts`      |
+| Disallowed paths are never requested        | `packages/crawler/src/fetch.ts`      | `test/fetch.test.ts` (38)      |
+| Conditional requests always sent            | `fetch.ts` — `send()`                | `test/fetch.test.ts`           |
+| Unreadable robots.txt blocks the whole host | `robots.ts` — `policyFrom()`         | both                           |
+| Backoff and `Retry-After` on 429/503        | `politeness.ts` — `backOff()`        | both                           |
+
+The politeness tests take time as a parameter rather than sleeping, which is why a
+one-minute crawl delay can be asserted in a suite that runs in a second.
 
 ---
 
@@ -136,20 +169,41 @@ a hurry by someone who has not read this document.
 
 ## 5. The safety classifier
 
-Runs before anything reaches the site or a social platform. Categorical rejections, with
-the reason logged and surfaced in the hourly report:
+Runs before anything reaches the site or a social platform, in
+`packages/crawler/src/safety.ts` (25 tests). Rule-based rather than a model, and
+deliberately so — see D15. `block` beats `review` beats `allow`, and one blocking
+category is enough however many others were clean.
 
-- Political or electoral content
-- Tragedy, violence, or disaster
-- Medical or financial advice
-- Unverified breaking news (no corroborating primary source)
-- Content targeting or concerning minors
-- Legally sensitive matters — active litigation, allegations, defamation risk
-- Adult content
-- Anything naming a private individual
+**Blocked outright — never published without a human writing it:**
 
-Rejections are logged with the rule that fired (`trend_signal.safety_reason`), because
-"the classifier said no" is not a reviewable answer.
+| Category                                            | Id          |
+| --------------------------------------------------- | ----------- |
+| Political and electoral content                     | `electoral` |
+| Violence, disaster and loss of life                 | `tragedy`   |
+| Medical claims and health advice                    | `medical`   |
+| Investment and financial advice                     | `financial` |
+| Content concerning children                         | `minors`    |
+| Ongoing legal proceedings — litigation, allegations | `legal`     |
+| Adult content                                       | `adult`     |
+
+**Held for the operator rather than dropped** — not inherently unsafe, but not something
+to publish unread:
+
+| Category                                 | Id         |
+| ---------------------------------------- | ---------- |
+| Unverified breaking news                 | `breaking` |
+| Protected characteristics as the subject | `identity` |
+
+**Not enforced in code, and named rather than implied:** "anything naming a private
+individual". Term matching cannot detect it — that needs named-entity recognition plus a
+judgement about whether the person named is public, and a rule set that tried would
+either miss most cases or block every article mentioning anybody. It is carried instead
+by `SOCIAL_AUTONOMY` staying at `review`, where a human reads the draft. Stated here
+because a compliance claim no code implements is worse than an acknowledged limitation.
+
+Rejections are logged with the rule that fired and the exact terms that fired it
+(`trend_signal.safety_reason`), because "the classifier said no" is not a reviewable
+answer — and because a bad rule should be visible and fixable rather than mysterious.
 
 The reasoning behind the strictness: newsjacking a disaster is a brand-ending mistake,
 and it is exactly the kind of thing a momentum-scoring pipeline will surface first,
