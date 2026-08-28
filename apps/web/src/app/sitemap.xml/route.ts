@@ -21,14 +21,14 @@ import { STATIC_ROUTES, origin, publishedContent } from '../../lib/site.js';
  */
 export const dynamic = 'force-dynamic';
 
-export function GET(): Response {
+export async function GET(): Promise<Response> {
   const entries: SitemapEntry[] = [
     ...STATIC_ROUTES.map((route) => ({
       path: route.path,
       priority: route.priority,
       changeFrequency: 'daily' as const,
     })),
-    ...publishedContent().map((item) => ({
+    ...(await publishedContent()).map((item) => ({
       path: `/t/${item.slug}`,
       // From the content row, never from the clock. A sitemap that claims everything
       // changed today is ignored within weeks.

@@ -78,9 +78,15 @@ importers:
       '@morph/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      drizzle-orm:
+        specifier: ^0.36.4
+        version: 0.36.4(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8)
       next:
         specifier: ^15.1.0
         version: 15.5.23(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.9
       react:
         specifier: ^19.0.0
         version: 19.2.8

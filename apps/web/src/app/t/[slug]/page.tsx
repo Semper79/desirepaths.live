@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { article, breadcrumbs, graph, pageMeta, serialiseJsonLd } from '@morph/seo';
+import type { ContentBlock } from '@morph/core';
 import { publishedContent, siteIdentity } from '../../../lib/site.js';
 
 /**
@@ -13,12 +14,25 @@ import { publishedContent, siteIdentity } from '../../../lib/site.js';
  * rendered visibly, because a source a reader cannot see is not an attribution.
  */
 
+/**
+ * Revalidate every five minutes.
+ *
+ * The words on an article do not change, so it is cached — but the *set* of articles
+ * does, and `generateStaticParams` runs once at build. Without this, a piece approved
+ * at 15:30 would be reachable at its own URL (unknown params render on demand) and
+ * invisible on the home page until the next deploy.
+ *
+ * The four SEO routes are `force-dynamic` for a different reason — they bake the origin
+ * — and get freshness as a side effect.
+ */
+export const revalidate = 300;
+
 interface Params {
   readonly slug: string;
 }
 
-function findContent(slug: string) {
-  return publishedContent().find((item) => item.slug === slug);
+async function findContent(slug: string) {
+  return (await publishedContent()).find((item) => item.slug === slug);
 }
 
 /**
@@ -28,13 +42,13 @@ function findContent(slug: string) {
  * so they can be static and revalidated. That is what keeps an article fast without
  * giving up the adaptive shell around it.
  */
-export function generateStaticParams(): Params[] {
-  return publishedContent().map((item) => ({ slug: item.slug }));
+export async function generateStaticParams(): Promise<Params[]> {
+  return (await publishedContent()).map((item) => ({ slug: item.slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params;
-  const content = findContent(slug);
+  const content = await findContent(slug);
   if (content === undefined) return { title: 'Not found' };
 
   const site = siteIdentity();
@@ -69,7 +83,7 @@ export default async function ArticlePage({
   params: Promise<Params>;
 }): Promise<React.JSX.Element> {
   const { slug } = await params;
-  const content = findContent(slug);
+  const content = await findContent(slug);
   if (content === undefined) notFound();
 
   const site = siteIdentity();
@@ -122,6 +136,8 @@ export default async function ArticlePage({
 
           <p style={{ fontSize: '1.1875rem' }}>{content.summary}</p>
 
+          <ArticleBody blocks={content.body.blocks} />
+
           <section aria-labelledby="sources">
             <h2 id="sources">Sources</h2>
             <ul className="muted" style={{ maxWidth: 'var(--measure)' }}>
@@ -139,5 +155,47 @@ export default async function ArticlePage({
         </article>
       </main>
     </>
+  );
+}
+
+/**
+ * The article body.
+ *
+ * Blocks, rendered as elements. Never `dangerouslySetInnerHTML`: the text in these blocks
+ * was written by a language model from sources on the open web, and the one thing that
+ * must not be possible is for a crafted source to put markup into a page. React escapes
+ * text nodes, so the whole class of injection through generated content is closed by the
+ * data being inert rather than by anything sanitising it.
+ *
+ * A body that failed to parse arrives here as an empty list and renders nothing, leaving
+ * the title, summary and sources — which is a thin page rather than a 500 on a URL search
+ * engines have already indexed.
+ */
+function ArticleBody({ blocks }: { blocks: readonly ContentBlock[] }): React.JSX.Element | null {
+  if (blocks.length === 0) return null;
+
+  return (
+    <div className="stack" style={{ maxWidth: 'var(--measure)' }}>
+      {blocks.map((block, index) => {
+        // Blocks have no ids and their text is not unique — two paragraphs can legitimately
+        // repeat. The index is the only stable key available, and the list is never
+        // reordered, so it is the correct one rather than a compromise.
+        const key = `${block.type}-${String(index)}`;
+
+        if (block.type === 'heading') return <h2 key={key}>{block.text}</h2>;
+
+        if (block.type === 'list') {
+          return (
+            <ul key={key}>
+              {block.items.map((item, itemIndex) => (
+                <li key={`${key}-${String(itemIndex)}`}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+
+        return <p key={key}>{block.text}</p>;
+      })}
+    </div>
   );
 }

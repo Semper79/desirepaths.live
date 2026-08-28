@@ -18,7 +18,9 @@
     "@morph/ui": "workspace:*",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "drizzle-orm": "^0.36.4",
+    "postgres": "^3.4.5"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BASELINE_ASSIGNMENT,
+  parseContentBody,
   SURFACES,
   VisitorIdentity,
   checkContrast,
@@ -18,6 +19,7 @@ import {
 } from '../src/lib/request-context.js';
 import { motionAllowed, payloadOf, sectionOrder, tokensFor } from '../src/lib/render.js';
 import { STATIC_ROUTES, publishedContent, siteIdentity } from '../src/lib/site.js';
+import { SEED_CONTENT, toArticle } from '../src/lib/content.js';
 
 /** A minimal `Headers`-like object, so these tests need no framework. */
 const headersOf = (entries: Readonly<Record<string, string>>) => ({
@@ -285,8 +287,13 @@ describe('site configuration', () => {
     expect(site.origin.endsWith('/')).toBe(false);
   });
 
-  it('publishes content with the source attribution the schema requires', () => {
-    for (const item of publishedContent()) {
+  /**
+   * With no `DATABASE_URL` this exercises the development seed, which is the point: the
+   * fallback has to satisfy the same attribution invariant as anything the pipeline
+   * writes, or the one input every serialisation path is tested against is invalid.
+   */
+  it('publishes content with the source attribution the schema requires', async () => {
+    for (const item of await publishedContent()) {
       expect(item.sources.length).toBeGreaterThan(0);
       for (const source of item.sources) expect(() => new URL(source.url)).not.toThrow();
     }
@@ -298,5 +305,101 @@ describe('site configuration', () => {
       expect(route.priority).toBeGreaterThan(0);
       expect(route.priority).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+/**
+ * The development seed is the input every serialisation path is tested against — the
+ * sitemap, both feeds, `/llms.txt` and the article page. If it stops being representative
+ * of what the pipeline writes, all of those are being tested against a fiction.
+ */
+describe('the content fallback', () => {
+  it('has a body the article page can render', () => {
+    for (const item of SEED_CONTENT) {
+      expect(item.body.blocks.length).toBeGreaterThan(0);
+      for (const block of item.body.blocks) {
+        expect(['heading', 'paragraph', 'list']).toContain(block.type);
+      }
+    }
+  });
+
+  it('survives the same parse a database row goes through', () => {
+    for (const item of SEED_CONTENT) {
+      expect(parseContentBody(item.body)).toEqual(item.body);
+    }
+  });
+
+  it('carries slugs that are URL-safe, because they become paths', () => {
+    for (const item of SEED_CONTENT) {
+      expect(item.slug).toMatch(/^[a-z0-9-]+$/);
+    }
+  });
+
+  it('dates every piece with something the structured data can serialise', () => {
+    for (const item of SEED_CONTENT) {
+      expect(Number.isNaN(Date.parse(item.publishedAt))).toBe(false);
+    }
+  });
+});
+
+describe('mapping a content row', () => {
+  const row = {
+    slug: 'a-piece',
+    title: 'A piece',
+    summary: 'What it says.',
+    body: { blocks: [{ type: 'paragraph', text: 'Body text.' }] },
+    sources: [{ url: 'https://example.com/x', title: 'Source', publisher: 'example.com' }],
+    generatedBy: null,
+    reviewedBy: null,
+    publishedAt: new Date('2026-08-01T09:00:00.000Z'),
+    updatedAt: new Date('2026-08-01T09:00:00.000Z'),
+  };
+
+  it('carries the row through', () => {
+    const article = toArticle(row);
+
+    expect(article.slug).toBe('a-piece');
+    expect(article.body.blocks).toHaveLength(1);
+    expect(article.publishedAt).toBe('2026-08-01T09:00:00.000Z');
+  });
+
+  /**
+   * `dateModified` equal to `datePublished` is noise in the structured data and tells a
+   * crawler nothing.
+   */
+  it('omits the modified date when nothing has changed', () => {
+    expect(toArticle(row).modifiedAt).toBeUndefined();
+    expect(toArticle({ ...row, updatedAt: new Date('2026-08-05T09:00:00.000Z') }).modifiedAt).toBe(
+      '2026-08-05T09:00:00.000Z',
+    );
+  });
+
+  /**
+   * The column is nullable and a date is required by the structured data, so a plausible
+   * date beats an invalid one in every consumer.
+   */
+  it('falls back to the updated date when a published row has none', () => {
+    const article = toArticle({ ...row, publishedAt: null });
+    expect(article.publishedAt).toBe('2026-08-01T09:00:00.000Z');
+  });
+
+  it('reports provenance only when there is any', () => {
+    expect(toArticle(row).generatedBy).toBeUndefined();
+
+    const generated = toArticle({ ...row, generatedBy: 'claude-opus-5', reviewedBy: 'operator' });
+    expect(generated.generatedBy).toBe('claude-opus-5');
+    expect(generated.reviewedBy).toBe('operator');
+  });
+
+  /**
+   * One malformed row must not 500 a URL search engines have already indexed; the page
+   * degrades to its title, summary and sources.
+   */
+  it('degrades a malformed body rather than throwing', () => {
+    expect(toArticle({ ...row, body: 'markdown from an older generator' }).body.blocks).toEqual([]);
+  });
+
+  it('turns a missing summary into an empty string, not the word null', () => {
+    expect(toArticle({ ...row, summary: null }).summary).toBe('');
   });
 });

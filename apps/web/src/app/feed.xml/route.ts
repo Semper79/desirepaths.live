@@ -14,9 +14,9 @@ import { origin, publishedContent, siteIdentity } from '../../lib/site.js';
  */
 export const dynamic = 'force-dynamic';
 
-export function GET(): Response {
+export async function GET(): Promise<Response> {
   const site = siteIdentity();
-  const items: FeedItem[] = publishedContent().map((item) => ({
+  const items: FeedItem[] = (await publishedContent()).map((item) => ({
     title: item.title,
     path: `/t/${item.slug}`,
     summary: item.summary,

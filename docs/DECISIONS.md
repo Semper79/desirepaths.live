@@ -50,11 +50,13 @@ turnarounds, so this blocks more than it looks like it does.
 (TikTok and Meta in particular) takes days to weeks and cannot start without a live
 privacy policy at a stable URL.
 
-**What I need:** the domain.
+**What I need, still:** the domain itself. There is no defensible default here — a name
+is a brand decision, and inventing one would put a placeholder into OAuth callbacks, the
+crawler’s contact URL and every certificate.
 
 ---
 
-### D3 — Hosting and jurisdiction
+### D3 — Hosting and jurisdiction — **Taken: A**
 
 | Option                                         | Notes                                                                                                                      |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -67,8 +69,8 @@ handles that with the async-insert configuration already in the compose file. Mo
 B is a one-line change with no migration. Choosing C at launch means paying for elastic
 scale before the traffic that would justify it exists.
 
-**What I need:** confirmation, plus who holds the account (this matters for GDPR
-controller identification).
+**Decided:** A — Hetzner CCX23, Falkenstein. Who holds the account is part of D4, and the
+answer there is what `docs/PRIVACY.md` names as controller.
 
 ---
 
@@ -83,8 +85,9 @@ yet. If EU-based with no establishment elsewhere, no Article 27 representative i
 needed. If processing scales past "regular and systematic monitoring on a large scale" —
 which 5M events/day plausibly is — a DPO becomes a live question; see `docs/PRIVACY.md`.
 
-**What I need:** legal entity name, registered address, and a contact email for
-data-subject requests.
+**What I need, still:** legal entity name, registered address, and a contact email for
+data-subject requests. `docs/PRIVACY.md` cannot be published without them, and it must be
+published before the first visitor is measured.
 
 ---
 
@@ -129,7 +132,7 @@ holdout-lift measurement stays honest either way.
 
 ## Blocking Phase 5 (crawling and content)
 
-### D16 — Which embedding provider
+### D16 — Which embedding provider — **Taken: A**
 
 The pipeline's clustering, audience fit and topic scoring all run on 768-dimension
 embeddings, and there is no default that is both free and meaningful. The worker ships a
@@ -151,13 +154,20 @@ truncating to 768 — a truncated embedding is a worse embedding for no benefit.
 better long-term answer if the volume justifies the GPU, and the adapter is already
 written against an OpenAI-compatible shape so switching is a configuration change.
 
-**What I need:** the provider, and confirmation that a second processor in the pipeline
-is acceptable (it belongs in `docs/PRIVACY.md` either way — the crawler only ever sends
-it text that was already public).
+**Decided:** A — Voyage. `EMBEDDING_PROVIDER=voyage` is now the documented production
+setting, and `docs/PRIVACY.md` gains Voyage as a processor. The crawler only ever sends
+it text that was already public, so no visitor data leaves for it.
+
+**One thing deliberately not yet written:** the column width. The schema is `vector(768)`
+in three places and the chosen model does not emit 768. Rather than bake a number into a
+migration from memory, `EMBEDDING_DIMENSIONS` stays the single source of truth and the
+migration is written once the exact model and its native width are confirmed against
+Voyage’s current documentation. A truncated embedding is a worse embedding for no
+benefit, so the column moves to the model rather than the model to the column.
 
 ---
 
-### D7 — Which sources, concretely
+### D7 — Which sources, concretely — **Taken**
 
 Section 3 gives a preference order, not a list. Every source needs a robots review, a ToS
 review and, for the API sources, a credential. X API v2 in particular now costs real
@@ -169,7 +179,13 @@ All are free or cheap, all have documented terms, none needs paid access. Defer 
 until there is evidence the audience is there — at current pricing it is the most
 expensive source per unit of signal by a wide margin.
 
-**What I need:** approval of the list, and whether to budget for X API.
+**Decided:** the recommended list, X API deferred. Hacker News, Reddit, GitHub Trending,
+Wikipedia pageviews, YouTube Data API, plus 40–60 curated RSS/Atom feeds.
+
+**What that still requires before a single fetch:** each source needs a row in
+`crawl_source` with `tos_reviewed_at` set, and that review is a human reading terms — the
+column exists precisely so the compliance position is checkable by a query rather than
+asserted. The API sources also need credentials.
 
 ---
 

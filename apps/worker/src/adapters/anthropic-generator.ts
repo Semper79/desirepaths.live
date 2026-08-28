@@ -25,6 +25,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import { z } from 'zod';
+import { ContentBlockSchema } from '@morph/core';
 import type { ContentGenerator, GeneratedContent, GenerationBrief } from '../ports.js';
 
 /**
@@ -34,16 +35,13 @@ import type { ContentGenerator, GeneratedContent, GenerationBrief } from '../por
  * structure it can style with design tokens, and a heading the site can index. Sources are
  * returned as URLs, not as prose citations, so the job can check them mechanically.
  */
-const BlockSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('heading'), text: z.string().min(1) }),
-  z.object({ type: z.literal('paragraph'), text: z.string().min(1) }),
-  z.object({ type: z.literal('list'), items: z.array(z.string().min(1)).min(1) }),
-]);
-
 const DraftSchema = z.object({
   title: z.string().min(1).max(200),
   summary: z.string().min(1),
-  blocks: z.array(BlockSchema).min(1),
+  // The block shape lives in @morph/core: the web app reads these back out of a jsonb
+  // column, and two declarations of one shape is how a renderer starts silently dropping
+  // a block type the generator has begun emitting.
+  blocks: z.array(ContentBlockSchema).min(1),
   /** Exactly the URLs from the supplied list that this draft actually draws on. */
   citedUrls: z.array(z.string()).min(1),
 });

@@ -55,60 +55,15 @@ export function isIndexable(): boolean {
 // Content
 // -----------------------------------------------------------------------------
 
-export interface ContentSummary {
-  readonly slug: string;
-  readonly title: string;
-  readonly summary: string;
-  readonly publishedAt: string;
-  readonly modifiedAt?: string;
-  readonly keywords: readonly string[];
-  readonly sources: readonly { url: string; title: string; publisher: string }[];
-  readonly generatedBy?: string;
-  readonly reviewedBy?: string;
-}
-
 /**
  * The published content index.
  *
- * Reads from Postgres in Phase 5, once the trend pipeline is producing. Until then it
- * returns a small hand-written set so the sitemap, the feeds and the trending section
- * are exercised by something real rather than by an empty array — an empty list is the
- * one input that makes every serialisation bug invisible.
+ * Re-exported rather than moved, because every caller already imports it from `site` and
+ * changing the import sites would have hidden the change that matters — that this is now
+ * a query rather than a literal.
  */
-export function publishedContent(): readonly ContentSummary[] {
-  return [
-    {
-      slug: 'how-this-site-rebuilds-itself',
-      title: 'How this site rebuilds itself',
-      summary:
-        'Eleven surfaces, a contextual bandit, and a set of guardrails whose job is to stop the optimiser from doing something clever and wrong.',
-      publishedAt: '2026-08-01T09:00:00.000Z',
-      keywords: ['adaptive design', 'multi-armed bandit', 'web'],
-      sources: [
-        {
-          url: 'https://arxiv.org/abs/1003.0146',
-          title: 'A Contextual-Bandit Approach to Personalized News Article Recommendation',
-          publisher: 'Li, Chu, Langford, Schapire',
-        },
-      ],
-    },
-    {
-      slug: 'always-valid-p-values',
-      title: 'Why looking at your experiment is allowed',
-      summary:
-        'A fixed-horizon p-value is only valid if you look once. An adaptive system looks continuously, which is why it needs a test built for that.',
-      publishedAt: '2026-08-12T09:00:00.000Z',
-      keywords: ['statistics', 'sequential testing', 'experimentation'],
-      sources: [
-        {
-          url: 'https://arxiv.org/abs/1512.04922',
-          title: 'Always Valid Inference: Continuous Monitoring of A/B Tests',
-          publisher: 'Johari, Pekelis, Walsh',
-        },
-      ],
-    },
-  ];
-}
+export { publishedArticles as publishedContent } from './db.js';
+export type { PublishedArticle as ContentSummary } from './content.js';
 
 /** The static routes, for the sitemap. */
 export const STATIC_ROUTES: readonly { path: string; priority: number }[] = [

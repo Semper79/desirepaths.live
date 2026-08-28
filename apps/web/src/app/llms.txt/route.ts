@@ -27,7 +27,7 @@ import { origin, publishedContent, siteIdentity } from '../../lib/site.js';
  */
 export const dynamic = 'force-dynamic';
 
-export function GET(): Response {
+export async function GET(): Promise<Response> {
   const site = siteIdentity();
 
   const body = renderLlmsTxt({
@@ -67,7 +67,7 @@ export function GET(): Response {
       },
       {
         title: 'Writing',
-        links: publishedContent().map((item) => ({
+        links: (await publishedContent()).map((item) => ({
           title: item.title,
           path: `/t/${item.slug}`,
           note: item.summary,

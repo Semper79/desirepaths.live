@@ -158,8 +158,8 @@ function Fact({
 
 // -----------------------------------------------------------------------------
 
-function Trending(): React.JSX.Element {
-  const content = publishedContent();
+async function Trending(): Promise<React.JSX.Element> {
+  const content = await publishedContent();
   return (
     <section aria-labelledby="trending-heading">
       <h2 id="trending-heading">What the web is saying</h2>
