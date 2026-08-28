@@ -80,6 +80,49 @@ p {
   color: var(--color-text-muted);
 }
 
+/*
+ * Links are token-driven, and they have to be.
+ *
+ * Left unstyled, an anchor uses the browser's default blue and its `:visited` purple —
+ * colours the palette surface has no say over. On a dark variant that is both ugly and
+ * a contrast failure, and it is invisible to the accessibility gate, which only checks
+ * the token pairs a palette declares. Routing links through `--color-accent` puts them
+ * inside the checked set.
+ *
+ * `:visited` is deliberately given the same colour: a distinct visited state is good
+ * practice on a link-heavy page, but it cannot be contrast-checked (the browser
+ * restricts what `:visited` may style, and the optimiser never sees it), so a variant
+ * could ship an illegible one. Underline thickness carries the distinction instead.
+ */
+a {
+  color: var(--color-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a:visited {
+  color: var(--color-accent);
+  text-decoration-style: dotted;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* The CTA and the provider buttons set their own colours; do not let the rule above win. */
+a.cta,
+a.provider {
+  text-decoration: none;
+}
+
+a.cta {
+  color: var(--cta-fg);
+}
+
+a.provider {
+  color: var(--color-text);
+}
+
 /* --- layout -------------------------------------------------------------- */
 
 .shell {

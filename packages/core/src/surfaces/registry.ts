@@ -395,8 +395,10 @@ export const themeTypography = defineSurface({
       payload: {
         family: 'geometric-sans',
         tokens: {
-          '--font-display': 'var(--font-geometric), system-ui, sans-serif',
-          '--font-body': 'var(--font-geometric), system-ui, sans-serif',
+          '--font-display':
+            "var(--font-geometric, ui-rounded, 'Avenir Next', 'Segoe UI', system-ui, sans-serif)",
+          '--font-body':
+            "var(--font-geometric, ui-rounded, 'Avenir Next', 'Segoe UI', system-ui, sans-serif)",
           '--scale-ratio': '1.25',
           '--measure': '68ch',
           '--tracking-display': '-0.02em',
@@ -410,8 +412,10 @@ export const themeTypography = defineSurface({
       payload: {
         family: 'grotesk',
         tokens: {
-          '--font-display': 'var(--font-grotesk), system-ui, sans-serif',
-          '--font-body': 'var(--font-grotesk), system-ui, sans-serif',
+          '--font-display':
+            "var(--font-grotesk, 'Inter', 'Helvetica Neue', Arial, system-ui, sans-serif)",
+          '--font-body':
+            "var(--font-grotesk, 'Inter', 'Helvetica Neue', Arial, system-ui, sans-serif)",
           '--scale-ratio': '1.2',
           '--measure': '72ch',
           '--tracking-display': '-0.01em',
@@ -424,8 +428,9 @@ export const themeTypography = defineSurface({
       payload: {
         family: 'serif-display',
         tokens: {
-          '--font-display': 'var(--font-serif), Georgia, serif',
-          '--font-body': 'var(--font-grotesk), system-ui, sans-serif',
+          '--font-display': "var(--font-serif, ui-serif, Georgia, 'Times New Roman', serif)",
+          '--font-body':
+            "var(--font-grotesk, 'Inter', 'Helvetica Neue', Arial, system-ui, sans-serif)",
           '--scale-ratio': '1.333',
           '--measure': '64ch',
           '--tracking-display': '0em',
@@ -438,8 +443,9 @@ export const themeTypography = defineSurface({
       payload: {
         family: 'mono-accent',
         tokens: {
-          '--font-display': 'var(--font-mono), ui-monospace, monospace',
-          '--font-body': 'var(--font-grotesk), system-ui, sans-serif',
+          '--font-display': "var(--font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace)",
+          '--font-body':
+            "var(--font-grotesk, 'Inter', 'Helvetica Neue', Arial, system-ui, sans-serif)",
           '--scale-ratio': '1.2',
           '--measure': '66ch',
           '--tracking-display': '-0.03em',
