@@ -153,6 +153,35 @@ export interface TopicScore {
   readonly rationale: string;
 }
 
+/**
+ * Combine components into one number.
+ *
+ * Separate from `scoreTopic` because the components are what gets *stored*
+ * (`trend_signal` has a column each and no total), so anything reading a signal back has
+ * to recompute the total. Two copies of this arithmetic would drift the moment a weight
+ * changed, and the symptom would be a queue ordered differently from the report that
+ * describes it.
+ *
+ * Renormalised by the weight sum, so dropping a component — an audience vector that does
+ * not exist yet — reweights the rest rather than dragging the total towards zero.
+ */
+export function combine(
+  components: ScoreComponents,
+  weights: ScoreWeights = DEFAULT_WEIGHTS,
+): number {
+  const weightSum =
+    weights.momentum + weights.audienceFit + weights.saturation + weights.durability;
+  if (weightSum === 0) return 0;
+
+  const weighted =
+    components.momentum * weights.momentum +
+    components.audienceFit * weights.audienceFit +
+    components.saturation * weights.saturation +
+    components.durability * weights.durability;
+
+  return clamp01(weighted / weightSum);
+}
+
 export function scoreTopic(
   history: TopicHistory,
   audienceSimilarity: number,
@@ -166,17 +195,8 @@ export function scoreTopic(
     durability: durability(history, now),
   };
 
-  const weightSum =
-    weights.momentum + weights.audienceFit + weights.saturation + weights.durability;
-
-  const weighted =
-    components.momentum * weights.momentum +
-    components.audienceFit * weights.audienceFit +
-    components.saturation * weights.saturation +
-    components.durability * weights.durability;
-
   return {
-    total: weightSum === 0 ? 0 : clamp01(weighted / weightSum),
+    total: combine(components, weights),
     components,
     rationale: rationaleFor(components),
   };

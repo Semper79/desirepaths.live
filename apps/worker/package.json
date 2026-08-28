@@ -1,0 +1,29 @@
+{
+  "name": "@morph/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The background jobs: crawl, embed, cluster, generate, prune.",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@morph/core": "workspace:*",
+    "@morph/crawler": "workspace:*",
+    "bullmq": "^5.34.0",
+    "drizzle-orm": "^0.36.4",
+    "ioredis": "^5.4.1",
+    "postgres": "^3.4.5",
+    "zod": "^3.23.8",
+    "@anthropic-ai/sdk": "^0.122.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.9"
+  }
+}

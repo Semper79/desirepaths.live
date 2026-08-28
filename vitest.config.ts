@@ -17,7 +17,12 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: './coverage',
-      include: ['packages/*/src/**/*.ts', 'apps/api/src/**/*.ts', 'apps/web/src/lib/**/*.ts'],
+      include: [
+        'packages/*/src/**/*.ts',
+        'apps/api/src/**/*.ts',
+        'apps/web/src/lib/**/*.ts',
+        'apps/worker/src/**/*.ts',
+      ],
       exclude: [
         // Re-export barrels: no logic, and covering them measures nothing.
         '**/src/index.ts',
@@ -40,6 +45,17 @@ export default defineConfig({
         // what the route tests actually run against; covering this file would be
         // covering kafkajs.
         'apps/api/src/lib/producer.ts',
+        // Worker composition root: builds every adapter, registers the schedules, wires
+        // the signal handlers. Testing it would be testing BullMQ.
+        'apps/worker/src/index.ts',
+        // Thin query adapters. Each method is one statement with no branch, and they
+        // need a live Postgres with pgvector to run at all; the jobs above them are
+        // covered against in-memory fakes that implement the same ports.
+        'apps/worker/src/adapters/postgres.ts',
+        // The one call into the Anthropic API. The prompt and the schema agreement are
+        // covered by generator-adapter.test.ts; the request itself would be covering
+        // the SDK.
+        'apps/worker/src/adapters/anthropic-generator.ts',
       ],
       thresholds: {
         // Section 7: "100% branch coverage in packages/adaptive (including a statistical

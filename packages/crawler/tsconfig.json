@@ -1,9 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    // linkedom implements the DOM interfaces, so extract.ts is typed against them. Types
-    // only — nothing here runs in a browser.
-    "lib": ["ES2023", "DOM"],
     "rootDir": ".",
     "noEmit": true,
     "types": ["node"]

@@ -43,6 +43,14 @@ export default defineWorkspace([
   },
   {
     test: {
+      name: 'worker',
+      root: './apps/worker',
+      environment: 'node',
+      include: ['test/**/*.test.ts'],
+    },
+  },
+  {
+    test: {
       name: 'crawler',
       root: './packages/crawler',
       environment: 'node',

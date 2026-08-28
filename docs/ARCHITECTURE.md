@@ -218,6 +218,31 @@ disallowed path never consumes a rate-limit slot and the audit trail records "we
 ask" rather than "we waited, then did not ask". Host constraints always beat global ones:
 being under the global QPS budget is never permission to hit one host twice at once.
 
+### How the jobs are shaped
+
+`apps/worker` runs five scheduled jobs over those stages — `crawl`, `embed`, `cluster`,
+`generate`, `prune` — and every one of them is written against `src/ports.ts` and nothing
+else. No database client, no queue, no HTTP client, no clock.
+
+**Why a seam and not a mocked database.** A mocked query builder reproduces the _shape_ of
+a query, not its meaning, so a test passes while the SQL is wrong. The ports are written
+in the vocabulary of the pipeline — "documents that still need an embedding", "clusters
+seen since" — so a fake implements the intent, and the real adapter is one query per
+method with no branch in it.
+
+**Why every job takes a batch size.** Not elegance: a job that runs for twenty minutes
+loses twenty minutes of work when the worker is redeployed, and BullMQ eventually decides
+it stalled and runs it again from the start. Small jobs that record progress as they go
+are restartable at any point.
+
+**Where the pipeline is honest about not knowing.** Audience fit needs an interest vector
+built from engagement data that is not wired yet. Rather than substitute a plausible
+number — 0 suppresses every topic, 1 promotes every topic, and neither announces itself —
+the component is dropped, the remaining three weights renormalise, and the log records
+that the score came from three signals. The same instinct governs the deterministic
+embedding provider: it exists so the pipeline runs on a laptop, and the environment
+loader refuses to start with it in production.
+
 ---
 
 ## 7. What this architecture is not good at

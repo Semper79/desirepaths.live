@@ -10,6 +10,7 @@ export * from './color.js';
 export * from './text.js';
 export * from './identity.js';
 export * from './consent.js';
+export * from './safety.js';
 export * from './context.js';
 export * from './events.js';
 export * from './config.js';

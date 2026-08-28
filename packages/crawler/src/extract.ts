@@ -20,7 +20,49 @@
  * in the browser has effectively declined machine readers.
  */
 
-import { parseHTML } from 'linkedom';
+import { parseHTML as parseHTMLUntyped } from 'linkedom';
+
+/**
+ * The DOM, as much of it as this file uses.
+ *
+ * linkedom's own types are declared as `Window & typeof globalThis`, which only resolves
+ * against TypeScript's `DOM` lib. Depending on that would make every consumer of
+ * `@morph/crawler` — the worker, any future job — add `"lib": ["DOM"]` to its tsconfig to
+ * compile a package that never touches a browser. A library that dictates its consumers'
+ * compiler options for a dependency they cannot see is a library with a leak in it.
+ *
+ * So: one structural interface covering exactly what is used, and one cast, at the import,
+ * where it is visible. Everything below is typed against these.
+ */
+export interface DomElement {
+  readonly tagName: string;
+  readonly textContent: string;
+  getAttribute(name: string): string | null;
+  querySelector(selector: string): DomElement | null;
+  querySelectorAll(selector: string): readonly DomElement[];
+  remove(): void;
+}
+
+export interface DomDocument {
+  querySelector(selector: string): DomElement | null;
+  querySelectorAll(selector: string): readonly DomElement[];
+}
+
+/*
+ * The repo bans casting through `unknown`, and rightly: it is how untrusted *data* gets
+ * waved past the type checker instead of parsed. This is not data. It is a library's
+ * declared signature, which resolves to `Window & typeof globalThis` and therefore needs
+ * TypeScript's DOM lib to mean anything — and the alternative is making every consumer of
+ * this package enable the DOM lib to compile code that never touches a browser.
+ *
+ * The interfaces above are narrower than what linkedom returns, and the extraction tests
+ * exercise every method on them against real linkedom objects, so a signature that stopped
+ * being true would fail the suite rather than pass silently.
+ */
+// eslint-disable-next-line no-restricted-syntax -- library signature, not data; see above.
+const parseHTML = parseHTMLUntyped as unknown as (html: string) => {
+  readonly document: DomDocument;
+};
 
 export interface ExtractedDocument {
   readonly title: string;
@@ -80,7 +122,7 @@ export type ExtractResult =
   | { readonly kind: 'error'; readonly message: string };
 
 export function extract(html: string, sourceUrl: string): ExtractResult {
-  let window: ReturnType<typeof parseHTML>;
+  let window: { readonly document: DomDocument };
   try {
     window = parseHTML(html);
   } catch (error) {
@@ -128,8 +170,8 @@ export function extract(html: string, sourceUrl: string): ExtractResult {
  * anchor text, articles are almost none. Paragraph count rewards real prose over a wall
  * of one long string, and the class/id hints break ties the density cannot.
  */
-function pickBest(candidates: readonly Element[]): Element | null {
-  let best: Element | null = null;
+function pickBest(candidates: readonly DomElement[]): DomElement | null {
+  let best: DomElement | null = null;
   let bestScore = -Infinity;
 
   for (const element of candidates) {
@@ -143,7 +185,7 @@ function pickBest(candidates: readonly Element[]): Element | null {
   return best;
 }
 
-export function scoreElement(element: Element): number {
+export function scoreElement(element: DomElement): number {
   const text = normaliseWhitespace(element.textContent);
   const length = text.length;
   if (length < 200) return -Infinity;
@@ -172,7 +214,7 @@ export function scoreElement(element: Element): number {
   return score;
 }
 
-function extractTitle(document: Document): string {
+function extractTitle(document: DomDocument): string {
   // In order of how much the publisher meant it: the Open Graph title is written for
   // sharing, the <h1> is written for readers, the <title> often carries the site name.
   const og = metaContent(document, ['og:title', 'twitter:title']);
@@ -184,7 +226,7 @@ function extractTitle(document: Document): string {
   return normaliseWhitespace(document.querySelector('title')?.textContent ?? '');
 }
 
-function extractDate(document: Document): number | null {
+function extractDate(document: DomDocument): number | null {
   const candidates = [
     attribute(document, 'time[datetime]', 'datetime'),
     metaContent(document, ['article:published_time', 'datePublished', 'og:published_time']),
@@ -199,7 +241,7 @@ function extractDate(document: Document): number | null {
   return null;
 }
 
-function metaContent(document: Document, names: readonly string[]): string | null {
+function metaContent(document: DomDocument, names: readonly string[]): string | null {
   for (const name of names) {
     const element =
       document.querySelector(`meta[property="${name}"]`) ??
@@ -210,11 +252,11 @@ function metaContent(document: Document, names: readonly string[]): string | nul
   return null;
 }
 
-function attribute(document: Document, selector: string, name: string): string | null {
+function attribute(document: DomDocument, selector: string, name: string): string | null {
   return document.querySelector(selector)?.getAttribute(name) ?? null;
 }
 
-function collectLinks(root: Element, sourceUrl: string): readonly string[] {
+function collectLinks(root: DomElement, sourceUrl: string): readonly string[] {
   const seen = new Set<string>();
 
   for (const anchor of Array.from(root.querySelectorAll('a[href]'))) {

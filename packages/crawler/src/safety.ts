@@ -35,7 +35,11 @@
  * implements is worse than an acknowledged limitation.
  */
 
-export type SafetyVerdict = 'allow' | 'review' | 'block';
+// Declared in @morph/core, because the Postgres `safety_verdict` enum spells the same
+// three states differently and the mapping between them has to live in exactly one place.
+import { permitsAutomation, type SafetyVerdict } from '@morph/core';
+
+export type { SafetyVerdict };
 
 export interface SafetyCategory {
   readonly id: string;
@@ -352,5 +356,5 @@ function summarise(verdict: SafetyVerdict, matches: SafetyAssessment['matches'])
  * so nobody has to remember which verdicts are publishable.
  */
 export function mayGenerateAutomatically(assessment: SafetyAssessment): boolean {
-  return assessment.verdict === 'allow';
+  return permitsAutomation(assessment.verdict);
 }

@@ -140,7 +140,20 @@ morph/
 │   │   ├── src/app/               ✅ home, privacy, how-it-works, live, /t/[slug],
 │   │   │                             sitemap, robots, feeds, llms.txt, icon, OG image
 │   │   └── test/                  ✅ 4 files
-│   ├── worker/ admin/             🔜 Phases 5, 7
+│   ├── worker/                    ✅ the scheduled jobs — 121 tests
+│   │   ├── src/env.ts             ✅ boot validation, incl. the production embedder rule
+│   │   ├── src/ports.ts           ✅ the seam every job is written against
+│   │   ├── src/queues.ts          ✅ payload schemas, cron, retries, concurrency
+│   │   ├── src/jobs/crawl.ts      ✅ fetch · parse · dedupe · store
+│   │   ├── src/jobs/embed.ts      ✅ width and finiteness checked before writing
+│   │   ├── src/jobs/cluster.ts    ✅ assign · score · re-check safety
+│   │   ├── src/jobs/generate.ts   ✅ a draft, never a publication
+│   │   ├── src/jobs/prune.ts      ✅ the 30-day window, enforced not described
+│   │   ├── src/lib/label.ts       ✅ naming a cluster; slugs
+│   │   ├── src/adapters/          🟡 Postgres, embeddings, Anthropic, logger
+│   │   ├── src/index.ts           🟡 BullMQ wiring; needs Docker to run
+│   │   └── test/                  ✅ 7 files
+│   ├── admin/                     🔜 Phase 7
 │
 └── docs/
     ├── ARCHITECTURE.md            ✅

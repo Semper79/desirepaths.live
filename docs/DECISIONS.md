@@ -129,6 +129,34 @@ holdout-lift measurement stays honest either way.
 
 ## Blocking Phase 5 (crawling and content)
 
+### D16 — Which embedding provider
+
+The pipeline's clustering, audience fit and topic scoring all run on 768-dimension
+embeddings, and there is no default that is both free and meaningful. The worker ships a
+`deterministic` provider that hashes text into the right shape with no semantic content
+whatsoever — it exists so the pipeline can be run end to end on a laptop, and
+`refineEnv` refuses to boot with it in production, because a deployment using it would
+cluster by hash collision and score topics from noise while appearing perfectly healthy.
+
+Anthropic does not offer an embeddings endpoint, so this is a second vendor either way.
+
+| Option                                                      | Notes                                                                                                                                                   |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A. Voyage (`voyage-3-lite`)**                             | 512 or 1024 dimensions natively, cheap, good retrieval quality, one API key. `EMBEDDING_DIMENSIONS` and the `vector(768)` column would change to match. |
+| B. A self-hosted open model behind an OpenAI-compatible API | No third-party data flow, which matters for the EU posture; costs a GPU or slow CPU inference, and one more service to operate.                         |
+| C. OpenAI `text-embedding-3-small` at 768 dimensions        | Matches the column exactly, widely used; a US processor in the pipeline, which `docs/PRIVACY.md` would have to name.                                    |
+
+**Recommendation: A**, and change the column to the provider's native width rather than
+truncating to 768 — a truncated embedding is a worse embedding for no benefit. B is the
+better long-term answer if the volume justifies the GPU, and the adapter is already
+written against an OpenAI-compatible shape so switching is a configuration change.
+
+**What I need:** the provider, and confirmation that a second processor in the pipeline
+is acceptable (it belongs in `docs/PRIVACY.md` either way — the crawler only ever sends
+it text that was already public).
+
+---
+
 ### D7 — Which sources, concretely
 
 Section 3 gives a preference order, not a list. Every source needs a robots review, a ToS
@@ -254,6 +282,43 @@ plus a judgement about whether the person is public — so it is **not** enforce
 It is carried by `SOCIAL_AUTONOMY` staying at `review`, where a human sees the draft. A
 claim in a compliance document that no code implements is worse than an acknowledged
 limitation.
+
+---
+
+### D17 — Two vocabularies for one safety verdict, mapped rather than merged — **Taken**
+
+The Postgres `safety_verdict` enum spells the three states `safe` / `needs_review` /
+`rejected`; the classifier returns `allow` / `review` / `block`. Discovered while writing
+the worker's repositories, which would not compile against either name.
+
+Merging them means a migration: the enum is used by two tables and the
+`outbound_auto_requires_safe_template` CHECK constraint names `'safe'` in SQL. Leaving each
+consumer to translate means a `'safe'` compared against an `'allow'` that never matches and
+never errors.
+
+So: both names are declared in `packages/core/src/safety.ts` with the mapping between
+them, `@morph/crawler` imports the classifier type from there rather than declaring its
+own, and every crossing goes through `toStoredVerdict` / `fromStoredVerdict`. The test
+asserts the mapping's range against `safetyVerdictEnum.enumValues`, so adding a fourth
+state to the database without extending the mapping fails the suite rather than an INSERT.
+
+Revisit when a migration is being written for another reason; folding this in then costs
+nothing.
+
+### D18 — One crawl worker, and the lease that assumes it — **Taken**
+
+`PolitenessScheduler` holds its per-host leases in process memory. That is correct for one
+process at any concurrency, and wrong for two: each replica believes it holds the only
+lease for a host, and "one concurrent request per host" — the first line of
+`docs/COMPLIANCE.md` §2 — silently stops being true.
+
+The crawl queue's concurrency is therefore pinned to 1, asserted by a test, and the
+constraint is written at the top of `jobs/crawl.ts` and in the composition root. Scaling
+the crawler horizontally needs the lease moved to Redis first.
+
+This is a real ceiling on crawl throughput, and it is the right one to accept for now: at
+8 requests per second globally, one process is nowhere near saturated, and a compliance
+guarantee that depends on nobody scaling a deployment is not a guarantee.
 
 ---
 

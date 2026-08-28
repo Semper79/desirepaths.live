@@ -1,0 +1,228 @@
+/**
+ * The seam.
+ *
+ * Every job in this app is written against these interfaces and nothing else — no
+ * database client, no queue, no HTTP client, no clock. That is what makes "a source is
+ * due, its robots.txt disallows the path, so it is recorded as skipped rather than
+ * failed" a unit test instead of a docker-compose and a fixture database.
+ *
+ * The real implementations live in `src/adapters/`, are wired in `src/index.ts`, and are
+ * deliberately thin: each one translates a port call into a query or a request and does
+ * no thinking of its own. Everything worth testing is on this side of the seam.
+ *
+ * WHY PORTS AND NOT A MOCKED DATABASE
+ * A mocked `drizzle` reproduces the shape of the query builder, not the meaning of the
+ * query, so a test passes when the SQL is wrong. These interfaces are written in the
+ * vocabulary of the pipeline — "documents that still need an embedding", "clusters seen
+ * since" — so a fake implements the *intent*, and the adapter is small enough to read.
+ */
+
+// -----------------------------------------------------------------------------
+// Shared value shapes
+// -----------------------------------------------------------------------------
+
+export type SourceKind = 'api' | 'feed' | 'sitemap' | 'html';
+
+export interface CrawlSource {
+  readonly id: string;
+  readonly kind: SourceKind;
+  readonly host: string;
+  readonly url: string;
+  /** Sent back on the next fetch, so an unchanged source costs a 304 and no body. */
+  readonly etag: string | null;
+  readonly lastModified: string | null;
+  readonly lastFetchedAt: number | null;
+}
+
+export interface StoredDocument {
+  readonly id: string;
+  readonly sourceId: string;
+  readonly url: string;
+  readonly title: string;
+  readonly excerpt: string;
+  /** 64-bit SimHash as a decimal string, matching `crawl_document.simhash`. */
+  readonly simhash: string;
+  readonly lang: string | null;
+  readonly publishedAt: number | null;
+  readonly fetchedAt: number;
+  readonly embedding: readonly number[] | null;
+  readonly clusterId: string | null;
+}
+
+/** A document with its embedding present. The clustering stage cannot use any other kind. */
+export interface EmbeddedDocument extends StoredDocument {
+  readonly embedding: readonly number[];
+}
+
+/**
+ * A cluster, which in this schema is the same row as its trend signal.
+ *
+ * `trend_signal` has no `cluster_id` and `crawl_document.cluster_id` has no foreign key,
+ * because there is only one thing here: a cluster *is* a scored topic. Keeping them as
+ * one row is what makes the cluster id stable across runs (D14) — a separate cluster
+ * table would need its own identity and a join to say anything about momentum.
+ */
+export interface StoredCluster {
+  readonly id: string;
+  readonly centroid: readonly number[];
+  readonly memberIds: readonly string[];
+  readonly label: string;
+  readonly firstSeenAt: number;
+}
+
+export interface TrendSignalRecord {
+  readonly id: string;
+  readonly label: string;
+  readonly centroid: readonly number[];
+  readonly documentCount: number;
+  readonly momentum: number;
+  readonly audienceFit: number;
+  readonly saturation: number;
+  readonly durability: number;
+  readonly safetyVerdict: 'allow' | 'review' | 'block';
+  readonly safetyReason: string | null;
+  readonly safetyCategories: readonly string[];
+  readonly firstSeenAt: number;
+  readonly lastSeenAt: number;
+  readonly actedOnAt: number | null;
+}
+
+export interface ContentSource {
+  readonly url: string;
+  readonly title: string;
+  readonly publisher: string;
+}
+
+export interface ContentDraft {
+  readonly slug: string;
+  readonly kind: 'article' | 'explainer';
+  readonly title: string;
+  readonly summary: string;
+  readonly body: unknown;
+  readonly trendSignalId: string;
+  /**
+   * Never empty. §7.3 requires attribution on every generated page, and
+   * `content_published_needs_sources` makes it a database invariant — this type makes it
+   * hard to reach that constraint by accident.
+   */
+  readonly sources: readonly [ContentSource, ...ContentSource[]];
+  readonly generatedBy: string;
+  readonly generationPrompt: string;
+}
+
+// -----------------------------------------------------------------------------
+// Repositories
+// -----------------------------------------------------------------------------
+
+export interface SourceRepository {
+  /** Enabled sources whose turn has come, oldest first. */
+  due(now: number, limit: number): Promise<readonly CrawlSource[]>;
+  /** Record the outcome, including the validators to send next time. */
+  recordFetch(
+    sourceId: string,
+    outcome: {
+      readonly at: number;
+      readonly status: number | null;
+      readonly etag?: string | null;
+      readonly lastModified?: string | null;
+      readonly failed: boolean;
+    },
+  ): Promise<void>;
+  /** The robots decision, for the audit trail `crawl_source.robots_allows` carries. */
+  recordRobots(sourceId: string, allowed: boolean, at: number): Promise<void>;
+}
+
+export interface DocumentRepository {
+  /**
+   * Fingerprints of documents already stored within the window, so a story syndicated
+   * yesterday is not re-ingested today. Returned as decimal strings to match storage.
+   */
+  recentFingerprints(since: number): Promise<readonly string[]>;
+  /** Insert, or return the existing row when the URL is already known. */
+  upsert(document: Omit<StoredDocument, 'id'>): Promise<StoredDocument>;
+  withoutEmbedding(limit: number): Promise<readonly StoredDocument[]>;
+  setEmbedding(documentId: string, embedding: readonly number[]): Promise<void>;
+  /** Embedded documents not yet assigned to a cluster. */
+  unclustered(since: number, limit: number): Promise<readonly EmbeddedDocument[]>;
+  setCluster(documentId: string, clusterId: string): Promise<void>;
+  /** A cluster's documents, most recent first — the sources a generated piece cites. */
+  forCluster(clusterId: string, limit: number): Promise<readonly StoredDocument[]>;
+  /** How many documents mentioned this cluster in each of the last `hours` hours. */
+  hourlyCounts(clusterId: string, now: number, hours: number): Promise<readonly number[]>;
+  distinctSources(clusterId: string): Promise<number>;
+  deleteOlderThan(cutoff: number): Promise<number>;
+}
+
+/**
+ * One repository, because clusters and trend signals are one table.
+ *
+ * `activeClusters` returns member ids and not just a count, because the running-mean
+ * centroid update needs to know how many members a cluster already has, and the caller
+ * needs the ids to write the membership back. At the retention window's scale — clusters
+ * touched in the last few days, over a 30-day corpus — that is a bounded indexed read. If
+ * the corpus ever outgrows it, the fix is a stored member count plus a members table, and
+ * this signature is where it would change.
+ */
+export interface TrendRepository {
+  activeClusters(since: number): Promise<readonly StoredCluster[]>;
+  nextClusterId(): string;
+  /** Create or update the row for this cluster, scores and all. */
+  save(record: TrendSignalRecord): Promise<void>;
+  byId(id: string): Promise<TrendSignalRecord | null>;
+  /** Publishable, unacted-on signals, best first. */
+  awaitingContent(limit: number): Promise<readonly TrendSignalRecord[]>;
+  markActedOn(signalId: string, at: number): Promise<void>;
+}
+
+export interface ContentRepository {
+  slugExists(slug: string): Promise<boolean>;
+  createDraft(draft: ContentDraft, at: number): Promise<{ readonly id: string }>;
+}
+
+// -----------------------------------------------------------------------------
+// Outside services
+// -----------------------------------------------------------------------------
+
+/**
+ * Turns text into a 768-dimension vector.
+ *
+ * 768 because that is what `crawl_document.embedding` and `trend_signal.centroid` are
+ * declared as, and a mismatch is a runtime error deep inside pgvector rather than at the
+ * boundary — so `embedDocuments` checks the width before writing.
+ */
+export interface EmbeddingProvider {
+  readonly name: string;
+  readonly dimensions: number;
+  embed(texts: readonly string[]): Promise<readonly (readonly number[])[]>;
+}
+
+export interface GenerationBrief {
+  readonly label: string;
+  readonly summary: string;
+  readonly sources: readonly ContentSource[];
+  /** Why this topic was chosen, verbatim from the scorer. Goes into the prompt. */
+  readonly rationale: string;
+}
+
+export interface GeneratedContent {
+  readonly title: string;
+  readonly summary: string;
+  readonly body: unknown;
+  /** The subset of the offered sources the model actually used. */
+  readonly citedUrls: readonly string[];
+  readonly model: string;
+  readonly prompt: string;
+}
+
+export interface ContentGenerator {
+  draft(brief: GenerationBrief): Promise<GeneratedContent>;
+}
+
+/** Structured, because the hourly report reads these rather than a log file. */
+export interface Logger {
+  info(event: string, fields?: Readonly<Record<string, unknown>>): void;
+  warn(event: string, fields?: Readonly<Record<string, unknown>>): void;
+  error(event: string, fields?: Readonly<Record<string, unknown>>): void;
+}
+
+export type Clock = () => number;

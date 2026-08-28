@@ -162,12 +162,36 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 - `safety.ts`: nine categorical rules, `block` beating `review` beating `allow`, each
   firing rule named in the output.
 
-**Remaining:** the worker jobs (`crawl`, `embed`, `cluster`, `generate`), pgvector
-embeddings, content generation with mandatory attribution, and the approval queue. All
-of them need the source list agreed in D7, and the workers need Docker.
+**Done — `apps/worker`, 121 tests:**
+
+Five scheduled jobs, each written against `src/ports.ts` and nothing else — no database
+client, no queue, no clock. That is what makes "a source is due, robots disallows the
+path, so it is recorded as skipped rather than failed" a unit test instead of a
+docker-compose and a fixture database.
+
+- `crawl` — sources → fetch → parse → deduplicate → store. Pinned to one worker (D18).
+- `embed` — documents → vectors, with the width and finiteness checked before writing,
+  because a NaN in pgvector makes every cosine distance involving that row NaN and
+  nothing errors.
+- `cluster` — documents → topics → scores → safety. A stored verdict never improves on
+  its own, and audience fit is a measurement or it is absent (the component is dropped
+  and the remaining three renormalise, rather than a fabricated 0 or 1).
+- `generate` — a topic → a **draft**, never a publication. Citations are intersected with
+  the sources actually offered; anything else is discarded and logged as an invented
+  citation.
+- `prune` — the 30-day retention window, which until now was a comment in the schema.
+
+Adapters: Postgres repositories over Drizzle, an HTTP embedding client (Voyage or
+OpenAI-compatible), the Anthropic generator using structured output, a JSON logger, and a
+deterministic hashing embedder for development that `refineEnv` refuses to boot in
+production.
+
+**Remaining:** the source list (D7) and the embedding provider (D16) are both operator
+decisions; the audience-interest vector needs the ClickHouse engagement query, which is
+not wired yet — until then `cluster` scores on three signals and says so in its log.
 
 **Gate:** a week of crawling with zero robots violations, and the classifier's rejection
-list reviewed by hand for false negatives. Neither is possible until the workers run.
+list reviewed by hand for false negatives. Both need the stack running, which needs Docker.
 
 ---
 

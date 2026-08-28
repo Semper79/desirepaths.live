@@ -103,6 +103,7 @@ export {
 
 export {
   scoreTopic,
+  combine,
   momentum,
   velocity,
   acceleration,
