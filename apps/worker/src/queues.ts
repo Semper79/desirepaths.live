@@ -21,6 +21,7 @@ export const QUEUE = {
   crawl: 'morph.crawl',
   embed: 'morph.embed',
   cluster: 'morph.cluster',
+  audience: 'morph.audience',
   generate: 'morph.generate',
   prune: 'morph.prune',
 } as const;
@@ -46,6 +47,16 @@ export const ClusterJobSchema = z.object({
   windowHours: z.number().int().min(1).max(720).default(72),
 });
 
+export const AudienceJobSchema = z.object({
+  /**
+   * How far back the engagement window reaches.
+   *
+   * Thirty days is long enough that a quiet week does not empty the sample, and short
+   * enough that the vector still describes what readers want now rather than in spring.
+   */
+  windowDays: z.number().int().min(7).max(365).default(30),
+});
+
 export const GenerateJobSchema = z.object({
   /**
    * Deliberately small. Each draft costs an operator's attention in the review queue,
@@ -62,6 +73,7 @@ export const PruneJobSchema = z.object({
 export type CrawlJob = z.infer<typeof CrawlJobSchema>;
 export type EmbedJob = z.infer<typeof EmbedJobSchema>;
 export type ClusterJob = z.infer<typeof ClusterJobSchema>;
+export type AudienceJob = z.infer<typeof AudienceJobSchema>;
 export type GenerateJob = z.infer<typeof GenerateJobSchema>;
 export type PruneJob = z.infer<typeof PruneJobSchema>;
 
@@ -69,6 +81,7 @@ export const JOB_SCHEMAS = {
   [QUEUE.crawl]: CrawlJobSchema,
   [QUEUE.embed]: EmbedJobSchema,
   [QUEUE.cluster]: ClusterJobSchema,
+  [QUEUE.audience]: AudienceJobSchema,
   [QUEUE.generate]: GenerateJobSchema,
   [QUEUE.prune]: PruneJobSchema,
 } as const;
@@ -103,6 +116,12 @@ export const POLICY: Readonly<Record<QueueName, QueuePolicy>> = {
   [QUEUE.embed]: { cron: '*/10 * * * *', attempts: 5, backoffMs: 10_000, concurrency: 2 },
 
   [QUEUE.cluster]: { cron: '25 * * * *', attempts: 3, backoffMs: 30_000, concurrency: 1 },
+
+  // Every six hours. The vector moves on the timescale of published content and reader
+  // habits, not of a crawl, and recomputing it hourly would spend embedding calls to
+  // watch a number not change. Scheduled before the generate runs below, so a draft is
+  // always scored against a vector computed today.
+  [QUEUE.audience]: { cron: '0 */6 * * *', attempts: 3, backoffMs: 60_000, concurrency: 1 },
 
   // Twice a day rather than hourly. There is no reader for twelve machine-written
   // articles a day, and no operator with the attention to review them.

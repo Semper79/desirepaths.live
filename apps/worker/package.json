@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@morph/adaptive": "workspace:*",
     "@morph/core": "workspace:*",
     "@morph/crawler": "workspace:*",
     "bullmq": "^5.34.0",

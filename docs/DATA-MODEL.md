@@ -96,14 +96,15 @@ Baking the weights into a materialised view would mean every weight change silen
 invalidates months of history, or forces a backfill nobody remembers to run. Storing
 components costs six `UInt64` columns and buys permanent comparability.
 
-| View                     | Engine               | Grain                                       | Feeds                  |
-| ------------------------ | -------------------- | ------------------------------------------- | ---------------------- |
-| `sessions`               | AggregatingMergeTree | one row per session                         | reward aggregation     |
-| `surface_rewards_hourly` | SummingMergeTree     | hour × surface × variant × bucket × holdout | the bandit             |
-| `traffic_hourly`         | AggregatingMergeTree | hour × page × source × country × device     | report §1              |
-| `vitals_hourly`          | AggregatingMergeTree | hour × surface × variant × device × metric  | the rollback guardrail |
-| `funnel_hourly`          | AggregatingMergeTree | hour × step × provider × device × holdout   | report §2              |
-| `anomaly_profile_v`      | view                 | hour-of-week over the trailing 4 weeks      | report §7              |
+| View                       | Engine               | Grain                                       | Feeds                  |
+| -------------------------- | -------------------- | ------------------------------------------- | ---------------------- |
+| `sessions`                 | AggregatingMergeTree | one row per session                         | reward aggregation     |
+| `surface_rewards_hourly`   | SummingMergeTree     | hour × surface × variant × bucket × holdout | the bandit             |
+| `traffic_hourly`           | AggregatingMergeTree | hour × page × source × country × device     | report §1              |
+| `vitals_hourly`            | AggregatingMergeTree | hour × surface × variant × device × metric  | the rollback guardrail |
+| `funnel_hourly`            | AggregatingMergeTree | hour × step × provider × device × holdout   | report §2              |
+| `anomaly_profile_v`        | view                 | hour-of-week over the trailing 4 weeks      | report §7              |
+| `content_engagement_daily` | ReplacingMergeTree   | day × page                                  | the audience vector    |
 
 **Why sessions come first.** The reward is session-scoped, not event-scoped: a sign-up
 belongs to the whole experience the visitor was shown, not to the click that happened to
@@ -119,6 +120,20 @@ posteriors fresh enough for a bandit that adapts over hours.
 `quantileTDigestState(0.75)(value)` merge, so "uniques this hour" and "uniques this week"
 come from the same rows without double-counting a visitor who spanned two hours. Storing
 values would make every window a separate table.
+
+**Why `content_engagement_daily` replaces rather than sums.** It is the one aggregate
+whose refresh rewrites the same key repeatedly — a trailing three-day window, every hour.
+Under `SummingMergeTree` those writes would add, and a page’s engagement would climb
+every hour whether or not anybody visited it: a metric that only ever goes up, feeding a
+scorer meant to detect preference. `ReplacingMergeTree(version)` keeps the newest row per
+key instead, so a re-run of a window is idempotent by construction. Readers pay for it
+with `FINAL`, which is affordable on one row per page per day in a way it would never be
+on `events`.
+
+**Why its columns are the reward’s columns.** The audience job runs the same
+`compositeReward` over them with the same live weights, so “a page readers engage with”
+means exactly what “a variant that performs” means. Two definitions of good in one system
+is how an optimiser ends up pulling against its own content pipeline.
 
 **Why 25 months.** The report compares each hour against the same hour last week;
 anomaly detection needs a trailing four-week hour-of-week profile; year-over-year needs

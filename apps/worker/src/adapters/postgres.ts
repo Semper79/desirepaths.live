@@ -22,11 +22,14 @@
 import { randomUUID } from 'node:crypto';
 import { and, asc, desc, eq, gte, isNull, isNotNull, lt, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { content, crawlDocument, crawlSource, trendSignal } from '@morph/core/db';
+import { audienceVector, content, crawlDocument, crawlSource, trendSignal } from '@morph/core/db';
 import { fromStoredVerdict, toStoredVerdict } from '@morph/core';
 import type {
+  AudienceRepository,
+  AudienceSnapshot,
   ContentDraft,
   ContentRepository,
+  PublishedContent,
   CrawlSource,
   DocumentRepository,
   EmbeddedDocument,
@@ -367,6 +370,27 @@ export function trendRepository(db: Database): TrendRepository {
 
 export function contentRepository(db: Database): ContentRepository {
   return {
+    async published() {
+      const rows = await db
+        .select({
+          id: content.id,
+          slug: content.slug,
+          title: content.title,
+          summary: content.summary,
+          trendSignalId: content.trendSignalId,
+        })
+        .from(content)
+        .where(eq(content.status, 'published'));
+
+      return rows.map((row): PublishedContent => ({
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        summary: row.summary ?? '',
+        trendSignalId: row.trendSignalId,
+      }));
+    },
+
     async slugExists(slug) {
       const [row] = await db
         .select({ id: content.id })
@@ -400,6 +424,47 @@ export function contentRepository(db: Database): ContentRepository {
 
       if (row === undefined) throw new Error(`Insert returned no row for slug ${draft.slug}`);
       return { id: row.id };
+    },
+  };
+}
+
+/**
+ * The audience vector, appended rather than updated.
+ *
+ * One row per computation, so a drifting audience is visible and a vector computed from a
+ * bad window is recoverable by reading the previous one instead of waiting for the next
+ * run.  is a single indexed row read.
+ */
+export function audienceRepository(db: Database): AudienceRepository {
+  return {
+    async current() {
+      const [row] = await db
+        .select()
+        .from(audienceVector)
+        .orderBy(desc(audienceVector.computedAt))
+        .limit(1);
+
+      if (row === undefined) return null;
+
+      return {
+        computedAt: row.computedAt.getTime(),
+        vector: row.vector,
+        sampleSize: row.sampleSize,
+        medianReward: row.medianReward,
+        windowDays: row.windowDays,
+        contributors: row.contributors,
+      };
+    },
+
+    async save(snapshot: AudienceSnapshot) {
+      await db.insert(audienceVector).values({
+        computedAt: toDate(snapshot.computedAt),
+        vector: [...snapshot.vector],
+        sampleSize: snapshot.sampleSize,
+        medianReward: snapshot.medianReward,
+        windowDays: snapshot.windowDays,
+        contributors: snapshot.contributors.map((c) => ({ path: c.path, reward: c.reward })),
+      });
     },
   };
 }

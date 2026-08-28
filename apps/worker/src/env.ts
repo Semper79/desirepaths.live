@@ -30,6 +30,12 @@ export const EnvSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
 
+  /** Behaviour lives in ClickHouse; the audience job is the only worker read of it. */
+  CLICKHOUSE_URL: z.string().url().default('http://localhost:8123'),
+  CLICKHOUSE_DATABASE: z.string().min(1).default('morph'),
+  CLICKHOUSE_USER: z.string().min(1).default('default'),
+  CLICKHOUSE_PASSWORD: z.string().default(''),
+
   CRAWLER_USER_AGENT: z
     .string()
     .min(1)

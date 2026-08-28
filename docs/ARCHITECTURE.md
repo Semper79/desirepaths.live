@@ -235,13 +235,49 @@ loses twenty minutes of work when the worker is redeployed, and BullMQ eventuall
 it stalled and runs it again from the start. Small jobs that record progress as they go
 are restartable at any point.
 
-**Where the pipeline is honest about not knowing.** Audience fit needs an interest vector
-built from engagement data that is not wired yet. Rather than substitute a plausible
-number — 0 suppresses every topic, 1 promotes every topic, and neither announces itself —
-the component is dropped, the remaining three weights renormalise, and the log records
-that the score came from three signals. The same instinct governs the deterministic
-embedding provider: it exists so the pipeline runs on a laptop, and the environment
-loader refuses to start with it in production.
+**Where the pipeline is honest about not knowing.** Audience fit needs an interest vector,
+and before there is enough traffic to compute one there simply is not an answer. Rather
+than substitute a plausible number — 0 suppresses every topic, 1 promotes every topic, and
+neither announces itself — the component is dropped, the remaining three weights
+renormalise, and the log records that the score came from three signals. The same instinct
+governs the deterministic embedding provider: it exists so the pipeline runs on a laptop,
+and the environment loader refuses to start with it in production.
+
+### The loop the audience vector closes
+
+```
+   readers          ClickHouse                 Postgres                 the next topic
+      │                  │                        │                          │
+  engage with       content_engagement_daily   audience_vector          audienceFit =
+  some pages   ──▶  per page-session      ──▶  centroid of the    ──▶   cos(topic, vector)
+                    (the reward's own          above-median pages        in scoreTopic()
+                     components)
+```
+
+`audienceFit` is the only term in the trend score that is about _this site_ rather than
+about the web. Momentum, saturation and durability would produce the same ranking for
+anybody; this is the term that makes the pipeline write for the readers it actually has.
+
+**It runs on the same reward the bandit optimises.** Not a fresh definition of engagement:
+`content_engagement_daily` holds the columns of `RewardComponents`, and the job runs
+`compositeReward` over them with the live weights from `engine_config`. Two definitions of
+a good page in one system is how an optimiser ends up pulling against its own content
+pipeline — the bandit tuning layout for one notion of quality while the writer chases
+another.
+
+**A median split, not a top-N.** A top-N is a fixed appetite regardless of how much there
+is to be confident about: with six published pages it takes half the site, with six
+hundred it ignores most of what readers liked. The median splits whatever exists and means
+the same thing at both sizes. Within the selected half, pages are weighted by their reward,
+because the split decides _which_ pages count and the score decides _how much_.
+
+**The feedback loop is real and is bounded on purpose.** Writing towards what readers
+already engaged with narrows the site over time — every topic scored partly by its
+resemblance to previous winners. Three things keep the circumference wide enough to be
+useful: `audienceFit` is 30% of the composite, not all of it; the vector is a centroid of
+the whole above-median half rather than of the best few; and it is recomputed from a
+30-day window, so a topic that stops working stops counting. It is a feedback loop that is
+meant to be one, with its gain turned down.
 
 ---
 

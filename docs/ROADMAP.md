@@ -3,8 +3,8 @@
 > **Current phase: 5 — web intelligence.**
 > Phases 0, 2 and 3 are complete and verified; 1 and 6 are complete apart from work that
 > needs Docker or a deployed URL. Phase 4 (sign-up) is deferred by the operator, so 5 was
-> taken out of order. The crawler package is complete; the worker jobs that drive it are
-> not, and need the source list in D7.
+> taken out of order. The crawler package and the worker jobs that drive it are complete;
+> what remains is two operator decisions (D7, D16) and traffic.
 
 Each phase ends with the gate green:
 
@@ -135,7 +135,7 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 
 ---
 
-## Phase 5 — Web intelligence 🟡 _`packages/crawler` complete; the jobs that drive it are not_
+## Phase 5 — Web intelligence 🟡 _built and tested; the gate needs the stack running_
 
 **Done — `packages/crawler`, 243 tests:**
 
@@ -162,9 +162,9 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 - `safety.ts`: nine categorical rules, `block` beating `review` beating `allow`, each
   firing rule named in the output.
 
-**Done — `apps/worker`, 121 tests:**
+**Done — `apps/worker`, 153 tests:**
 
-Five scheduled jobs, each written against `src/ports.ts` and nothing else — no database
+Six scheduled jobs, each written against `src/ports.ts` and nothing else — no database
 client, no queue, no clock. That is what makes "a source is due, robots disallows the
 path, so it is recorded as skipped rather than failed" a unit test instead of a
 docker-compose and a fixture database.
@@ -180,6 +180,9 @@ docker-compose and a fixture database.
   the sources actually offered; anything else is discarded and logged as an invented
   citation.
 - `prune` — the 30-day retention window, which until now was a comment in the schema.
+- `audience` — the interest vector: per-page engagement from ClickHouse, ranked by the
+  same `compositeReward` the bandit optimises, centroid of the above-median half. This is
+  the term that makes the trend score about _this site_ rather than about the web.
 
 Adapters: Postgres repositories over Drizzle, an HTTP embedding client (Voyage or
 OpenAI-compatible), the Anthropic generator using structured output, a JSON logger, and a
@@ -187,8 +190,8 @@ deterministic hashing embedder for development that `refineEnv` refuses to boot 
 production.
 
 **Remaining:** the source list (D7) and the embedding provider (D16) are both operator
-decisions; the audience-interest vector needs the ClickHouse engagement query, which is
-not wired yet — until then `cluster` scores on three signals and says so in its log.
+decisions. The audience vector needs traffic before it can be computed at all — until a
+run clears its floors, `cluster` scores on three signals and says so in its log.
 
 **Gate:** a week of crawling with zero robots violations, and the classifier's rejection
 list reviewed by hand for false negatives. Both need the stack running, which needs Docker.

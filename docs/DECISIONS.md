@@ -320,6 +320,47 @@ This is a real ceiling on crawl throughput, and it is the right one to accept fo
 8 requests per second globally, one process is nowhere near saturated, and a compliance
 guarantee that depends on nobody scaling a deployment is not a guarantee.
 
+### D19 — The audience vector is a deliberate feedback loop, with its gain turned down — **Taken**
+
+`audienceFit` scores a candidate topic by its resemblance to the pages readers already
+engaged with. That is a feedback loop by construction: write about what worked, measure
+what worked, write about that. Left alone it narrows the site until it is producing
+variations on its own best month.
+
+It is still the right term to have. It is the only part of the trend score that is about
+_this site_ rather than about the web — momentum, saturation and durability would rank
+identically for anybody — so removing it means writing for a generic reader.
+
+Four things bound it, and they are the design:
+
+- **It is 30% of the composite, not all of it.** A rising, uncrowded topic can win on the
+  other three terms alone.
+- **The centroid is the whole above-median half**, not the best few. A single runaway page
+  moves it a little; it cannot capture it.
+- **A 30-day window.** A topic that stops working stops counting within a month.
+- **When it cannot be computed it is dropped, not defaulted.** Below the floors the term
+  is removed and the remaining weights renormalise, so a cold start does not lock the site
+  onto its first three pages.
+
+Revisit if the report shows the published set converging — the measurable symptom would be
+the cohesion of the contributing pages' vectors rising run over run.
+
+### D20 — Engagement is keyed on `page_path`, not `content_id` — **Taken**
+
+`events.content_id` exists in the contract and the collector forwards it, but the site does
+not emit it: `apps/web` renders content from a hand-written list with no ids. An aggregate
+keyed on it would be correct and empty.
+
+`page_path` is what the beacon actually sends, and `/t/{slug}` maps to `content.slug`,
+which is unique. The mapping is exact, and the aggregate filters to `/t/` so the home page
+and the privacy policy — engaged with for reasons that say nothing about topic interest —
+never enter the computation.
+
+When pages start carrying their content id, this key stays correct and nothing needs to
+change. The cost is one unresolvable case, and it is reported rather than silent: a path
+with engagement and no matching content row is counted and logged, and a rising count
+there means the path filter is wrong.
+
 ---
 
 ## Deferred, but worth naming now

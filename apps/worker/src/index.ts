@@ -23,13 +23,16 @@ import IORedis from 'ioredis';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { DEFAULT_FETCHER_CONFIG, DEFAULT_POLITENESS, PoliteFetcher } from '@morph/crawler';
+import { DEFAULT_ENGINE_CONFIG } from '@morph/core';
 import { loadEnv, type Env } from './env.js';
 import { POLICY, QUEUE, parseJob, type QueueName } from './queues.js';
 import { createLogger } from './adapters/logger.js';
 import { deterministicEmbeddings } from './adapters/deterministic-embeddings.js';
 import { httpEmbeddings } from './adapters/http-embeddings.js';
 import { anthropicGenerator } from './adapters/anthropic-generator.js';
+import { clickhouseEngagement } from './adapters/clickhouse.js';
 import {
+  audienceRepository,
   contentRepository,
   documentRepository,
   sourceRepository,
@@ -39,6 +42,7 @@ import {
 import { runCrawl } from './jobs/crawl.js';
 import { runEmbed } from './jobs/embed.js';
 import { runCluster } from './jobs/cluster.js';
+import { runAudience } from './jobs/audience.js';
 import { runGenerate } from './jobs/generate.js';
 import { runPrune } from './jobs/prune.js';
 import type { EmbeddingProvider, Logger } from './ports.js';
@@ -57,6 +61,24 @@ const sources = sourceRepository(db);
 const documents = documentRepository(db);
 const trends = trendRepository(db);
 const content = contentRepository(db);
+const audience = audienceRepository(db);
+
+const engagement = clickhouseEngagement({
+  url: env.CLICKHOUSE_URL,
+  database: env.CLICKHOUSE_DATABASE,
+  username: env.CLICKHOUSE_USER,
+  password: env.CLICKHOUSE_PASSWORD,
+});
+
+/**
+ * Reward weights, for now the compiled-in defaults.
+ *
+ * They belong in the `engine_config` row the operator console will write — reading them
+ * from there means the audience computation and the bandit retune together. Until that
+ * console exists the defaults are the live values, and this is the one line that changes
+ * when it does.
+ */
+const engineConfig = DEFAULT_ENGINE_CONFIG;
 
 const fetcher = new PoliteFetcher(
   { fetch: globalThis.fetch, now: () => Date.now(), sleep: wait },
@@ -85,15 +107,18 @@ const generator = anthropicGenerator({
 const now = (): number => Date.now();
 
 /**
- * The audience interest vector.
+ * The audience interest vector, as of the last time the audience job produced one.
  *
- * Built from the embeddings of pages with above-median engagement, which lives in
- * ClickHouse — not wired yet, so this returns `null` and the cluster job scores on three
- * signals instead of four and says so. Returning `null` rather than a plausible vector is
- * the whole point: see the note in `jobs/cluster.ts`.
+ * Read fresh at the start of every cluster run rather than cached at boot: the vector is
+ * recomputed four times a day, and a worker that has been up for a week would otherwise
+ * still be scoring against the vector it happened to start with.
+ *
+ * `null` before the first computation — and the cluster job then drops the term and says
+ * so, rather than scoring against a fabricated one. See the note in `jobs/cluster.ts`.
  */
-function audienceVector(): readonly number[] | null {
-  return null;
+async function currentAudienceVector(): Promise<readonly number[] | null> {
+  const snapshot = await audience.current();
+  return snapshot?.vector ?? null;
 }
 
 const handlers: Readonly<Record<QueueName, (job: Job) => Promise<unknown>>> = {
@@ -103,10 +128,26 @@ const handlers: Readonly<Record<QueueName, (job: Job) => Promise<unknown>>> = {
   [QUEUE.embed]: (job) =>
     runEmbed({ documents, embeddings, now, log }, parseJob(QUEUE.embed, job.data)),
 
-  [QUEUE.cluster]: (job) =>
+  [QUEUE.cluster]: async (job) =>
     runCluster(
-      { documents, trends, audienceVector: audienceVector(), now, log },
+      { documents, trends, audienceVector: await currentAudienceVector(), now, log },
       parseJob(QUEUE.cluster, job.data),
+    ),
+
+  [QUEUE.audience]: (job) =>
+    runAudience(
+      {
+        engagement,
+        content,
+        trends,
+        embeddings,
+        audience,
+        weights: engineConfig.weights,
+        bouncePenalty: engineConfig.bouncePenalty,
+        now,
+        log,
+      },
+      parseJob(QUEUE.audience, job.data),
     ),
 
   [QUEUE.generate]: (job) =>

@@ -561,6 +561,41 @@ export const trendSignal = pgTable(
   ],
 );
 
+/**
+ * The site's measured interest, one row per computation.
+ *
+ * The centroid of the pages readers engage with most, in the same embedding space as
+ * `crawl_document.embedding` and `trend_signal.centroid` — which is what lets the trend
+ * scorer's `audienceFit` term be a cosine similarity rather than a guess.
+ *
+ * History rather than a single mutable row, for two reasons. A drifting audience is a
+ * fact the operator should be able to see rather than infer, and a vector that turns out
+ * to have been computed from a bad window is recoverable by reading the previous one
+ * instead of waiting for the next run.
+ *
+ * `sample_size` and `median_reward` are not decoration: a vector built from four pages
+ * means something different from one built from four hundred, and the report says which.
+ */
+export const audienceVector = pgTable(
+  'audience_vector',
+  {
+    computedAt: timestamp('computed_at', { withTimezone: true }).primaryKey().defaultNow(),
+    vector: vector('vector', { dimensions: 768 }).notNull(),
+    /** How many pages cleared the median and contributed. */
+    sampleSize: integer('sample_size').notNull(),
+    /** The median composite reward the split was taken at. */
+    medianReward: real('median_reward').notNull(),
+    /** Days of engagement the computation looked back over. */
+    windowDays: integer('window_days').notNull(),
+    /** Which pages contributed, and how much, for the report and for debugging. */
+    contributors: jsonb('contributors').$type<{ path: string; reward: number }[]>().notNull(),
+  },
+  (t) => [
+    index('audience_vector_recent_idx').on(t.computedAt),
+    check('audience_sample_positive', sql`${t.sampleSize} > 0`),
+  ],
+);
+
 // -----------------------------------------------------------------------------
 // Content
 // -----------------------------------------------------------------------------
@@ -768,6 +803,7 @@ export const schema = {
   crawlSource,
   crawlDocument,
   trendSignal,
+  audienceVector,
   content,
   socialAccount,
   outboundPost,

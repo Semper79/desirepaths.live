@@ -109,6 +109,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.122.0
         version: 0.122.0(zod@3.25.76)
+      '@morph/adaptive':
+        specifier: workspace:*
+        version: link:../../packages/adaptive
       '@morph/core':
         specifier: workspace:*
         version: link:../../packages/core

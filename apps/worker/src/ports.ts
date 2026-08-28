@@ -174,9 +174,60 @@ export interface TrendRepository {
   markActedOn(signalId: string, at: number): Promise<void>;
 }
 
+export interface PublishedContent {
+  readonly id: string;
+  readonly slug: string;
+  readonly title: string;
+  readonly summary: string;
+  /** The topic this piece came from, when it came from one. Hand-written pieces have none. */
+  readonly trendSignalId: string | null;
+}
+
 export interface ContentRepository {
   slugExists(slug: string): Promise<boolean>;
   createDraft(draft: ContentDraft, at: number): Promise<{ readonly id: string }>;
+  /** Everything currently readable on the site, for the audience computation. */
+  published(): Promise<readonly PublishedContent[]>;
+}
+
+/**
+ * Per-page engagement, read from ClickHouse.
+ *
+ * The field names are `RewardComponents` from `@morph/adaptive`, and that is the point:
+ * the audience job runs the *same* `compositeReward` with the *same* live weights over
+ * these rows, so "a page readers engage with" means exactly what "a variant that
+ * performs" means. Two definitions of good in one system is how an optimiser ends up
+ * pulling against its own content pipeline.
+ */
+export interface PageEngagement {
+  readonly path: string;
+  /** Page-sessions. The denominator for everything else. */
+  readonly impressions: number;
+  readonly signups: number;
+  readonly engagedSessions: number;
+  readonly scrollNormSum: number;
+  readonly returns: number;
+  readonly shares: number;
+  readonly bounces: number;
+}
+
+export interface EngagementRepository {
+  byPage(windowDays: number): Promise<readonly PageEngagement[]>;
+}
+
+export interface AudienceSnapshot {
+  readonly computedAt: number;
+  readonly vector: readonly number[];
+  readonly sampleSize: number;
+  readonly medianReward: number;
+  readonly windowDays: number;
+  readonly contributors: readonly { readonly path: string; readonly reward: number }[];
+}
+
+export interface AudienceRepository {
+  /** The most recent vector, or `null` before the first computation. */
+  current(): Promise<AudienceSnapshot | null>;
+  save(snapshot: AudienceSnapshot): Promise<void>;
 }
 
 // -----------------------------------------------------------------------------

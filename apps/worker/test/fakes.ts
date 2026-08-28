@@ -12,6 +12,8 @@
  */
 
 import type {
+  AudienceRepository,
+  AudienceSnapshot,
   ContentDraft,
   ContentGenerator,
   ContentRepository,
@@ -23,6 +25,9 @@ import type {
   Logger,
   SourceRepository,
   StoredCluster,
+  EngagementRepository,
+  PageEngagement,
+  PublishedContent,
   StoredDocument,
   TrendRepository,
   TrendSignalRecord,
@@ -261,6 +266,23 @@ export class FakeTrends implements TrendRepository {
 
 export class FakeContent implements ContentRepository {
   readonly drafts: ContentDraft[] = [];
+  readonly live: PublishedContent[] = [];
+
+  publish(item: Partial<PublishedContent> & Pick<PublishedContent, 'slug'>): PublishedContent {
+    const full: PublishedContent = {
+      id: `content-${item.slug}`,
+      title: `Title for ${item.slug}`,
+      summary: `Summary for ${item.slug}`,
+      trendSignalId: null,
+      ...item,
+    };
+    this.live.push(full);
+    return full;
+  }
+
+  published(): Promise<readonly PublishedContent[]> {
+    return Promise.resolve(this.live);
+  }
 
   slugExists(slug: string): Promise<boolean> {
     return Promise.resolve(this.drafts.some((d) => d.slug === slug));
@@ -301,5 +323,44 @@ function hostOf(url: string): string {
     return new URL(url).host;
   } catch {
     return 'invalid';
+  }
+}
+
+export class FakeEngagement implements EngagementRepository {
+  readonly windows: number[] = [];
+
+  constructor(private readonly pages: PageEngagement[] = []) {}
+
+  add(page: Partial<PageEngagement> & Pick<PageEngagement, 'path'>): PageEngagement {
+    const full: PageEngagement = {
+      impressions: 100,
+      signups: 0,
+      engagedSessions: 0,
+      scrollNormSum: 0,
+      returns: 0,
+      shares: 0,
+      bounces: 0,
+      ...page,
+    };
+    this.pages.push(full);
+    return full;
+  }
+
+  byPage(windowDays: number): Promise<readonly PageEngagement[]> {
+    this.windows.push(windowDays);
+    return Promise.resolve(this.pages);
+  }
+}
+
+export class FakeAudience implements AudienceRepository {
+  readonly saved: AudienceSnapshot[] = [];
+
+  current(): Promise<AudienceSnapshot | null> {
+    return Promise.resolve(this.saved.at(-1) ?? null);
+  }
+
+  save(snapshot: AudienceSnapshot): Promise<void> {
+    this.saved.push(snapshot);
+    return Promise.resolve();
   }
 }
