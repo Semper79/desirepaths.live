@@ -21,6 +21,7 @@ export const QUEUE = {
   crawl: 'morph.crawl',
   embed: 'morph.embed',
   cluster: 'morph.cluster',
+  adapt: 'morph.adapt',
   audience: 'morph.audience',
   generate: 'morph.generate',
   report: 'morph.report',
@@ -77,6 +78,15 @@ export const ReportJobSchema = z.object({
   hourStart: z.number().int().positive().optional(),
 });
 
+export const AdaptJobSchema = z.object({
+  /**
+   * Which hour to fold into the posteriors. Omitted for the scheduled run, which takes
+   * the hour that has just finished; present when an operator replays one, or when a
+   * missed hour is being caught up after an outage.
+   */
+  hourStart: z.number().int().positive().optional(),
+});
+
 export const EscalateJobSchema = z.object({});
 
 export const PruneJobSchema = z.object({
@@ -89,6 +99,7 @@ export type ClusterJob = z.infer<typeof ClusterJobSchema>;
 export type AudienceJob = z.infer<typeof AudienceJobSchema>;
 export type GenerateJob = z.infer<typeof GenerateJobSchema>;
 export type ReportJob = z.infer<typeof ReportJobSchema>;
+export type AdaptJob = z.infer<typeof AdaptJobSchema>;
 export type EscalateJob = z.infer<typeof EscalateJobSchema>;
 export type PruneJob = z.infer<typeof PruneJobSchema>;
 
@@ -96,6 +107,7 @@ export const JOB_SCHEMAS = {
   [QUEUE.crawl]: CrawlJobSchema,
   [QUEUE.embed]: EmbedJobSchema,
   [QUEUE.cluster]: ClusterJobSchema,
+  [QUEUE.adapt]: AdaptJobSchema,
   [QUEUE.audience]: AudienceJobSchema,
   [QUEUE.generate]: GenerateJobSchema,
   [QUEUE.report]: ReportJobSchema,
@@ -133,6 +145,16 @@ export const POLICY: Readonly<Record<QueueName, QueuePolicy>> = {
   [QUEUE.embed]: { cron: '*/10 * * * *', attempts: 5, backoffMs: 10_000, concurrency: 2 },
 
   [QUEUE.cluster]: { cron: '25 * * * *', attempts: 3, backoffMs: 30_000, concurrency: 1 },
+
+  // Two past the hour: early enough that the site is running on evidence that includes
+  // the hour just gone, and late enough that ClickHouse has merged the last of its
+  // inserts for it. Three minutes ahead of the report, so the report describes the state
+  // the site is actually in rather than the one it was in before this ran.
+  //
+  // Concurrency 1 and not negotiable. Two processes folding the same hour into the same
+  // posteriors would double its evidence, and the job's own idempotency guard reads the
+  // durable record *before* writing it — a race two workers would lose quietly.
+  [QUEUE.adapt]: { cron: '2 * * * *', attempts: 3, backoffMs: 30_000, concurrency: 1 },
 
   // Every six hours. The vector moves on the timescale of published content and reader
   // habits, not of a crawl, and recomputing it hourly would spend embedding calls to

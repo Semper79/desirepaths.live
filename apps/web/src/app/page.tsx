@@ -20,7 +20,7 @@ import { FAQ_ITEMS } from '../lib/faq.js';
 export default async function HomePage(): Promise<React.JSX.Element> {
   const resolved = await assignmentForRequest(await headers());
   const assignment = resolved.assignment;
-  const reading = siteSophistication(currentSnapshot(), Date.now());
+  const reading = siteSophistication(await currentSnapshot(), Date.now());
   const ordered = sectionOrder(assignment);
 
   const sections: Record<string, React.JSX.Element> = {

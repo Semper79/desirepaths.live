@@ -33,6 +33,9 @@ import { anthropicGenerator } from './adapters/anthropic-generator.js';
 import { anthropicProse } from './adapters/anthropic-prose.js';
 import { clickhouseEngagement, clickhouseQuery } from './adapters/clickhouse.js';
 import { clickhouseMetrics } from './adapters/clickhouse-metrics.js';
+import { clickhouseRewards } from './adapters/clickhouse-rewards.js';
+import { postgresAdapt } from './adapters/postgres-adapt.js';
+import { redisSnapshotPublisher } from './adapters/redis-snapshot.js';
 import { reportRepository, reportRunRepository } from './adapters/postgres-report.js';
 import {
   audienceRepository,
@@ -45,6 +48,8 @@ import {
 import { runCrawl } from './jobs/crawl.js';
 import { runEmbed } from './jobs/embed.js';
 import { runCluster } from './jobs/cluster.js';
+import { runAdapt } from './jobs/adapt.js';
+import { cycleConfigFrom } from './lib/adapt-derive.js';
 import { runAudience } from './jobs/audience.js';
 import { runGenerate } from './jobs/generate.js';
 import { runPrune } from './jobs/prune.js';
@@ -80,6 +85,19 @@ const clickhouse = {
 
 const engagement = clickhouseEngagement(clickhouse);
 const metrics = clickhouseMetrics(clickhouseQuery(clickhouse));
+const rewards = clickhouseRewards(clickhouseQuery(clickhouse));
+const adaptStore = postgresAdapt(db);
+
+/**
+ * A second Redis connection, not the BullMQ one.
+ *
+ * `connection` is configured with `maxRetriesPerRequest: null` because BullMQ requires
+ * it, which turns every command into one that waits indefinitely rather than failing.
+ * That is right for a queue and wrong for a publish inside a job: a snapshot write that
+ * hangs would hold the cycle open past the next one's start.
+ */
+const snapshotRedis = new IORedis(env.REDIS_URL);
+const publisher = redisSnapshotPublisher(snapshotRedis);
 const report = reportRepository(db);
 const runs = reportRunRepository(db);
 
@@ -177,6 +195,22 @@ const handlers: Readonly<Record<QueueName, (job: Job) => Promise<unknown>>> = {
 
   [QUEUE.embed]: (job) =>
     runEmbed({ documents, embeddings, now, log }, parseJob(QUEUE.embed, job.data)),
+
+  [QUEUE.adapt]: (job) =>
+    runAdapt(
+      {
+        rewards,
+        store: adaptStore,
+        publisher,
+        // Derived from the live engine config, so retuning the reward or the rollback
+        // budgets retunes the loop rather than leaving it on a second, stale copy.
+        config: cycleConfigFrom(engineConfig),
+        adaptationEnabled: engineConfig.adaptationEnabled,
+        now,
+        log,
+      },
+      parseJob(QUEUE.adapt, job.data),
+    ),
 
   [QUEUE.cluster]: async (job) =>
     runCluster(

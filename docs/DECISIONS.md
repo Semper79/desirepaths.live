@@ -668,3 +668,49 @@ and its own commit rather than riding along with a feature.
 
 **What I need:** agreement that this is worth doing before the load tests run, since the
 soak is the first thing that will drive a surface into that band.
+
+---
+
+### D29 — The Beta posteriors aggregate across context; only LinUCB sees it — **Taken**
+
+`surface_rewards_hourly` buckets reward components by `context_bucket`, and the adapt job
+sums across those buckets before updating anything.
+
+The alternative — one Beta posterior per (surface, variant, context) — is the obvious
+design and it starves. Eleven surfaces, three or four variants each, and a context bucket
+that is the cross product of device class, referrer class and day-of-week gives cells that
+individually see a few dozen impressions a day. Thompson sampling on a cell that thin is
+sampling from the prior, and the site would explore for ever while appearing to be
+learning.
+
+So the split is: the Beta layer answers "which variant is better overall", on evidence
+thick enough to answer it, and the contextual question goes to LinUCB, which takes the full
+un-discretised covariate vector and shares strength across contexts through the design
+matrix rather than partitioning the data. That division was already stated in
+`002_aggregates.sql`; this records it as a decision so the next person to notice the
+buckets going unused finds the reason rather than a bug.
+
+**What it costs:** a variant that is excellent on mobile and poor on desktop shows up in
+the Beta layer as mediocre, and could be retired before LinUCB has learned to serve it to
+the right people. `minImpressionsBeforeRetire` is the mitigation and it is a partial one.
+The honest fix is per-context retirement, which needs the per-context posteriors that
+cannot be afforded until there is far more traffic — so this is a decision to revisit at
+scale, not a settled one.
+
+---
+
+### D30 — `client_errors_hourly`, because the guardrail was checking a number nobody produced — **Taken**
+
+`evaluateHealth` has always checked a client error rate alongside Core Web Vitals, and
+until now no aggregate produced one. Wiring the adapt job made that visible: the adapter
+would have had to pass a zero, which reads as "no errors" rather than as "not measured",
+and a variant throwing an exception in every session would have passed the guardrail
+silently.
+
+`client_error` was already a valid event type, so the events were being collected and
+simply never rolled up. The new view is ten lines in the same style as `vitals_hourly`,
+with sessions as the denominator rather than events — one broken render emits a dozen
+exceptions, and a rate above one is not a rate.
+
+The general point is worth keeping: a threshold checked against an absent measurement is
+worse than no threshold, because it looks like protection.

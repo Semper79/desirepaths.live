@@ -68,6 +68,16 @@ export default defineConfig({
         // derived from what they return is covered in lib/report-derive.ts.
         'apps/worker/src/adapters/postgres-report.ts',
         'apps/worker/src/adapters/clickhouse-metrics.ts',
+        // The adaptive loop's I/O. Same reasoning again: three queries and a
+        // transaction, needing a live ClickHouse and Postgres to run at all, with every
+        // decision they carry out made in lib/adapt-derive.ts, which is covered.
+        'apps/worker/src/adapters/clickhouse-rewards.ts',
+        'apps/worker/src/adapters/postgres-adapt.ts',
+        // One SET and a JSON.stringify.
+        'apps/worker/src/adapters/redis-snapshot.ts',
+        // The renderer's read of that snapshot is a Redis client, a cache and a timer;
+        // what is worth testing is the parse, and `parseSnapshot` is covered directly.
+        'apps/web/src/lib/snapshot.ts',
       ],
       thresholds: {
         // Section 7: "100% branch coverage in packages/adaptive (including a statistical

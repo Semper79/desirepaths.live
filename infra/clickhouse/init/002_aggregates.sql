@@ -313,6 +313,44 @@ FROM (
 GROUP BY hour_of_week;
 
 -- -----------------------------------------------------------------------------
+-- client_errors_hourly - the other half of the rollback guardrail
+-- -----------------------------------------------------------------------------
+-- `evaluateHealth` in packages/adaptive checks a client error rate alongside Core Web
+-- Vitals, and until this view existed there was no aggregate behind that check. The
+-- adapter would have had to pass a zero, which reads as "no errors" rather than as "not
+-- measured" — a variant throwing exceptions in every session would have passed the
+-- guardrail silently, which is the precise failure the guardrail exists to prevent.
+--
+-- Denominator is sessions, not events: one broken render can emit a dozen exceptions, and
+-- a rate above one is not a rate. uniqState over session_id merges across arbitrary
+-- windows the same way the vitals quantile states do.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS morph.client_errors_hourly
+(
+    `hour_start`      DateTime,
+    `surface`         LowCardinality(String),
+    `variant`         LowCardinality(String),
+    `error_sessions`  AggregateFunction(uniq, UUID),
+    `errors`          AggregateFunction(count)
+)
+ENGINE = AggregatingMergeTree
+PARTITION BY toYYYYMM(hour_start)
+ORDER BY (hour_start, surface, variant)
+TTL hour_start + INTERVAL 25 MONTH DELETE;
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS morph.mv_client_errors_hourly TO morph.client_errors_hourly AS
+SELECT
+    toStartOfHour(ts)       AS hour_start,
+    surface,
+    variant,
+    uniqState(session_id)   AS error_sessions,
+    countState()            AS errors
+FROM morph.events
+ARRAY JOIN surfaces AS surface, variants AS variant
+WHERE event_type = 'client_error' AND bot_score < 60
+GROUP BY hour_start, surface, variant;
+
+-- -----------------------------------------------------------------------------
 -- Data-subject erasure support (GDPR Art. 17)
 -- -----------------------------------------------------------------------------
 -- ClickHouse cannot do a cheap point delete, so erasure is implemented as a

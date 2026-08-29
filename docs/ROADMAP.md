@@ -175,7 +175,7 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 
 **Done — `apps/worker`, 280 tests:**
 
-Eight scheduled jobs and the bot, each written against `src/ports.ts` and nothing else — no database
+Nine scheduled jobs and the bot, each written against `src/ports.ts` and nothing else — no database
 client, no queue, no clock. That is what makes "a source is due, robots disallows the
 path, so it is recorded as skipped rather than failed" a unit test instead of a
 docker-compose and a fixture database.
@@ -190,6 +190,14 @@ docker-compose and a fixture database.
 - `generate` — a topic → a **draft**, never a publication. Citations are intersected with
   the sources actually offered; anything else is discarded and logged as an invented
   citation.
+- `adapt` — **the loop the engine was missing.** Reads an hour of reward components from
+  ClickHouse, decays every posterior towards its prior and then adds that hour's evidence,
+  asks the guardrails what to retire and what to quarantine, writes the durable record and
+  publishes the decision set the renderer reads. Until this existed `packages/adaptive`
+  had no producer and no consumer: every surface resolved to its baseline for ever, and
+  the reading on the home page would have sat at zero permanently. Refuses to fold the
+  same hour in twice — a re-applied cycle does not error, it just makes the posteriors
+  more confident than the data warrants.
 - `prune` — the 30-day retention window, which until now was a comment in the schema.
 - The Telegram bot: long polling, the command dispatcher, and the approval queue that
   moves a draft to `published`. Long polling rather than a webhook because a webhook

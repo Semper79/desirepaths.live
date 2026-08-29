@@ -11,9 +11,9 @@ import {
   MemoryAssignmentStore,
   resolveAssignment,
   type AssignmentStore,
-  type PosteriorSnapshot,
   type ResolvedAssignment,
 } from './assignment.js';
+import { currentSnapshot as readSnapshot } from './snapshot.js';
 import {
   ANON_ID_HEADER,
   BOT_SCORE_HEADER,
@@ -22,18 +22,28 @@ import {
 } from './request-context.js';
 
 /**
- * The posterior snapshot.
+ * The posterior snapshot, re-exported so callers have one import for the whole seam.
  *
- * Published by the worker every aggregation cycle. Until the worker exists (Phase 5),
- * this returns an empty snapshot, which resolves every surface to its baseline — the
- * site renders correctly and simply does not adapt yet. A cold cache is a baseline
- * page, never a slow one and never an error.
+ * Reads what `apps/worker`'s adapt job publishes, through a one-minute in-process cache.
+ * Before the first cycle — or with no `REDIS_URL` — it answers with the cold snapshot,
+ * which resolves every surface to its baseline: a correct page, never a slow one and
+ * never an error.
  */
-export function currentSnapshot(): PosteriorSnapshot {
-  return { arms: {}, adaptationEnabled: true, generatedAt: 0 };
-}
+export { currentSnapshot } from './snapshot.js';
 
-/** Swapped for the Redis-backed store once the data plane is wired. */
+/**
+ * Sticky assignments.
+ *
+ * ⚠ Still in process. A restart forgets every sticky assignment and two instances do not
+ * share them, so a returning visitor can be re-rolled — the variant stays *valid*, and
+ * `isStillServable` still refuses one the guardrails have removed, but §2.2's promise
+ * that a returning visitor keeps their variant holds only within one process.
+ *
+ * Moving it to Redis is a swap of this one line for a client of the same interface, which
+ * is why the interface exists. It is deliberately not bundled into the adapt-loop change:
+ * the snapshot is what makes the site adaptive at all, and stickiness is a property of how
+ * that adaptation is experienced across visits.
+ */
 const store: AssignmentStore = new MemoryAssignmentStore();
 
 export interface RequestHeaders {
@@ -68,7 +78,7 @@ export async function assignmentForRequest(headers: RequestHeaders): Promise<Res
   const resolved = resolveAssignment({
     anonId,
     context,
-    snapshot: currentSnapshot(),
+    snapshot: await readSnapshot(),
     botScore: Number.isFinite(botScore) ? botScore : 0,
     cached,
   });
