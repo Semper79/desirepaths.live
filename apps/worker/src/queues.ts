@@ -24,6 +24,7 @@ export const QUEUE = {
   audience: 'morph.audience',
   generate: 'morph.generate',
   report: 'morph.report',
+  escalate: 'morph.escalate',
   prune: 'morph.prune',
 } as const;
 
@@ -76,6 +77,8 @@ export const ReportJobSchema = z.object({
   hourStart: z.number().int().positive().optional(),
 });
 
+export const EscalateJobSchema = z.object({});
+
 export const PruneJobSchema = z.object({
   retentionDays: z.number().int().min(1).max(365).default(30),
 });
@@ -86,6 +89,7 @@ export type ClusterJob = z.infer<typeof ClusterJobSchema>;
 export type AudienceJob = z.infer<typeof AudienceJobSchema>;
 export type GenerateJob = z.infer<typeof GenerateJobSchema>;
 export type ReportJob = z.infer<typeof ReportJobSchema>;
+export type EscalateJob = z.infer<typeof EscalateJobSchema>;
 export type PruneJob = z.infer<typeof PruneJobSchema>;
 
 export const JOB_SCHEMAS = {
@@ -95,6 +99,7 @@ export const JOB_SCHEMAS = {
   [QUEUE.audience]: AudienceJobSchema,
   [QUEUE.generate]: GenerateJobSchema,
   [QUEUE.report]: ReportJobSchema,
+  [QUEUE.escalate]: EscalateJobSchema,
   [QUEUE.prune]: PruneJobSchema,
 } as const;
 
@@ -144,6 +149,12 @@ export const POLICY: Readonly<Record<QueueName, QueuePolicy>> = {
   // worth retrying once, and an hour that has failed twice is better skipped than sent
   // late enough to arrive alongside the next one.
   [QUEUE.report]: { cron: '5 * * * *', attempts: 2, backoffMs: 60_000, concurrency: 1 },
+
+  // Every five minutes. Frequent enough that an outage is reported while the operator can
+  // still do something about it, and rare enough that two pings and a queue count are not a
+  // load on anything. One attempt, not two: a retried escalation would arrive as a second
+  // copy of the same interruption, and the next run is only five minutes away.
+  [QUEUE.escalate]: { cron: '*/5 * * * *', attempts: 1, backoffMs: 0, concurrency: 1 },
 
   // Nightly, off-peak. Deleting a day of documents is a large write and there is no
   // reason for it to compete with a crawl.

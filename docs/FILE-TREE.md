@@ -79,9 +79,9 @@ morph/
 │   │   │   ├── guardrails.ts      ✅ holdout, exploration floor, retirement, rollback
 │   │   │   ├── assign.ts          ✅ decide(), with its order of precedence
 │   │   │   └── sim/               ✅ the convergence harness and its CLI
-│   │   └── test/                  ✅ 10 files
+│   │   └── test/                  ✅ 11 files
 │   │
-│   ├── telegram/                  🟡 composer and commands done; transport pending
+│   ├── telegram/                  ✅ the report vocabulary; transport in apps/worker
 │   │   ├── src/
 │   │   │   ├── markdown.ts        ✅ MarkdownV2 escaping, section-boundary packing
 │   │   │   ├── types.ts           ✅ the report's structured input
@@ -141,7 +141,7 @@ morph/
 │   │   ├── src/app/               ✅ home, privacy, how-it-works, live, /t/[slug],
 │   │   │                             sitemap, robots, feeds, llms.txt, icon, OG image
 │   │   └── test/                  ✅ 4 files
-│   ├── worker/                    ✅ the scheduled jobs and the bot — 253 tests
+│   ├── worker/                    ✅ the scheduled jobs and the bot — 280 tests
 │   │   ├── src/env.ts             ✅ boot validation, incl. the production embedder rule
 │   │   ├── src/ports.ts           ✅ the seam every job is written against
 │   │   ├── src/queues.ts          ✅ payload schemas, cron, retries, concurrency
@@ -152,6 +152,8 @@ morph/
 │   │   ├── src/jobs/audience.ts   ✅ what readers engage with, as a vector
 │   │   ├── src/jobs/prune.ts      ✅ the 30-day window, enforced not described
 │   │   ├── src/jobs/report.ts     ✅ the hourly report, gathered and sent
+│   │   ├── src/jobs/escalate.ts   ✅ what cannot wait an hour
+│   │   ├── src/lib/escalation.ts  ✅ transitions, not reminders
 │   │   ├── src/lib/report-derive.ts ✅ every number the report states
 │   │   ├── src/jobs/dispatch.ts   ✅ one Telegram update, end to end
 │   │   ├── src/lib/label.ts       ✅ naming a cluster; slugs

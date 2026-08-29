@@ -50,6 +50,8 @@ import { runGenerate } from './jobs/generate.js';
 import { runPrune } from './jobs/prune.js';
 import { dispatch } from './jobs/dispatch.js';
 import { runReport } from './jobs/report.js';
+import { runEscalate } from './jobs/escalate.js';
+import type { AlertState } from './lib/escalation.js';
 import { telegramClient, type TelegramClient } from './adapters/telegram-api.js';
 import type { EmbeddingProvider, Logger } from './ports.js';
 
@@ -83,6 +85,15 @@ const runs = reportRunRepository(db);
 
 /** For the uptime line. Set once, at boot, and never adjusted. */
 const startedAt = Date.now();
+
+/**
+ * What the escalation job has already reported.
+ *
+ * In this process on purpose: a restart re-escalates whatever is still broken, which is
+ * the right behaviour when a worker has just come back during an outage. See the note at
+ * the top of `jobs/escalate.ts`.
+ */
+const escalationState: { known: ReadonlyMap<string, AlertState> } = { known: new Map() };
 
 /**
  * Reward weights, for now the compiled-in defaults.
@@ -217,6 +228,24 @@ const handlers: Readonly<Record<QueueName, (job: Job) => Promise<unknown>>> = {
       },
       parseJob(QUEUE.report, job.data),
     ),
+
+  [QUEUE.escalate]: () =>
+    runEscalate({
+      metrics,
+      report,
+      queues: {
+        async failedCounts() {
+          const counts = await Promise.all(
+            queues.map(async (queue) => [queue.name, await queue.getFailedCount()] as const),
+          );
+          return Object.fromEntries(counts);
+        },
+      },
+      telegram: bot === null ? null : { send: (text) => bot.send(text) },
+      state: escalationState,
+      now,
+      log,
+    }),
 
   [QUEUE.prune]: (job) => runPrune({ documents, now, log }, parseJob(QUEUE.prune, job.data)),
 };

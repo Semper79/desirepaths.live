@@ -495,6 +495,37 @@ Provenance goes in `report_run.composed_by_model` rather than into the message. 
 has one reader, who turned the pass on and knows — but "was this hour's opening written by
 a model, and which one" has to stay answerable months later.
 
+### D26 — Escalation reports transitions; the report reports state — **Taken**
+
+Two channels that say different things, rather than the same thing at two cadences.
+
+The escalation job fires when a condition _becomes_ critical and again when it clears. It
+never reminds. An operator who has been told ClickHouse is down does not need to be told
+every five minutes, and the hourly report already carries the ongoing condition — a
+reminder would be a third copy of a fact they have twice.
+
+**Only critical escalates.** A push notification for "three drafts are waiting" is how an
+operator learns that push notifications are not worth opening, and then misses the one that
+was. Warnings and information wait for the report.
+
+**Recovery is news.** An alert that fires and never resolves teaches the reader that alerts
+do not resolve, and the next outage looks identical to the last one still open.
+
+**A failed send is not remembered as sent.** The state is committed only for transitions
+whose message actually went out, so an outage nobody was told about is retried five minutes
+later rather than silently marked as handled.
+
+**The state is in the process, deliberately.** A restart re-escalates whatever is still
+broken — which is right, because a worker that has just come back during an outage is
+exactly when the operator's picture is most likely to be stale. The cost is one duplicate
+message in a case that already warranted attention.
+
+**What it structurally cannot report: Redis.** The queues run on Redis, so a Redis outage
+stops this job along with everything else. It is the one failure the system cannot report
+on its own behalf, and catching it needs the external check in
+`infra/prometheus/rules/morph.yml`. Saying so in the file is better than implying the
+coverage is complete.
+
 ---
 
 ## Deferred, but worth naming now

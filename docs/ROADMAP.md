@@ -1,10 +1,12 @@
 # Roadmap
 
-> **Current phase: 5 — web intelligence.**
-> Phases 0, 2 and 3 are complete and verified; 1 and 6 are complete apart from work that
-> needs Docker or a deployed URL. Phase 4 (sign-up) is deferred by the operator, so 5 was
-> taken out of order. The crawler package and the worker jobs that drive it are complete;
-> what remains is two operator decisions (D7, D16) and traffic.
+> **Phases 0, 2, 3, 5 and 6 are built and tested.** What is left in each of them is a
+> gate that needs the stack running, a deployed URL, or a week of real traffic — not more
+> code. Phase 1 needs its k6 load test; phase 4 (sign-up) is deferred by the operator;
+> phases 7 and 8 have not started.
+>
+> Two operator decisions still block a deployment: the domain (D2) and the legal
+> controller (D4).
 
 Each phase ends with the gate green:
 
@@ -162,9 +164,9 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 - `safety.ts`: nine categorical rules, `block` beating `review` beating `allow`, each
   firing rule named in the output.
 
-**Done — `apps/worker`, 253 tests:**
+**Done — `apps/worker`, 280 tests:**
 
-Seven scheduled jobs and the bot, each written against `src/ports.ts` and nothing else — no database
+Eight scheduled jobs and the bot, each written against `src/ports.ts` and nothing else — no database
 client, no queue, no clock. That is what makes "a source is due, robots disallows the
 path, so it is recorded as skipped rather than failed" a unit test instead of a
 docker-compose and a fixture database.
@@ -183,6 +185,9 @@ docker-compose and a fixture database.
 - The Telegram bot: long polling, the command dispatcher, and the approval queue that
   moves a draft to `published`. Long polling rather than a webhook because a webhook
   needs the domain in D2; swapping to one changes the client and nothing above it.
+- `escalate` — what cannot wait an hour. Every five minutes, two pings and a queue
+  count; a message when something _becomes_ critical and again when it clears. It does
+  not remind: escalation is about transitions, the report is about state (D26).
 - `report` — the hourly report. Gathers from ClickHouse and Postgres, derives every
   number in `lib/report-derive.ts`, composes with the Phase 6 composer, sends, and
   records the run. Idempotent on `report_run.hour_start`, so a retry or a redeploy
@@ -205,7 +210,7 @@ list reviewed by hand for false negatives. Both need the stack running, which ne
 
 ---
 
-## Phase 6 — The Telegram bot 🟡 _composer and commands complete; transport pending_
+## Phase 6 — The Telegram bot ✅ _built and tested; the gate needs a week of running_
 
 **Done:** the report composer with all nine sections, MarkdownV2 formatting with
 section-boundary message packing, quiet-hour discipline, the command grammar and its
