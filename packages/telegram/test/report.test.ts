@@ -156,7 +156,7 @@ describe('the full hourly report', () => {
       'hourly report',
       'Traffic',
       'Conversion',
-      'How MORPH reacted',
+      'How Desire Path reacted',
       'What the web is saying',
       'Social',
       'Holdout lift',

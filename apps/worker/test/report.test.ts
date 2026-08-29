@@ -821,7 +821,7 @@ describe('the prose pass', () => {
 
     const text = await sentReport(h);
     expect(text.startsWith('A quiet hour with one piece published.')).toBe(true);
-    expect(text).toContain('MORPH');
+    expect(text).toContain('Desire Path');
   });
 
   /**
@@ -835,7 +835,7 @@ describe('the prose pass', () => {
     const text = await sentReport(h);
 
     expect(text).not.toContain('84,000');
-    expect(text).toContain('MORPH');
+    expect(text).toContain('Desire Path');
     expect(h.log.find('report.prose-rejected')).toMatchObject({ violations: ['84,000'] });
   });
 
@@ -866,7 +866,7 @@ describe('the prose pass', () => {
     eventful(h);
 
     const text = await sentReport(h);
-    expect(text).toContain('MORPH');
+    expect(text).toContain('Desire Path');
   });
 
   /**

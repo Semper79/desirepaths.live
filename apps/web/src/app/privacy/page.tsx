@@ -20,7 +20,7 @@ export function generateMetadata(): Metadata {
     siteName: site.name,
     path: '/privacy',
     title: 'Privacy',
-    description: 'What MORPH measures, what it never collects, and how to change your mind.',
+    description: 'What Desire Path measures, what it never collects, and how to change your mind.',
   });
   return { title: 'Privacy', alternates: { canonical: meta.canonical } };
 }
@@ -34,8 +34,9 @@ export default async function PrivacyPage(): Promise<React.JSX.Element> {
       <section>
         <h1>Privacy</h1>
         <p className="muted">
-          The short version: MORPH measures behaviour, not people. Everything below is how — and the
-          engineering behind each claim is in the repository rather than in a policy nobody reads.
+          The short version: Desire Path measures behaviour, not people. Everything below is how —
+          and the engineering behind each claim is in the repository rather than in a policy nobody
+          reads.
         </p>
       </section>
 

@@ -40,7 +40,7 @@ evidence rather than as an editorial bet on day one.
 
 ---
 
-### D2 — Domain and brand name
+### D2 — Domain and brand name — **Taken: Desire Path**
 
 Needed for OAuth callback registration, the crawler's User-Agent contact URL, ACME
 certificate issuance and every platform's app review. Several of those have multi-day
@@ -55,6 +55,44 @@ is a brand decision, and inventing one would put a placeholder into OAuth callba
 crawler’s contact URL and every certificate.
 
 ---
+
+**Decided:** `desirepath.live`, with `desirepaths.live` held defensively. Both registered.
+
+A _desire path_ is the trail worn into grass where people actually walk, ignoring the paved
+route. Urban planners study them; some architects wait for them to appear before laying any
+path at all. That is the methodology, not a metaphor for it — the site reshapes itself along
+the routes visitors actually take rather than the ones the designer intended, which is what
+a contextual bandit over eleven surfaces does.
+
+**Why the concept and not a coined word.** The term is already known and liked by exactly
+the people this has to reach: designers, product managers and developers all recognise it,
+and it carries affection none of them has for an invented syllable. The name arrives with
+equity instead of needing to build it.
+
+**Why `.live` and not `.com`.** Roughly eighty candidate strings were checked against RDAP
+across five rounds — real words, pure coinages, compounds. **Not one evocative name had a
+free `.com`.** The choice was never .com-versus-.live; it was an engaging name on .live or a
+descriptive phrase on .com (`showsitswork.com` was the best of those, and was free). The
+engaging name won because the site's job is to be worth telling someone about.
+
+**What was checked before buying.** RDAP against the authoritative registries for
+availability, and a web search for existing commercial use. That second step is the one that
+mattered: it eliminated **Fluxel** (in use by a building-intelligence platform, a fintech,
+and a French company), **Mercurial** (an established version control system used by Meta,
+Mozilla and W3C), **Plainsight** (a computer-vision AI company), **Anneal** (an engineering
+platform in Belfast), and **Trimtab** (the Buckminster Fuller Institute's newsletter). Every
+one of those would have been found later and more expensively.
+
+**Still outstanding:** a trade mark search. Registers were not checked — TMview across EUIPO
+plus the national registers, and UIBM for the home market, in classes 9, 35 and 42. The risk
+on a name made of two common English words is low, because such marks are weakly
+registrable in the first place, but low is not verified.
+
+**The two names.** The product is Desire Path. The repository, the `@morph/*` package
+namespace, the `MORPH_*` environment variables and the database stay MORPH — the codename
+this was built under. Renaming those is a migration with a downtime window that buys nothing
+a visitor can see. The rule is written at the top of `apps/web/src/lib/site.ts`: a comment
+describing the system may say MORPH; a string a person reads says Desire Path.
 
 ### D3 — Hosting and jurisdiction — **Taken: A**
 

@@ -32,7 +32,7 @@ export default function Icon(): ImageResponse {
         borderRadius: 6,
       }}
     >
-      M
+      D
     </div>,
     size,
   );

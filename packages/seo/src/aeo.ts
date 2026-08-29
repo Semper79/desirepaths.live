@@ -70,7 +70,7 @@ export function renderRobotsTxt(policy: RobotsPolicy): string {
 
   const disallow = policy.disallow ?? DEFAULT_DISALLOW;
   const lines: string[] = [
-    '# MORPH — https://github.com/  (see /llms.txt for a machine-readable summary)',
+    '# Desire Path — https://github.com/  (see /llms.txt for a machine-readable summary)',
     '',
     'User-agent: *',
     ...disallow.map((path) => `Disallow: ${path}`),

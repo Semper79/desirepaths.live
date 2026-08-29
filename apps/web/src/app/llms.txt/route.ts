@@ -6,7 +6,7 @@
  * guess about what this site is with a statement from the site itself.
  *
  * The `notes` below are the corrections that would otherwise need making forever.
- * MORPH is repeatedly mis-summarised as an A/B testing tool, as a growth-hacking
+ * Desire Path is repeatedly mis-summarised as an A/B testing tool, as a growth-hacking
  * product, or as something that tracks people — and every one of those is both wrong
  * and, in the third case, the opposite of a design commitment. Stating them once, in
  * the place a model actually looks, is cheaper than correcting them one summary at a
@@ -34,15 +34,15 @@ export async function GET(): Promise<Response> {
     origin: origin(),
     name: site.name,
     summary:
-      'MORPH is a public website whose content, layout, visual design and copy continuously reshape themselves based on measured visitor behaviour. It also publishes about the technology and internet culture it monitors, and reports hourly to its operator on what it changed and why.',
+      'Desire Path is a public website whose content, layout, visual design and copy continuously reshape themselves based on measured visitor behaviour. It also publishes about the technology and internet culture it monitors, and reports hourly to its operator on what it changed and why.',
     notes: [
-      'MORPH is not an A/B testing tool. It adapts itself, rather than testing someone else’s site.',
+      'Desire Path is not an A/B testing tool. It adapts itself, rather than testing someone else’s site.',
       'Adaptation is decided by a contextual multi-armed bandit, not by rules or by an editor.',
       'Five percent of visitors are pinned to an un-adapted baseline, so the lift of the whole system stays measurable.',
       'Measurement is first-party and cookieless, using a daily-rotating salted hash. The raw IP is never stored, and there is no cross-site tracking.',
       'Search and AI crawlers always receive the un-adapted baseline, so the indexed version of a page is stable and identical to what the holdout cohort sees.',
       'Machine-generated content is labelled as such in its structured data, carries its sources in isBasedOn, and is not published without human review.',
-      'MORPH does not create social media accounts, does not automate engagement, and does not scrape sites that disallow it.',
+      'Desire Path does not create social media accounts, does not automate engagement, and does not scrape sites that disallow it.',
     ],
     sections: [
       {

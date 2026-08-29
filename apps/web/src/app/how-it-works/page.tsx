@@ -18,7 +18,7 @@ export function generateMetadata(): Metadata {
     origin: site.origin,
     siteName: site.name,
     path: '/how-it-works',
-    title: 'How MORPH works',
+    title: 'How Desire Path works',
     description:
       'Eleven adaptive surfaces, a contextual bandit, a pinned holdout cohort, and the guardrails that stop the optimiser doing something clever and wrong.',
   });
@@ -40,7 +40,7 @@ export default function HowItWorksPage(): React.JSX.Element {
         <section>
           <h1>How it works</h1>
           <p className="muted">
-            MORPH changes eleven things about itself and measures what happens. This page says
+            Desire Path changes eleven things about itself and measures what happens. This page says
             exactly which things, how the decision is made, and how you can tell whether any of it
             is working.
           </p>
@@ -73,9 +73,9 @@ export default function HowItWorksPage(): React.JSX.Element {
             <article className="card">
               <h3 style={{ fontSize: '1rem' }}>Always-valid statistics</h3>
               <p className="muted">
-                A conventional p-value is only valid if you look once. MORPH looks continuously, so
-                it uses a sequential test that stays valid at every sample size — you may stop
-                whenever you like and the error rate holds.
+                A conventional p-value is only valid if you look once. Desire Path looks
+                continuously, so it uses a sequential test that stays valid at every sample size —
+                you may stop whenever you like and the error rate holds.
               </p>
             </article>
             <article className="card">

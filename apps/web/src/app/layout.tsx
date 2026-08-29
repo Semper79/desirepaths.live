@@ -33,7 +33,7 @@ export function generateMetadata(): Metadata {
     origin: site.origin,
     siteName: site.name,
     path: '/',
-    title: 'MORPH — a website that rebuilds itself',
+    title: 'Desire Path — a website that rebuilds itself',
     description: site.description,
     ...(isIndexable() ? {} : { noindex: true }),
   });

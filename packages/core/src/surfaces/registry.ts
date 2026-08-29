@@ -66,7 +66,7 @@ export const heroHeadline = defineSurface({
       label: 'Baseline - plain statement',
       payload: {
         text: 'A website that rebuilds itself around you.',
-        subtext: 'MORPH watches what works and changes. Every hour.',
+        subtext: 'Desire Path watches what works and changes. Every hour.',
         tone: 'direct',
       },
       ...baseline,
@@ -637,7 +637,7 @@ export const ctaCopy = defineSurface({
     {
       slug: 'join',
       label: 'Baseline - Join',
-      payload: { text: 'Join MORPH', supporting: 'One tap. No password.' },
+      payload: { text: 'Join Desire Path', supporting: 'One tap. No password.' },
       ...baseline,
     },
     {

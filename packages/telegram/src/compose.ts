@@ -76,7 +76,7 @@ export function isQuietHour(input: ReportInput): boolean {
 /** The one-line form. */
 export function composeBrief(input: ReportInput): string {
   const parts = [
-    `${bold('MORPH')} ${escape(formatHour(input.hourStart, input.timezone))}`,
+    `${bold('Desire Path')} ${escape(formatHour(input.hourStart, input.timezone))}`,
     `${escape(compact(input.traffic.sessions))} sessions, ${escape(String(input.conversion.signups))} sign\\-ups, no adaptations, all green\\.`,
   ];
   return parts.join(' · ');
@@ -89,7 +89,7 @@ export function composeBrief(input: ReportInput): string {
 function header(input: ReportInput): string {
   const health = input.services.map((s) => `${STATUS_ICON[s.status]} ${escape(s.name)}`).join('  ');
   return [
-    bold('MORPH · hourly report'),
+    bold('Desire Path · hourly report'),
     `${escape(formatHour(input.hourStart, input.timezone))} · uptime ${escape(formatUptime(input.uptimeSeconds))}`,
     health,
   ].join('\n');
@@ -158,7 +158,7 @@ function conversion(input: ReportInput): string {
 
 function adaptation(input: ReportInput): string {
   const a = input.adaptation;
-  const lines = [bold('3 · How MORPH reacted')];
+  const lines = [bold('3 · How Desire Path reacted')];
 
   if (a.entries.length === 0) {
     lines.push(

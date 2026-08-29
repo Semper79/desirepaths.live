@@ -20,7 +20,7 @@ export function generateMetadata(): Metadata {
     origin: site.origin,
     siteName: site.name,
     path: '/live',
-    title: 'What MORPH chose for you',
+    title: 'What Desire Path chose for you',
     description:
       'The exact variant of every adaptive surface you were served, and the reason for each.',
   });

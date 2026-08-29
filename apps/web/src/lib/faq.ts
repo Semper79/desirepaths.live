@@ -21,28 +21,28 @@ export interface FaqItem {
 
 export const FAQ_ITEMS: readonly FaqItem[] = [
   {
-    question: 'What does MORPH actually change?',
+    question: 'What does Desire Path actually change?',
     answer:
-      'MORPH changes eleven things about itself: the headline, the hero media, the colour palette, the typography, the layout density, the order of the page sections, the call-to-action copy and its visual style, the order of the sign-in buttons, the motion intensity, and how the content feed is ranked.',
+      'Desire Path changes eleven things about itself: the headline, the hero media, the colour palette, the typography, the layout density, the order of the page sections, the call-to-action copy and its visual style, the order of the sign-in buttons, the motion intensity, and how the content feed is ranked.',
   },
   {
-    question: 'How does MORPH decide what to show?',
+    question: 'How does Desire Path decide what to show?',
     answer:
-      'MORPH uses Thompson sampling over Beta posteriors for robustness, blended with a contextual bandit that conditions on device, referrer class, hour of week and session depth. A composite reward weights sign-ups at 40%, meaningful engagement at 25%, scroll depth at 20%, return visits at 10% and shares at 5%, minus a bounce penalty.',
+      'Desire Path uses Thompson sampling over Beta posteriors for robustness, blended with a contextual bandit that conditions on device, referrer class, hour of week and session depth. A composite reward weights sign-ups at 40%, meaningful engagement at 25%, scroll depth at 20%, return visits at 10% and shares at 5%, minus a bounce penalty.',
   },
   {
     question: 'How do you know the adaptation is working?',
     answer:
-      'Five percent of visitors to MORPH are pinned to an un-adapted baseline. The measured difference between that holdout cohort and everyone else is the lift of the whole system. It is reported every hour with an always-valid p-value, so that looking at the result continuously does not inflate the false-positive rate the way a conventional A/B test would.',
+      'Five percent of visitors to Desire Path are pinned to an un-adapted baseline. The measured difference between that holdout cohort and everyone else is the lift of the whole system. It is reported every hour with an always-valid p-value, so that looking at the result continuously does not inflate the false-positive rate the way a conventional A/B test would.',
   },
   {
-    question: 'Does MORPH track people across sites?',
+    question: 'Does Desire Path track people across sites?',
     answer:
-      'No. MORPH measures behaviour first-party and without cookies, using a daily-rotating salted hash of IP address and user agent. The raw IP address is never stored. There are no third-party analytics, no advertising pixels, and no cross-site identifiers of any kind.',
+      'No. Desire Path measures behaviour first-party and without cookies, using a daily-rotating salted hash of IP address and user agent. The raw IP address is never stored. There are no third-party analytics, no advertising pixels, and no cross-site identifiers of any kind.',
   },
   {
     question: 'What do search engines and AI crawlers see?',
     answer:
-      'MORPH serves every automated request the un-adapted baseline — byte for byte what the holdout cohort sees. The indexed version of a page is therefore stable between crawls, and the site never shows a crawler something different from what a person would see on the same baseline.',
+      'Desire Path serves every automated request the un-adapted baseline — byte for byte what the holdout cohort sees. The indexed version of a page is therefore stable between crawls, and the site never shows a crawler something different from what a person would see on the same baseline.',
   },
 ] as const;

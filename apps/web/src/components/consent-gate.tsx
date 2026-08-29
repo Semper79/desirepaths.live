@@ -32,7 +32,7 @@ export async function ConsentGate(): Promise<React.JSX.Element | null> {
       <div className="shell consent-row">
         <div className="consent-copy">
           <h2 id="consent-heading" style={{ fontSize: '1rem', margin: '0 0 0.25rem' }}>
-            How MORPH measures you
+            How Desire Path measures you
           </h2>
           <p className="muted consent-copy">
             Measurement is first-party and cookieless, with an identifier that rotates daily and

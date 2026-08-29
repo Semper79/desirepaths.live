@@ -14,7 +14,7 @@ import { FALLBACK_TOKENS } from '@morph/ui';
  * card is shared into a timeline, and the default of "" would announce nothing.
  */
 
-export const alt = 'MORPH — a website that rebuilds itself around measured visitor behaviour';
+export const alt = 'Desire Path — a website that rebuilds itself around measured visitor behaviour';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -33,7 +33,7 @@ export default function OpenGraphImage(): ImageResponse {
       }}
     >
       <div style={{ display: 'flex', fontSize: 28, color: FALLBACK_TOKENS['--color-accent'] }}>
-        MORPH
+        Desire Path
       </div>
       <div style={{ display: 'flex', fontSize: 76, lineHeight: 1.05, letterSpacing: '-0.02em' }}>
         A website that rebuilds itself around you.
