@@ -13,6 +13,7 @@ import {
   probabilityGreater,
   probabilityWorseThan,
   tinyGuard,
+  standardNormalCdf,
 } from '../src/beta.js';
 
 describe('lnGamma', () => {
@@ -198,8 +199,100 @@ describe('probabilityGreater', () => {
   });
 
   it('falls back to a mean comparison when both posteriors are point masses', () => {
-    // Standard deviations here are ~1e-15, far below the quadrature grid.
+    // Variances underflow to exactly zero here, so the normal difference has nothing to
+    // divide by and defers to the means. Without the guard this is NaN, which compares
+    // false against every threshold — a guardrail that silently stops retiring anything.
     expect(probabilityGreater(1e30, 1e30, 1e30, 1e30)).toBe(0.5);
+    expect(probabilityGreater(2e30, 1e30, 1e30, 2e30)).toBe(1);
+    expect(probabilityGreater(1e30, 2e30, 2e30, 1e30)).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------------
+  // D28: the three regimes
+  // ---------------------------------------------------------------------------
+
+  it('answers for posteriors far past what the incomplete beta can integrate', () => {
+    // The case that motivated D28. Before it, this threw — and it is reachable in
+    // production, not in theory: forgetting caps the pseudo-count at
+    // observations_per_cycle / (1 - gamma), which at the 5M events/day design target puts
+    // a busy surface here every hour.
+    const p = probabilityGreater(3_100_001, 6_900_001, 3_000_001, 7_000_001);
+
+    expect(Number.isFinite(p)).toBe(true);
+    expect(p).toBeGreaterThan(0.999);
+  });
+
+  it('agrees with the exact quadrature either side of the switchover', () => {
+    // The switch is at a total mass of 200,000 and the exact method still works up to
+    // roughly 450,000, so the two regimes overlap — which is what makes this checkable at
+    // all rather than a claim about a threshold nobody can see across.
+    const justUnder = probabilityGreater(59_000, 138_000, 58_000, 139_000);
+    const justOver = probabilityGreater(62_000, 145_000, 61_000, 146_000);
+
+    // Same contest, scaled: the answers should be close, and both far from a coin flip.
+    expect(Math.abs(justUnder - justOver)).toBeLessThan(0.05);
+    expect(justUnder).toBeGreaterThan(0.9);
+  });
+
+  it('treats a collapsed second posterior as a point mass rather than as a normal', () => {
+    // The fresh-variant-against-mature-leader comparison, which the bandit makes
+    // constantly. Applying the normal difference to Beta(3, 7) — broad and skewed,
+    // nothing like a normal — was measured 3.7e-2 out. Reading it off the wide
+    // posterior's own exact CDF was 2.7e-6 out.
+    const p = probabilityGreater(3, 7, 600_000, 1_400_000);
+
+    // Beta(3, 7) has mean 0.3 and the leader has collapsed to exactly 0.3, so the answer
+    // is the mass of Beta(3, 7) above its own mean — a little under a half, because the
+    // distribution is right-skewed.
+    expect(p).toBeCloseTo(0.4628, 3);
+  });
+
+  it('treats a collapsed first posterior the same way, in the other direction', () => {
+    const p = probabilityGreater(600_000, 1_400_000, 3, 7);
+
+    // The complement of the case above, and it must agree with it to the digit: these are
+    // the same comparison read from opposite ends.
+    expect(p).toBeCloseTo(1 - 0.4628, 3);
+  });
+
+  it('stays symmetric across the concentrated regime', () => {
+    // P(X > Y) + P(Y > X) = 1 is a property of the mathematics, not of the method, and it
+    // has to survive the approximation. The erfc formula gives it exactly, because
+    // erfc(x) + erfc(-x) is exactly 2 by construction.
+    const forward = probabilityGreater(3_100_001, 6_900_001, 3_000_001, 7_000_001);
+    const backward = probabilityGreater(3_000_001, 7_000_001, 3_100_001, 6_900_001);
+
+    expect(forward + backward).toBeCloseTo(1, 12);
+  });
+
+  it('compares means when the variances underflow to exactly zero', () => {
+    // Not the same case as "very concentrated". Here `betaVariance` divides a finite
+    // numerator by an overflowed denominator and returns a true zero, so the normal
+    // difference has nothing to divide by. Without the guard the result is NaN, which
+    // compares false against every threshold — the guardrail would stop retiring
+    // anything, and nothing would error to say so.
+    expect(betaVariance(1, 1e150)).toBe(0);
+
+    expect(probabilityGreater(1, 1e150, 1, 1e150)).toBe(0.5);
+    expect(probabilityGreater(2, 1e150, 1, 1e150)).toBe(1);
+    expect(probabilityGreater(1, 1e150, 2, 1e150)).toBe(0);
+  });
+
+  it('compares means when the integration range itself collapses', () => {
+    // The quadrature's own degenerate guard, and the only route to it now that the
+    // concentrated regime is handled before the integral is set up: a posterior whose
+    // alpha has underflowed towards zero, which is a corrupted posterior rather than a
+    // small one. `PARAM_FLOOR` in `reward.ts` is what stops the engine producing these,
+    // and this is the second line of that defence.
+    expect(probabilityGreater(1e-300, 1, 1e-300, 1)).toBe(0.5);
+  });
+
+  it('has a standard normal CDF that is exact where the answer is known', () => {
+    expect(standardNormalCdf(0)).toBe(0.5);
+    expect(standardNormalCdf(1.959963985)).toBeCloseTo(0.975, 6);
+    expect(standardNormalCdf(-1.959963985)).toBeCloseTo(0.025, 6);
+    expect(standardNormalCdf(-6)).toBeLessThan(1e-8);
+    expect(standardNormalCdf(6)).toBeGreaterThan(1 - 1e-8);
   });
 
   it('stays inside [0, 1]', () => {

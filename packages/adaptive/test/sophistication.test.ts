@@ -199,11 +199,15 @@ describe('sophistication', () => {
     expect(beyond.level).toBeLessThanOrEqual(1);
   });
 
-  it('drops a surface too concentrated for the beta CDF rather than throwing', () => {
-    // Not hypothetical. Forgetting caps the pseudo-count at observations_per_cycle /
-    // (1 - gamma) — fifty hourly cycles at the default — and at the 5M events/day design
-    // target a busy surface reaches the band where the incomplete beta stops converging.
-    // The home page must render anyway.
+  it('measures a surface far past what the incomplete beta could handle', () => {
+    // This case used to be *dropped*. `probabilityGreater` threw above roughly half a
+    // million pseudo-counts, so the reading degraded rather than crashed — conservative,
+    // and the best available answer while the bug stood. D28 replaced that with a normal
+    // approximation for the concentrated regime, so the surface is now measured.
+    //
+    // It matters at exactly the scale the system is designed for: forgetting caps the
+    // pseudo-count at observations_per_cycle / (1 - gamma), which at the 5M events/day
+    // target lands a busy surface right here.
     const extreme: SurfaceEvidence = {
       surfaceKey: 'a',
       arms: [
@@ -214,11 +218,10 @@ describe('sophistication', () => {
 
     const result = sophistication([extreme], FRESH);
 
-    // Excluded, not scored. That can only pull the reading down — the surface it drops is
-    // one the site is extremely sure about — so the bar under-claims rather than lying.
-    expect(result.components.certainty).toBe(0);
-    expect(result.surfacesOptimising).toBe(0);
-    expect(result.level).toBeGreaterThan(0);
+    // The leader is a full percentage point ahead on ten million impressions. That is not
+    // a close contest, and the site is entitled to be certain about it.
+    expect(result.components.certainty).toBeGreaterThan(0.99);
+    expect(result.surfacesOptimising).toBe(1);
   });
 
   it('returns zero rather than dividing by zero when every weight is zero', () => {

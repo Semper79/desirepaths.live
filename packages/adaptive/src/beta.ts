@@ -161,6 +161,86 @@ export function betaQuantile(a: number, b: number, p: number): number {
 }
 
 /**
+ * Total pseudo-count beyond which `betaCdf` is no longer trusted.
+ *
+ * Measured, not guessed. The regularised incomplete beta stops converging between a mass
+ * of 450,000 and 500,000: `front` becomes a difference of two enormous logs and loses its
+ * significant digits, and `betaContinuedFraction` throws rather than return a plausible
+ * wrong number. This sits at a factor of two below that.
+ *
+ * It is reachable in production, not in theory. Exponential forgetting caps the
+ * pseudo-count at `observations_per_cycle / (1 - gamma)` — fifty hourly cycles at the
+ * default 0.98 — so a surface seeing 20,000 impressions an hour lands here, and one at the
+ * 5M events/day design target lands an order of magnitude past it. Before this existed,
+ * the hourly `adapt` job and the report both threw at that scale.
+ */
+const CONCENTRATION_LIMIT = 200_000;
+
+/**
+ * Standard normal CDF, via the Numerical Recipes `erfc` rational approximation.
+ *
+ * Fractional error below 1.2e-7 across the whole line, which is three orders of magnitude
+ * tighter than anything downstream can perceive: this number is compared against a 0.95
+ * retirement threshold and printed to two decimal places.
+ *
+ * Exported so its two branches are reachable from a test directly rather than only
+ * through a posterior contrived to hit them.
+ */
+export function standardNormalCdf(z: number): number {
+  // Exact by symmetry, and worth stating rather than approximating: the rational
+  // approximation returns 0.50000001 here, and two identical posteriors reporting
+  // anything other than an even split is the kind of detail that makes a reader stop
+  // trusting the rest of the page.
+  if (z === 0) return 0.5;
+
+  const x = -z / Math.SQRT2;
+  const magnitude = Math.abs(x);
+  const t = 1 / (1 + 0.5 * magnitude);
+
+  const series =
+    t *
+    Math.exp(
+      -magnitude * magnitude -
+        1.26551223 +
+        t *
+          (1.00002368 +
+            t *
+              (0.37409196 +
+                t *
+                  (0.09678418 +
+                    t *
+                      (-0.18628806 +
+                        t *
+                          (0.27886807 +
+                            t *
+                              (-1.13520398 +
+                                t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))),
+    );
+
+  return 0.5 * (x >= 0 ? series : 2 - series);
+}
+
+/**
+ * P(X > Y) for two posteriors concentrated enough to be treated as normal.
+ *
+ * X - Y is then normal with the difference of the means and the sum of the variances, so
+ * the answer is one CDF evaluation. Agreement with the exact quadrature was measured at
+ * 3.8e-7 by a total mass of 10,000 and better above it; the worst case found, a posterior
+ * skewed to a 0.1% reward rate at mass 200,000, still agreed to 8.6e-5.
+ */
+function normalDifference(a1: number, b1: number, a2: number, b2: number): number {
+  const delta = betaMean(a1, b1) - betaMean(a2, b2);
+  const spread = Math.sqrt(betaVariance(a1, b1) + betaVariance(a2, b2));
+
+  // Both posteriors are exact point masses. Dividing by zero here would produce a
+  // probability of NaN, which compares false against every threshold and would silently
+  // stop the guardrail from ever retiring anything.
+  if (spread === 0) return compareMeans(betaMean(a1, b1), betaMean(a2, b2));
+
+  return clamp01(standardNormalCdf(delta / spread));
+}
+
+/**
  * P(X > Y) where X ~ Beta(a1, b1) and Y ~ Beta(a2, b2).
  *
  * This is *the* number the optimiser retires variants on and the report quotes in
@@ -172,8 +252,36 @@ export function betaQuantile(a: number, b: number, p: number): number {
  * Restricting the integration range is not an optimisation, it is a correctness
  * requirement: at 50,000 impressions a posterior has a standard deviation around
  * 0.002, and a fixed grid over [0, 1] would step straight over the entire density.
+ *
+ * THREE REGIMES, BECAUSE ONE METHOD DOES NOT COVER THE RANGE (D28)
+ * The quadrature above needs `betaCdf`, which gives up once a posterior passes roughly
+ * half a million pseudo-counts — a level forgetting allows and the design target reaches.
+ * So:
+ *
+ *   both concentrated — the normal difference. Two near-point-masses, and the answer
+ *   saturates towards 0 or 1 exactly as it should.
+ *
+ *   one concentrated — the wide one keeps its exact CDF and the narrow one is treated as
+ *   a point mass at its mean. The naive move here is to apply the normal difference
+ *   anyway, and it is badly wrong: Beta(3, 7) is broad and skewed, nothing like a normal,
+ *   and the approximation was measured 3.7e-2 out. The point-mass treatment was 2.7e-6
+ *   out on the same case. This is the fresh-variant-against-mature-leader comparison,
+ *   which the bandit makes constantly.
+ *
+ *   neither — the quadrature, unchanged, which is exact where it works.
  */
 export function probabilityGreater(a1: number, b1: number, a2: number, b2: number): number {
+  const concentrated1 = a1 + b1 >= CONCENTRATION_LIMIT;
+  const concentrated2 = a2 + b2 >= CONCENTRATION_LIMIT;
+
+  if (concentrated1 && concentrated2) return normalDifference(a1, b1, a2, b2);
+
+  // Y has collapsed: P(X > Y) becomes P(X > mean of Y), read off X's own exact CDF.
+  if (concentrated2) return clamp01(1 - betaCdf(betaMean(a2, b2), a1, b1));
+
+  // X has collapsed: P(X > Y) becomes P(mean of X > Y), which is Y's CDF at that point.
+  if (concentrated1) return clamp01(betaCdf(betaMean(a1, b1), a2, b2));
+
   const m1 = betaMean(a1, b1);
   const s1 = Math.sqrt(betaVariance(a1, b1));
   const m2 = betaMean(a2, b2);

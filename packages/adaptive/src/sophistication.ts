@@ -160,22 +160,16 @@ function evidenceTerm(total: number, config: SophisticationConfig): number {
  * counting a site with ten single-variant surfaces as maximally certain would let the
  * reading be inflated by removing variants — an incentive pointing the wrong way.
  *
- * ON THE `catch`, WHICH IS NOT DEFENSIVE PADDING
- * `probabilityGreater` goes through the regularised incomplete beta, and that stops
- * converging once the pseudo-counts pass roughly a million: `front` is a difference of two
- * enormous logs and loses its significant digits. It throws rather than returning a
- * plausible wrong number, which is the right call there.
+ * THERE USED TO BE A `catch` HERE
+ * `probabilityGreater` used to throw once the pseudo-counts passed roughly half a million,
+ * which forgetting allows and the design target reaches, so this dropped such a surface
+ * rather than let the home page fail. That was the right response to the bug and the wrong
+ * thing to keep once it was fixed: D28 gave `beta.ts` a normal approximation for the
+ * concentrated regime, and the call no longer throws.
  *
- * A surface can genuinely reach that. Forgetting caps the pseudo-count at about
- * `observations_per_cycle / (1 - gamma)`, which at the default 0.98 is fifty hourly
- * cycles — and at the 5M events/day design target a busy surface lands in the failure
- * band. So this is a live case, not a hypothetical.
- *
- * Dropping the surface is the honest response and it errs the right way: a posterior too
- * concentrated to evaluate is one the site is *extremely* sure about, so excluding it can
- * only pull the reported certainty down. The bar under-claims rather than over-claims, and
- * the home page renders. The real fix is a normal approximation in `beta.ts` for the
- * large-parameter regime, which is a change to the numerical core and wants its own tests.
+ * Removing the guard rather than leaving it is deliberate. A catch that can never fire is
+ * a branch no test can reach, and this package's gate is 100% of them — so dead defensive
+ * code here does not sit quietly, it fails the build. That is the gate working.
  */
 function surfaceCertainty(arms: readonly Arm[]): number | null {
   if (arms.length < 2) return null;
@@ -188,12 +182,8 @@ function surfaceCertainty(arms: readonly Arm[]): number | null {
   let strongestChallenge = 0;
   for (const arm of arms) {
     if (arm.variantId === leader.variantId) continue;
-    try {
-      const chance = probabilityGreater(arm.alpha, arm.beta, leader.alpha, leader.beta);
-      if (chance > strongestChallenge) strongestChallenge = chance;
-    } catch {
-      return null;
-    }
+    const chance = probabilityGreater(arm.alpha, arm.beta, leader.alpha, leader.beta);
+    if (chance > strongestChallenge) strongestChallenge = chance;
   }
 
   // A challenger cannot be more than even money against the leader by posterior mean, so

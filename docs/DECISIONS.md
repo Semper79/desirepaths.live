@@ -647,7 +647,7 @@ the page renders; the underlying gap is recorded in D28.
 
 ---
 
-### D28 — `probabilityGreater` has a ceiling, and the report is exposed to it — **Open**
+### D28 — `probabilityGreater` had a ceiling, and the adapt job sat under it — **Taken: fixed**
 
 The regularised incomplete beta in `packages/adaptive/src/beta.ts` throws above roughly
 1,000,000 pseudo-counts. It is right to throw — `front` becomes a difference of two enormous
@@ -666,8 +666,36 @@ difference, which is accurate exactly where the continued fraction fails. It is 
 the numerical core of a package with a 100% branch-coverage gate, so it wants its own tests
 and its own commit rather than riding along with a feature.
 
-**What I need:** agreement that this is worth doing before the load tests run, since the
-soak is the first thing that will drive a surface into that band.
+**Done.** `probabilityGreater` now routes by concentration, and the thresholds were
+measured rather than chosen:
+
+| Regime                                     | Method                                                                            | Measured agreement with the exact quadrature          |
+| ------------------------------------------ | --------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Both posteriors past 200,000 pseudo-counts | Normal difference, `Φ((μ₁-μ₂)/√(σ₁²+σ₂²))`                                        | 3.8e-7 by mass 10,000; 8.6e-5 in the worst skew found |
+| One past it                                | The wide one keeps its exact CDF; the narrow one becomes a point mass at its mean | 2.7e-6                                                |
+| Neither                                    | The existing quadrature, untouched                                                | exact                                                 |
+
+The middle row is the one worth dwelling on. The obvious move is to apply the normal
+difference whenever anything is large, and on the fresh-variant-against-mature-leader
+comparison — which the bandit makes constantly — that is **3.7e-2 out**, because Beta(3, 7)
+is broad and skewed and nothing like a normal. The point-mass treatment is four orders of
+magnitude better on the same case. Both numbers came from running it, not from reasoning
+about it.
+
+The switchover sits at 200,000 against a measured failure between 450,000 and 500,000, so
+the two methods overlap by more than a factor of two and the agreement above is checkable
+rather than asserted.
+
+**What it changed elsewhere.** `sophistication()` had a `catch` that dropped a surface too
+concentrated to evaluate. That is now dead code, and in a package gated at 100% branch
+coverage dead defensive code fails the build rather than sitting quietly — so the gate
+removed it for us. The reading on the home page now measures those surfaces instead of
+conservatively excluding them.
+
+**What it did not change.** The convergence harness produces byte-identical numbers: 97.5%
+terminal best share, 138.2 cumulative regret, +148.6% lift, and 93.4% after the world
+rotates. The simulation never enters the concentrated regime, which is the point — the
+behaviour is unchanged everywhere it already worked, and defined where it previously threw.
 
 ---
 

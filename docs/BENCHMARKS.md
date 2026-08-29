@@ -57,13 +57,15 @@ explaining why it exists.
 
 ### 1.3 Statistical validity
 
-| Property                              | Test                                                 | Result                                                                                          |
-| ------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Type-I error under continuous peeking | 200 trials × 400 sequential looks under the null     | **< 10%** false positives at α = 0.05. A fixed-horizon test peeked this way fires on most runs. |
-| `probabilityGreater` accuracy         | Against an independent Monte-Carlo estimate          | agrees to 2 decimal places                                                                      |
-| Beta sampler moments                  | 200,000 draws, Beta(3,7)                             | mean within 0.005, variance within 0.002 of analytic                                            |
-| Gamma sampler moments                 | 120,000 draws, shapes 0.4 and 4                      | mean and variance within tolerance for both the boost and direct paths                          |
-| Sherman-Morrison drift                | 200 rank-1 updates vs a fresh Gauss-Jordan inversion | agrees to 9 decimal places                                                                      |
+| Property                              | Test                                                        | Result                                                                                          |
+| ------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Type-I error under continuous peeking | 200 trials × 400 sequential looks under the null            | **< 10%** false positives at α = 0.05. A fixed-horizon test peeked this way fires on most runs. |
+| `probabilityGreater` accuracy         | Against an independent Monte-Carlo estimate                 | agrees to 2 decimal places                                                                      |
+| Beta sampler moments                  | 200,000 draws, Beta(3,7)                                    | mean within 0.005, variance within 0.002 of analytic                                            |
+| Gamma sampler moments                 | 120,000 draws, shapes 0.4 and 4                             | mean and variance within tolerance for both the boost and direct paths                          |
+| Sherman-Morrison drift                | 200 rank-1 updates vs a fresh Gauss-Jordan inversion        | agrees to 9 decimal places                                                                      |
+| Normal approximation switchover (D28) | Against the exact quadrature, in the region where both work | 3.8e-7 by a total mass of 10,000; 8.6e-5 in the worst skew found                                |
+| Point-mass treatment (D28)            | A fresh variant against a collapsed leader                  | 2.7e-6, against 3.7e-2 for the normal difference on the same case                               |
 
 ### 1.4 Reproduce
 
