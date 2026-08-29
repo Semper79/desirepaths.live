@@ -325,3 +325,105 @@ section:last-of-type {
 body:has(.consent) main {
   padding-block-end: 12rem;
 }
+
+/* -----------------------------------------------------------------------------
+   The thinking bar.
+
+   Not an adaptive surface, so unlike everything else on the page it does not read a
+   variant payload — it reads the design tokens directly and looks the same to everyone.
+   That consistency is the point: the one element reporting on the experiment must not
+   itself be part of it.
+   ----------------------------------------------------------------------------- */
+
+.thinking {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  background: var(--color-surface);
+}
+
+.thinking-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.thinking-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.thinking-value {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.thinking-value strong {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  line-height: 1;
+  /* Tabular figures, so the number does not jump sideways between readings. */
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent);
+}
+
+.thinking-label {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+
+.thinking-track {
+  margin: 0.875rem 0 0.75rem;
+  block-size: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border) 70%, transparent);
+  overflow: hidden;
+}
+
+.thinking-fill {
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+  /* Only meaningful across a client-side navigation, where the value can change between
+     renders. There is no timer driving this; a bar that animates on its own would be
+     claiming movement the engine has not made. */
+  transition: inline-size 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.thinking-parts {
+  margin: 0 0 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  gap: 0.5rem 1rem;
+}
+
+.thinking-part dt {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+}
+
+.thinking-part dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9375rem;
+}
+
+.thinking-foot {
+  margin-bottom: 0;
+  font-size: 0.8125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-fill {
+    transition: none;
+  }
+}

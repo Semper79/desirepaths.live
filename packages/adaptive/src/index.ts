@@ -25,5 +25,6 @@ export * from './thompson.js';
 export * from './linucb.js';
 export * from './guardrails.js';
 export * from './assign.js';
+export * from './sophistication.js';
 export { simulate, STANDARD_WORLD } from './sim/index.js';
 export type { SimulationResult, SimulationSpec, VariantTruth } from './sim/index.js';

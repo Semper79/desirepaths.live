@@ -93,7 +93,7 @@ published before the first visitor is measured.
 
 ## Blocking Phase 4 (sign-up)
 
-### D5 — Which OAuth providers ship at launch
+### D5 — Which OAuth providers ship at launch — **Taken: the recommended five**
 
 Ten providers are specified. Each one is a developer account, an app review, a set of
 callback URLs and a maintenance surface — and the adaptive provider-ordering surface
@@ -109,7 +109,24 @@ differentiator. X, Reddit, Twitch, Spotify and Instagram are all declared in
 removing them from the variant space, so adding one later is a credential, not a
 release.
 
-**What I need:** agreement, or a different five.
+**Decided:** the recommended set. Google, Apple, Discord and TikTok, plus passkeys, plus
+email magic link as the no-social path. X, Reddit, Twitch, Spotify and Instagram stay
+declared and unset.
+
+**What that requires before the first sign-up:** four developer accounts, four sets of
+callback URLs — which need the domain in D2 — and Apple's is the slow one: a paid
+Developer Program membership, a Services ID, and a key rather than a secret, with the
+client secret being a JWT that expires and has to be regenerated. Budget for that being
+the long pole, not the code.
+
+Passkeys need no vendor at all, which is part of why they are in the list; they also
+cannot be the _only_ option, because a visitor on a borrowed machine has no authenticator
+to offer. That is what the magic link is for.
+
+The provider _ordering_ is an adaptive surface and is already declared in the registry, so
+the bandit will be choosing which of the five to show first, per context, from the day
+there is traffic. Five is enough for that to converge in a useful timeframe; ten would
+have spread the evidence too thin to learn anything before the arms were stale.
 
 ---
 
@@ -542,3 +559,74 @@ coverage is complete.
   which is a few hours of compute, not a migration.
 - **Multi-region.** `infra/SCALING.md` covers it. Not before the single node is
   measurably saturated.
+
+---
+
+### D27 — The engine reports on itself, in public — **Taken**
+
+Every competitor in adaptive optimisation hides the machine. Optimizely, VWO, AB Tasty,
+Kameleoon and Dynamic Yield all run the experiment and tell the visitor nothing — partly
+because most of those systems could not survive being looked at.
+
+MORPH shows its working. The home page carries a live reading of how much the engine
+actually knows, derived from the same posteriors that chose the page around it, with the
+four-way breakdown underneath and a plain-language sentence saying what is holding the
+number down.
+
+**Why this is the commercial decision it looks like.** The content is not the product and
+never will be — auto-generated trend copy is the lowest-value inventory on the web. The
+engine is the product, and the site is its demo. A checkable number on a public page is the
+one claim a buyer cannot get from a vendor deck, and it is exactly the kind of quotable
+fact answer engines cite, which is the top of the funnel this whole SEO/AEO posture exists
+to feed.
+
+**What makes it worth anything.** Three rules, each enforced rather than intended:
+
+1. **It is not a surface.** No entry in the registry, rendered outside `sectionOrder`, and
+   `thinking-bar.test.ts` asserts both. An optimiser given control of the display of its
+   own scorecard would find the framing that keeps people reading and report that instead
+   of the truth — and the failure would be invisible, because the bar would look excellent
+   throughout.
+2. **It can go down.** After a retirement, a rollback, or a snapshot going stale. A bar
+   that only climbs is a progress animation, and a visitor who works that out has correctly
+   concluded the whole site is theatre. Asserted directly.
+3. **Unmeasurable is not zero.** A component that cannot be computed renders as a dash, not
+   as 0%. The difference between "this is bad" and "this is unknown" is where dashboards
+   start lying.
+
+**What it costs.** At launch it reads 0% — "cold start", "no visits measured yet". That is
+the honest number for a site with no traffic, and shipping it anyway is the whole point: a
+bar that started at 40% for atmosphere would be worth nothing the day it mattered.
+
+**Two things this surfaced.** The first draft weighted freshness as a fourth component,
+which meant a site with no surfaces and no traffic read 15% because its empty snapshot was
+recent — a bar paying out for a working cron job. Freshness is now a multiplier that can
+only take away. The second: `probabilityGreater` stops converging past roughly a million
+pseudo-counts, and exponential forgetting caps those at
+`observations_per_cycle / (1 - gamma)` — which at the 5M events/day design target puts a
+busy surface inside the failure band. The bar drops such a surface rather than throwing, so
+the page renders; the underlying gap is recorded in D28.
+
+---
+
+### D28 — `probabilityGreater` has a ceiling, and the report is exposed to it — **Open**
+
+The regularised incomplete beta in `packages/adaptive/src/beta.ts` throws above roughly
+1,000,000 pseudo-counts. It is right to throw — `front` becomes a difference of two enormous
+logs and loses its significant digits, and a plausible wrong number there would silently
+steer the optimiser. But the ceiling is reachable in production, not in theory: forgetting
+caps the pseudo-count at `observations_per_cycle / (1 - gamma)`, fifty hourly cycles at the
+default 0.98, and a busy surface at the design target lands in that band.
+
+`sophistication()` already degrades gracefully. `summarise()` in `thompson.ts` does not, and
+it is on the hourly report and admin console paths — so at full scale the report job would
+throw rather than render.
+
+**The fix:** a normal approximation for the large-parameter regime. When both parameters are
+large the Beta converges to a Normal and `P(X > Y)` has a closed form through the normal
+difference, which is accurate exactly where the continued fraction fails. It is a change to
+the numerical core of a package with a 100% branch-coverage gate, so it wants its own tests
+and its own commit rather than riding along with a feature.
+
+**What I need:** agreement that this is worth doing before the load tests run, since the
+soak is the first thing that will drive a surface into that band.

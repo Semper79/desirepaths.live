@@ -34,6 +34,13 @@ export default defineWorkspace([
     },
   },
   {
+    // The web tsconfig sets `jsx: preserve` because Next does the transform. Vitest does
+    // not run Next, and esbuild defaults to the classic runtime — which compiles JSX to
+    // `React.createElement` against a global that server components never import. Naming
+    // the automatic runtime here keeps the workaround in the test config, rather than
+    // adding a React import to every component to satisfy a tool that is not the one
+    // building the app.
+    esbuild: { jsx: 'automatic' },
     test: {
       name: 'web',
       root: './apps/web',

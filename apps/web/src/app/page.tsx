@@ -10,7 +10,9 @@
 import { SURFACES, type FullAssignment } from '@morph/core';
 import { faq, graph, serialiseJsonLd } from '@morph/seo';
 import { headers } from 'next/headers';
-import { assignmentForRequest } from '../lib/resolve.js';
+import { ThinkingBar } from '../components/thinking-bar.js';
+import { assignmentForRequest, currentSnapshot } from '../lib/resolve.js';
+import { siteSophistication } from '../lib/sophistication.js';
 import { motionAllowed, payloadOf, sectionOrder } from '../lib/render.js';
 import { publishedContent } from '../lib/site.js';
 import { FAQ_ITEMS } from '../lib/faq.js';
@@ -18,6 +20,8 @@ import { FAQ_ITEMS } from '../lib/faq.js';
 export default async function HomePage(): Promise<React.JSX.Element> {
   const resolved = await assignmentForRequest(await headers());
   const assignment = resolved.assignment;
+  const reading = siteSophistication(currentSnapshot(), Date.now());
+  const ordered = sectionOrder(assignment);
 
   const sections: Record<string, React.JSX.Element> = {
     hero: <Hero key="hero" assignment={assignment} />,
@@ -43,7 +47,25 @@ export default async function HomePage(): Promise<React.JSX.Element> {
         }}
       />
       <main id="main" className="shell">
-        {sectionOrder(assignment).map((name) => sections[name])}
+        {/*
+          Second, not first. The bar is the proof, and proof only lands once the claim has
+          been made — a visitor who meets a percentage before they know what the site is
+          has been handed a number about nothing. So the leading section says what this is
+          and the bar immediately backs it up.
+
+          Spliced by position rather than after a named section, because the order is a
+          variant and the bandit may one day lead with something other than the hero. The
+          bar follows whatever leads.
+        */}
+        {ordered.slice(0, 1).map((name) => sections[name])}
+        {/*
+          Outside `sectionOrder` itself, though. Every element around it is a surface the
+          bandit can move, restyle or reorder; this one is not, and must never become one —
+          an optimiser handed control of its own scorecard optimises the scorecard. See the
+          note at the top of `thinking-bar.tsx`.
+        */}
+        <ThinkingBar reading={reading} />
+        {ordered.slice(1).map((name) => sections[name])}
       </main>
     </>
   );
