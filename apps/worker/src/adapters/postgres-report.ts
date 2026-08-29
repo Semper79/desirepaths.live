@@ -297,6 +297,7 @@ export function reportRunRepository(db: Database): ReportRunRepository {
           messageIds: [...run.messageIds],
           charCount: run.charCount,
           inputs: run.inputs,
+          composedByModel: run.composedByModel,
           sentAt: run.sentAt === null ? null : toDate(run.sentAt),
           error: run.error,
         })
@@ -309,6 +310,7 @@ export function reportRunRepository(db: Database): ReportRunRepository {
             messageIds: [...run.messageIds],
             charCount: run.charCount,
             inputs: run.inputs,
+            composedByModel: run.composedByModel,
             sentAt: run.sentAt === null ? null : toDate(run.sentAt),
             error: run.error,
           },

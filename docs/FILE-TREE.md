@@ -87,8 +87,9 @@ morph/
 │   │   │   ├── types.ts           ✅ the report's structured input
 │   │   │   ├── compose.ts         ✅ nine sections + quiet-hour discipline
 │   │   │   ├── commands.ts        ✅ grammar and authorisation
+│   │   │   ├── prose.ts           ✅ the lead, and the check that makes it safe
 │   │   │   └── sample.ts          ✅ the worked example
-│   │   └── test/                  ✅ 2 files
+│   │   └── test/                  ✅ 3 files
 │   │
 │   ├── seo/                       ✅ JSON-LD, sitemap, feeds, robots, llms.txt
 │   │   ├── src/xml.ts             ✅ escaping, CDATA splitting, date formats
@@ -140,7 +141,7 @@ morph/
 │   │   ├── src/app/               ✅ home, privacy, how-it-works, live, /t/[slug],
 │   │   │                             sitemap, robots, feeds, llms.txt, icon, OG image
 │   │   └── test/                  ✅ 4 files
-│   ├── worker/                    ✅ the scheduled jobs and the bot — 247 tests
+│   ├── worker/                    ✅ the scheduled jobs and the bot — 253 tests
 │   │   ├── src/env.ts             ✅ boot validation, incl. the production embedder rule
 │   │   ├── src/ports.ts           ✅ the seam every job is written against
 │   │   ├── src/queues.ts          ✅ payload schemas, cron, retries, concurrency

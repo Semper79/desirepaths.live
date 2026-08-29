@@ -56,6 +56,10 @@ export default defineConfig({
         // covered by generator-adapter.test.ts; the request itself would be covering
         // the SDK.
         'apps/worker/src/adapters/anthropic-generator.ts',
+        // The report's prose pass. The prompt is covered by telegram.test.ts and the
+        // verification that makes the pass safe is covered in @morph/telegram; the request
+        // itself would be covering the SDK.
+        'apps/worker/src/adapters/anthropic-prose.ts',
         // The web app's one database query. The row mapping and the seed it falls back to
         // live in content.ts and are covered; what is left needs a live Postgres.
         'apps/web/src/lib/db.ts',

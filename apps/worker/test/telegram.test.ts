@@ -9,6 +9,8 @@ import {
   renderDraft,
 } from '../src/lib/telegram.js';
 import { telegramClient, MAX_RATE_LIMIT_RETRIES } from '../src/adapters/telegram-api.js';
+import { promptFor } from '../src/adapters/anthropic-prose.js';
+import { SAMPLE_REPORT_INPUT } from '@morph/telegram';
 import { FakeContent, FakeLogger } from './fakes.js';
 
 const NOW = 1_700_000_000_000;
@@ -506,5 +508,40 @@ describe('the Bot API client', () => {
     ).poll(0);
 
     expect(updates.map((u) => u.update_id)).toEqual([11, 12]);
+  });
+});
+
+describe('the prose prompt', () => {
+  const facts = {
+    ...SAMPLE_REPORT_INPUT,
+    alerts: [
+      { severity: 'critical' as const, title: 'clickhouse is down', detail: 'connection refused' },
+    ],
+  };
+
+  /**
+   * The model is asked to write about *this message*, so it is given the rendered text
+   * rather than the underlying facts — which is what makes "copy the figures exactly as
+   * written" a checkable instruction rather than an invitation to reformat.
+   */
+  it('hands over the report as the reader will see it', () => {
+    const prompt = promptFor('*MORPH*\n1.8k sessions', facts);
+    expect(prompt).toContain('1.8k sessions');
+  });
+
+  /**
+   * A report whose lead does not mention that ClickHouse is down is a lead that has failed
+   * at its only job.
+   */
+  it('repeats the alerts separately so they cannot be buried', () => {
+    const prompt = promptFor('a report', facts);
+
+    expect(prompt).toContain('[critical] clickhouse is down');
+    expect(prompt).toMatch(/must not be buried/);
+  });
+
+  it('says so plainly when there is nothing wrong', () => {
+    const prompt = promptFor('a report', { ...SAMPLE_REPORT_INPUT, alerts: [] });
+    expect(prompt).toContain('None.');
   });
 });

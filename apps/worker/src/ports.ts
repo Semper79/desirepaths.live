@@ -359,6 +359,14 @@ export interface ReportRepository {
 
 export interface ReportRun {
   readonly hourStart: number;
+  /**
+   * The model that wrote the lead, when one survived verification.
+   *
+   * Provenance, not decoration: the report goes to one person who turned the pass on, so
+   * labelling every message would be noise — but "was this hour's opening written by a
+   * model, and which one" has to be answerable months later, and the column exists for it.
+   */
+  readonly composedByModel: string | null;
   readonly kind: 'full' | 'brief';
   readonly messageIds: readonly number[];
   readonly charCount: number;

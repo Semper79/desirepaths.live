@@ -460,7 +460,16 @@ class FakeRuns implements ReportRunRepository {
   }
 }
 
-function jobHarness(options: { metrics?: FakeMetrics; failSend?: boolean } = {}) {
+function jobHarness(
+  options: {
+    metrics?: FakeMetrics;
+    failSend?: boolean;
+    prose?: {
+      model: string;
+      lead: (report: string, facts: unknown) => Promise<string | null>;
+    } | null;
+  } = {},
+) {
   const metrics = options.metrics ?? new FakeMetrics();
   const report = new FakeReport();
   const runs = new FakeRuns();
@@ -489,6 +498,7 @@ function jobHarness(options: { metrics?: FakeMetrics; failSend?: boolean } = {})
       runs,
       content,
       telegram,
+      prose: options.prose ?? null,
       timezone: 'Europe/Rome',
       startedAt: NOW - 7_200_000,
       holdoutSince: NOW - 30 * 24 * HOUR,
@@ -786,5 +796,132 @@ describe('what the report says about the engine and the web', () => {
     const input = h.runs.recorded[0]?.inputs as { next: { intentions: string[] } };
 
     expect(input.next.intentions.join(' ')).not.toMatch(/three signals/);
+  });
+});
+
+describe('the prose pass', () => {
+  const leadWriter = (lead: string | null) => ({
+    model: 'claude-sonnet-5',
+    lead: (): Promise<string | null> => Promise.resolve(lead),
+  });
+
+  async function sentReport(h: ReturnType<typeof jobHarness>): Promise<string> {
+    await runReport(h.deps, {});
+    return h.sent.join('\n');
+  }
+
+  /** Something has to have happened, or the brief form is used and skips the pass. */
+  function eventful(h: ReturnType<typeof jobHarness>): void {
+    h.report.published.push({ title: 'A piece', slug: 'a-piece' });
+  }
+
+  it('puts a verified lead on top of the report', async () => {
+    const h = jobHarness({ prose: leadWriter('A quiet hour with one piece published.') });
+    eventful(h);
+
+    const text = await sentReport(h);
+    expect(text.startsWith('A quiet hour with one piece published.')).toBe(true);
+    expect(text).toContain('MORPH');
+  });
+
+  /**
+   * The case the verification exists for. A plausible sentence with a figure nobody
+   * measured must not reach the operator, and the report must arrive anyway.
+   */
+  it('discards a lead that quotes a figure nobody measured', async () => {
+    const h = jobHarness({ prose: leadWriter('Traffic reached 84,000 sessions this hour.') });
+    eventful(h);
+
+    const text = await sentReport(h);
+
+    expect(text).not.toContain('84,000');
+    expect(text).toContain('MORPH');
+    expect(h.log.find('report.prose-rejected')).toMatchObject({ violations: ['84,000'] });
+  });
+
+  /**
+   * A model that is rate-limited or down costs the lead, not the hour.
+   */
+  it('sends the report when the writer fails', async () => {
+    const h = jobHarness({
+      prose: { model: 'claude-sonnet-5', lead: () => Promise.reject(new Error('rate limited')) },
+    });
+    eventful(h);
+
+    const result = await runReport(h.deps, {});
+
+    expect(result.kind).toBe('sent');
+    expect(h.log.events('warn')).toContain('report.prose-failed');
+  });
+
+  it('sends the report when the writer has nothing to say', async () => {
+    const h = jobHarness({ prose: leadWriter(null) });
+    eventful(h);
+
+    expect((await runReport(h.deps, {})).kind).toBe('sent');
+  });
+
+  it('sends the report when no writer is configured', async () => {
+    const h = jobHarness();
+    eventful(h);
+
+    const text = await sentReport(h);
+    expect(text).toContain('MORPH');
+  });
+
+  /**
+   * The brief form is one line whose whole point is that nothing happened. A model-written
+   * paragraph on top of it would be the exact opposite of what it is for.
+   */
+  it('does not ask for a lead on a quiet hour', async () => {
+    let asked = false;
+    const h = jobHarness({
+      prose: {
+        model: 'claude-sonnet-5',
+        lead: () => {
+          asked = true;
+          return Promise.resolve('Something.');
+        },
+      },
+    });
+
+    const result = await runReport(h.deps, {});
+
+    expect(result.kind === 'sent' && result.reportKind).toBe('brief');
+    expect(asked).toBe(false);
+  });
+});
+
+describe('provenance', () => {
+  const writer = (lead: string) => ({
+    model: 'claude-sonnet-5',
+    lead: (): Promise<string | null> => Promise.resolve(lead),
+  });
+
+  /**
+   * The report goes to one person who turned the pass on, so labelling every message would
+   * be noise — but "was this hour's opening written by a model, and which one" has to stay
+   * answerable months later.
+   */
+  it('records which model wrote the lead', async () => {
+    const h = jobHarness({ prose: writer('One piece published, nothing else moved.') });
+    h.report.published.push({ title: 'A piece', slug: 'a-piece' });
+
+    await runReport(h.deps, {});
+    expect(h.runs.recorded[0]?.composedByModel).toBe('claude-sonnet-5');
+  });
+
+  it('records nothing when the lead was rejected', async () => {
+    const h = jobHarness({ prose: writer('Traffic reached 84,000 sessions.') });
+    h.report.published.push({ title: 'A piece', slug: 'a-piece' });
+
+    await runReport(h.deps, {});
+    expect(h.runs.recorded[0]?.composedByModel).toBeNull();
+  });
+
+  it('records nothing for a report nobody wrote a lead for', async () => {
+    const h = jobHarness();
+    await runReport(h.deps, {});
+    expect(h.runs.recorded[0]?.composedByModel).toBeNull();
   });
 });

@@ -23,7 +23,7 @@
  * Tuesday".
  */
 
-import { composeReport, type ReportInput } from '@morph/telegram';
+import { composeReport, verifyLead, withLead, type ReportInput } from '@morph/telegram';
 import {
   alertsFrom,
   delta,
@@ -49,12 +49,25 @@ export interface ReportSender {
   send(text: string): Promise<readonly number[]>;
 }
 
+/**
+ * The optional prose pass.
+ *
+ * `null` is a first-class state: no key, a model that is down, or an operator who would
+ * rather read the deterministic form. Everything below treats a missing lead and a rejected
+ * one identically, which is what makes the pass safe to turn off and safe to leave on.
+ */
+export interface ProseWriter {
+  readonly model: string;
+  lead(report: string, facts: ReportInput): Promise<string | null>;
+}
+
 export interface ReportDeps {
   readonly metrics: MetricsRepository;
   readonly report: ReportRepository;
   readonly runs: ReportRunRepository;
   readonly content: ContentRepository;
   readonly telegram: ReportSender | null;
+  readonly prose: ProseWriter | null;
   readonly timezone: string;
   /** When the process started, for the uptime line. */
   readonly startedAt: number;
@@ -80,6 +93,9 @@ export type ReportOutcome =
 /** How many rows of each top-N list the report carries. */
 export const TOP_N = 5;
 
+/** How the messages are rejoined for the model, matching how the composer split them. */
+const SECTION_GAP = '\n\n';
+
 /** A draft older than this is called stale, in the alerts and in the next-hour section. */
 export const STALE_DRAFT_MS = 24 * 60 * 60 * 1000;
 
@@ -95,6 +111,15 @@ export async function runReport(deps: ReportDeps, job: ReportJob): Promise<Repor
   const input = await gather(deps, hourStart, hourEnd);
   const composed = composeReport(input);
 
+  // The brief form is one line. Adding a model-written paragraph to a message whose whole
+  // point is that nothing happened would be the exact opposite of what it is for.
+  const led =
+    composed.kind === 'brief'
+      ? { messages: composed.messages, model: null }
+      : await withVerifiedLead(deps, composed.messages, input);
+
+  const messages = led.messages;
+
   if (deps.telegram === null) {
     // Recorded anyway, with its inputs: an operator who later configures a bot can see
     // that the reports were being produced, and `report_run.inputs` lets one be re-composed
@@ -105,6 +130,7 @@ export async function runReport(deps: ReportDeps, job: ReportJob): Promise<Repor
       messageIds: [],
       charCount: composed.charCount,
       inputs: input,
+      composedByModel: led.model,
       sentAt: null,
       error: 'No Telegram transport is configured.',
     });
@@ -116,7 +142,7 @@ export async function runReport(deps: ReportDeps, job: ReportJob): Promise<Repor
   const messageIds: number[] = [];
 
   try {
-    for (const message of composed.messages) {
+    for (const message of messages) {
       messageIds.push(...(await deps.telegram.send(message)));
     }
   } catch (error) {
@@ -128,6 +154,7 @@ export async function runReport(deps: ReportDeps, job: ReportJob): Promise<Repor
       messageIds,
       charCount: composed.charCount,
       inputs: input,
+      composedByModel: led.model,
       sentAt: null,
       error: detail,
     });
@@ -145,6 +172,7 @@ export async function runReport(deps: ReportDeps, job: ReportJob): Promise<Repor
     messageIds,
     charCount: composed.charCount,
     inputs: input,
+    composedByModel: led.model,
     sentAt: deps.now(),
     error: null,
   });
@@ -152,11 +180,60 @@ export async function runReport(deps: ReportDeps, job: ReportJob): Promise<Repor
   deps.log.info('report.sent', {
     hourStart: new Date(hourStart).toISOString(),
     kind: composed.kind,
-    messages: composed.messages.length,
+    messages: messages.length,
     chars: composed.charCount,
   });
 
-  return { kind: 'sent', hourStart, messages: composed.messages.length, reportKind: composed.kind };
+  return { kind: 'sent', hourStart, messages: messages.length, reportKind: composed.kind };
+}
+
+/**
+ * Ask for a lead, verify it, and use it only if it survives.
+ *
+ * Three outcomes, and two of them are the same message: no writer configured, the writer
+ * failed, or the lead quoted a figure nobody measured. In all three the operator gets the
+ * report they would have got anyway — the deterministic render is the contract, and the
+ * prose is the part that is allowed to not arrive.
+ *
+ * A rejected lead is logged with the offending tokens, because the failure worth acting on
+ * is not one bad lead but a pattern of them, and a pattern is only visible if each one is
+ * written down.
+ */
+async function withVerifiedLead(
+  deps: ReportDeps,
+  messages: readonly string[],
+  input: ReportInput,
+): Promise<{ readonly messages: readonly string[]; readonly model: string | null }> {
+  const unchanged = { messages, model: null };
+  if (deps.prose === null) return unchanged;
+
+  let lead: string | null;
+
+  try {
+    lead = await deps.prose.lead(messages.join(SECTION_GAP), input);
+  } catch (error) {
+    // The report is not held up by the optional part of it. A model that is rate-limited
+    // or down costs the lead, not the hour.
+    deps.log.warn('report.prose-failed', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return unchanged;
+  }
+
+  if (lead === null) return unchanged;
+
+  const verdict = verifyLead(lead, input);
+
+  if (!verdict.ok) {
+    deps.log.warn('report.prose-rejected', {
+      violations: verdict.violations.map((v) => v.token),
+      lead: lead.slice(0, 200),
+      model: deps.prose.model,
+    });
+    return unchanged;
+  }
+
+  return { messages: withLead(messages, verdict.lead), model: deps.prose.model };
 }
 
 /**

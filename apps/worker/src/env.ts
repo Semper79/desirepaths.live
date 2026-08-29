@@ -75,6 +75,8 @@ export const EnvSchema = z.object({
 
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL_GENERATION: z.string().default('claude-opus-5'),
+  /** The report's lead: four sentences over text already in front of it. */
+  ANTHROPIC_MODEL_REPORT: z.string().default('claude-sonnet-5'),
 
   /**
    * Autonomy over published content (D8). The worker never publishes regardless — this

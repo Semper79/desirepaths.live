@@ -30,6 +30,7 @@ import { createLogger } from './adapters/logger.js';
 import { deterministicEmbeddings } from './adapters/deterministic-embeddings.js';
 import { httpEmbeddings } from './adapters/http-embeddings.js';
 import { anthropicGenerator } from './adapters/anthropic-generator.js';
+import { anthropicProse } from './adapters/anthropic-prose.js';
 import { clickhouseEngagement, clickhouseQuery } from './adapters/clickhouse.js';
 import { clickhouseMetrics } from './adapters/clickhouse-metrics.js';
 import { reportRepository, reportRunRepository } from './adapters/postgres-report.js';
@@ -117,6 +118,19 @@ const generator = anthropicGenerator({
   maxTokens: 16_000,
 });
 
+/**
+ * The report's prose pass.
+ *
+ * Sonnet rather than the generation model: the task is four sentences over text that is
+ * already in front of it, it runs every hour, and the deterministic report is the fallback
+ * if it says anything unverifiable. Paying Opus rates for a lead is paying for capability
+ * this task does not use.
+ */
+const prose = anthropicProse({
+  apiKey: env.ANTHROPIC_API_KEY ?? '',
+  model: env.ANTHROPIC_MODEL_REPORT,
+});
+
 const now = (): number => Date.now();
 
 /**
@@ -191,6 +205,7 @@ const handlers: Readonly<Record<QueueName, (job: Job) => Promise<unknown>>> = {
         // The report sends through the same client the queue does, so a rate limit hit by
         // one is waited out for the other rather than raced against it.
         telegram: bot === null ? null : { send: (text) => bot.send(text) },
+        prose,
         timezone: env.MORPH_TIMEZONE,
         startedAt,
         // Until the holdout's start is recorded, the cumulative lift covers everything

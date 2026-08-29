@@ -457,6 +457,44 @@ Both are visible as gaps in the report itself rather than as absent sections, be
 section that disappears reads as a failure and a section that says what it does not know
 reads as a system that is being honest with you.
 
+### D25 — The model writes a lead, not the report — **Taken**
+
+§5 asks for a report that reads "like a sharp analyst's briefing, not a metrics dump",
+composed by an LLM. The obvious reading is that the model writes the report. It does not:
+it writes two to four sentences at the top, and the nine deterministic sections follow
+underneath, byte for byte as composed.
+
+That is where the value actually is. Nobody needs a model to reformat a table, and a model
+that reformats a table is a model that can drop a row from it. Every failure mode of this
+design — no key, a rate limit, an outage, a lead that fails verification — produces exactly
+the report that would have been sent anyway.
+
+**The invariant is checked, not requested.** `types.ts` has said since Phase 6 that a
+number in the report always came from `ReportInput`. A prompt cannot enforce that.
+`verifyLead` parses every numeric token in the lead at the precision it was written and
+requires some fact to round to it: "1.8k" passes if a fact lands in [1750, 1850), "1.9k"
+does not, and a figure nobody measured fails outright. So does arithmetic the model did
+itself — sessions plus sign-ups is not a fact, and the check rejects it without needing a
+rule about addition.
+
+A rejected lead is dropped silently rather than sent with a caveat, because a caveat is
+something a reader learns to skip. The violation is logged, since the failure worth acting
+on is a pattern of them rather than one.
+
+**The prompt and the check say the same thing** deliberately. The prompt makes the check
+rarely fire; the check is what makes the prompt's failure harmless.
+
+**Sonnet, not the generation model.** Four sentences over text already in front of it,
+every hour, with a deterministic fallback. Paying Opus rates for that is paying for
+capability the task does not use.
+
+**No lead on a quiet hour.** The brief form is one line whose entire point is that nothing
+happened; a model-written paragraph on top of it would be the opposite of what it is for.
+
+Provenance goes in `report_run.composed_by_model` rather than into the message. The report
+has one reader, who turned the pass on and knows — but "was this hour's opening written by
+a model, and which one" has to stay answerable months later.
+
 ---
 
 ## Deferred, but worth naming now

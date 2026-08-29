@@ -162,7 +162,7 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 - `safety.ts`: nine categorical rules, `block` beating `review` beating `allow`, each
   firing rule named in the output.
 
-**Done — `apps/worker`, 247 tests:**
+**Done — `apps/worker`, 253 tests:**
 
 Seven scheduled jobs and the bot, each written against `src/ports.ts` and nothing else — no database
 client, no queue, no clock. That is what makes "a source is due, robots disallows the

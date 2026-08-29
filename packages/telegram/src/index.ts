@@ -9,4 +9,5 @@ export * from './markdown.js';
 export * from './types.js';
 export * from './compose.js';
 export * from './commands.js';
+export * from './prose.js';
 export { SAMPLE_REPORT_INPUT, SAMPLE_QUIET_INPUT } from './sample.js';
