@@ -3,9 +3,11 @@
 Section 7 of the brief: "Load test with k6: sustain 5,000 req/s on the ingest endpoint and
 1,000 req/s on page render; commit the results to `docs/BENCHMARKS.md`."
 
-**Status: methodology defined, load-test numbers pending Phase 8.** The load test needs
-`apps/api` and `apps/web`, which are Phases 1 and 3. Fabricating plausible numbers here
-would be worse than an empty table — a benchmark nobody ran is a lie with a chart on it.
+**Status: the adaptive engine is measured; the load tests are written and unrun.** The
+scripts live in `bench/` and are exercised by the test suite (§2.3), but a number needs a
+running stack and a machine that is not the one they were written on. Fabricating plausible
+numbers here would be worse than an empty table — a benchmark nobody ran is a lie with a
+chart on it.
 
 What _is_ measured today is measured, and appears below with the command that produced it.
 
@@ -67,42 +69,96 @@ explaining why it exists.
 
 ```bash
 pnpm sim              # the convergence harness, with its full output
-pnpm test:coverage    # 625 tests; 100% branches in packages/adaptive
+pnpm test:coverage    # the whole suite; 100% branches in packages/adaptive
 ```
 
 ---
 
-## 2. Planned — the load test
+## 2. Written and unrun — the load test
 
 ### 2.1 Targets
 
 | Path                        | Target throughput                | Latency budget    | Notes                                       |
 | --------------------------- | -------------------------------- | ----------------- | ------------------------------------------- |
 | `POST /i` (ingest)          | **5,000 req/s** sustained 30 min | p99 < 25 ms       | The number the architecture is built around |
-| `GET /` (page render)       | **1,000 req/s** sustained 30 min | p95 TTFB < 150 ms | Cold assignment cache on 20% of requests    |
+| `GET /` (page render)       | **1,000 req/s** sustained 30 min | p95 TTFB < 150 ms | Cold assignment on every request by default |
 | `GET /` (cached assignment) | 3,000 req/s                      | p95 TTFB < 80 ms  | The steady state for returning visitors     |
 
 ### 2.2 Method
 
 ```bash
-make load-test          # k6 run infra/k6/ingest.js
+pnpm bench:smoke     # ten seconds of each, to prove the scripts still work
+pnpm bench           # the two gate runs
 ```
 
-The scenarios that matter, in `infra/k6/`:
+Both scripts take `-e TARGET=…` for a deployed origin, and default to the local ports
+`pnpm dev` uses. k6 is not a workspace dependency — it is a single Go binary, installed
+separately, and pinning it in `package.json` would imply an `npm install` that does not
+exist.
 
-1. **`ingest.js`** — ramp to 5,000 req/s over 5 minutes, hold for 30, ramp down. Payloads
-   drawn from a fixture of realistic event batches, with a realistic mix of event types
-   and a 10% batch rate. Reports p50/p95/p99, error rate, and — separately — how much of
-   the latency is Redpanda produce time.
-2. **`render.js`** — 1,000 req/s against `/` with an 80/20 warm/cold assignment split, so
-   the measurement includes the `decide()` path rather than only the cache.
-3. **`spike.js`** — 500 → 8,000 req/s in 10 seconds. What is being measured here is not
+Written, in `bench/`:
+
+1. **`ingest.js`** — a constant arrival rate of 5,000 req/s for three minutes against
+   `POST /i`. Thresholds: p99 under 25 ms, error rate under 0.1%, and 99.9% of responses a
+   `202` specifically.
+2. **`render.js`** — 1,000 req/s across four real pages. The threshold is on
+   `http_req_waiting` (TTFB) rather than total duration, because the budget in
+   `docs/ARCHITECTURE.md` is about how long the origin takes to _start_ answering; page
+   weight is a separate concern with a separate budget. Every request is a first-time
+   visitor by default — `-e RETURNING=0.8` mixes in the cheap path once there is a mix
+   worth reproducing, but the honest default is the expensive one.
+3. **`payload.js`** — the beacon bodies and the visitor identities, shared by both, and
+   the reason §2.3 is possible at all.
+
+Not yet written, and honestly Phase 8 work:
+
+4. **`spike.js`** — 500 → 8,000 req/s in 10 seconds. What is being measured here is not
    throughput but _behaviour_: the buffer should absorb it, lag should rise and drain, and
    nothing should be dropped. This is the scenario Redpanda exists for.
-4. **`soak.js`** — 1,000 req/s for 4 hours. Looking for memory growth, connection-pool
+5. **`soak.js`** — 1,000 req/s for 4 hours. Looking for memory growth, connection-pool
    exhaustion, and ClickHouse part-count drift.
 
-### 2.3 What each result would mean
+### 2.3 The trap these scripts are built around
+
+The ingest limiter is `{ capacity: 60, refillPerSecond: 2 }`, keyed on the derived
+anonymous identifier — which is `sha256(pepper ‖ salt ‖ ip ‖ user-agent)`. A load generator
+sending every request from one address with one user agent is therefore **one visitor**,
+and after sixty requests it receives a `429` for everything else.
+
+That is a worse failure than an error, because it looks like a triumph. A `429` is the
+cheapest response the server can produce; a run that measures it will report something like
+40,000 req/s at a p99 of two milliseconds. The number would be real and would be about
+nothing.
+
+So `bench/payload.js` varies `X-Real-IP` — the header Caddy sets, and the only lever a load
+generator has over that hash. Sustaining 5,000 req/s needs at least 2,500 identities at two
+tokens per second each; the ingest pool is eight times that, so no identity is ever near its
+limit. It is bounded rather than unlimited because the limiter holds a bucket per identity,
+and a run that invented a million of them would be measuring that map instead.
+
+The render path needs the opposite of that. It does not rate-limit; it _caches_ the
+assignment under the same derived identity for thirty days, so on that path a repeated
+address is a cache hit. A dense pool would quietly turn a cold-assignment benchmark into a
+Redis benchmark about twenty seconds in — so `render.js` draws from a pool larger than any
+run can exhaust, and asks for a repeat visit explicitly by reusing a virtual user's
+previous address. That, not a cookie, is what a returning visitor is to the origin.
+
+Three ways the run could otherwise pass while measuring nothing, each a hard k6 threshold
+rather than a note in this file:
+
+| Threshold                      | The failure it makes impossible                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| `rate_limited: count==0`       | Measuring the limiter instead of the collector, as above                            |
+| `rejected_400: count==0`       | A payload the schema rejects: a 400 skips the broker entirely and is _faster_       |
+| `dropped_iterations: count==0` | k6 quietly stops scheduling when the target cannot be met, so 2,000 req/s "passes"  |
+| `adapted_html: rate>0.999`     | An error page that renders quickly, rather than the adaptive path under measurement |
+
+The second of those is also a unit test: `apps/api/test/bench-payload.test.ts` parses what
+the builder produces with the same `ClientBatchSchema` the collector uses, and asserts the
+schema is strict enough for that to mean something. Schema drift fails on the commit that
+causes it rather than on the afternoon somebody wanted a number.
+
+### 2.4 What each result would mean
 
 A load test whose only output is "it passed" has told you nothing. Each scenario has a
 diagnosis attached:
@@ -115,7 +171,7 @@ diagnosis attached:
 | Errors only above ~4,000 req/s                  | Almost certainly file descriptors or ephemeral ports | Tune before concluding anything about the code |
 | Spike drops events                              | The buffer is not configured as intended             | Check `REDPANDA_LINGER_MS` and producer acks   |
 
-### 2.4 Core Web Vitals
+### 2.5 Core Web Vitals
 
 Enforced in CI by Lighthouse against the **adapted** pages — every palette, density and
 layout variant, not only the baseline. A budget that holds only for the variant nobody
@@ -134,13 +190,13 @@ variant that would fail CI is quarantined in production before a human sees the 
 
 ## 3. Results log
 
-| Date       | Commit    | Scenario               | Result                           |
-| ---------- | --------- | ---------------------- | -------------------------------- |
-| 2026-08-24 | `40e58e5` | `sim` — stationary     | 97.5% best share, +148.6% lift   |
-| 2026-08-24 | `40e58e5` | `sim` — non-stationary | 93.4% best share after the shift |
-| —          | —         | `k6 ingest`            | pending Phase 1                  |
-| —          | —         | `k6 render`            | pending Phase 3                  |
-| —          | —         | `k6 spike`             | pending Phase 8                  |
-| —          | —         | Lighthouse             | pending Phase 3                  |
+| Date       | Commit    | Scenario               | Result                             |
+| ---------- | --------- | ---------------------- | ---------------------------------- |
+| 2026-08-24 | `40e58e5` | `sim` — stationary     | 97.5% best share, +148.6% lift     |
+| 2026-08-24 | `40e58e5` | `sim` — non-stationary | 93.4% best share after the shift   |
+| —          | —         | `k6 ingest`            | script written; needs a deployment |
+| —          | —         | `k6 render`            | script written; needs a deployment |
+| —          | —         | `k6 spike`             | pending Phase 8                    |
+| —          | —         | Lighthouse             | pending a URL (D2, D3)             |
 
 Append, never overwrite. A benchmark's value is largely in its trend.

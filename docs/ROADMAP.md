@@ -2,8 +2,8 @@
 
 > **Phases 0, 2, 3, 5 and 6 are built and tested.** What is left in each of them is a
 > gate that needs the stack running, a deployed URL, or a week of real traffic — not more
-> code. Phase 1 needs its k6 load test; phase 4 (sign-up) is deferred by the operator;
-> phases 7 and 8 have not started.
+> code. Phase 1's load test is now written and needs somewhere to point at; phase 4
+> (sign-up) is deferred by the operator; phases 7 and 8 have not started.
 >
 > Two operator decisions still block a deployment: the domain (D2) and the legal
 > controller (D4).
@@ -38,7 +38,7 @@ Monorepo, toolchain, infrastructure topology, the working agreement.
 
 ---
 
-## Phase 1 — Event ingest 🟡 _collector complete; load test pending_
+## Phase 1 — Event ingest 🟡 _collector complete; the load test is written and unrun_
 
 **Done:**
 
@@ -55,7 +55,16 @@ Monorepo, toolchain, infrastructure topology, the working agreement.
   token-bucket limiter keyed on the derived identifier, heuristic bot scoring, the
   Redpanda sink behind an interface, and split liveness/readiness probes
 
-**Remaining:** the k6 load test, and `docs/BENCHMARKS.md` filled with real numbers.
+- `bench/ingest.js` and `bench/render.js`: constant-arrival-rate k6 scenarios for both
+  gates. The identity the requests carry is varied across 20,000 synthetic visitors,
+  because the limiter is keyed on `sha256(pepper ‖ salt ‖ ip ‖ ua)` and a single-source
+  generator would measure 429s at line speed and report a triumphant, meaningless number.
+  The three other ways such a run can pass while measuring nothing are hard thresholds,
+  and the payload the scripts send is parsed by `ClientBatchSchema` in a unit test — so
+  schema drift fails on the commit that causes it, not on benchmark day.
+
+**Remaining:** running them. That needs the stack up and a machine that is not a laptop;
+k6 is a separate binary and is deliberately not a workspace dependency.
 
 **Gate:** k6 sustains 5,000 req/s on `POST /i` with p99 under 25 ms.
 
@@ -245,7 +254,7 @@ and `docs/COMPLIANCE.md` has a verified date against every platform.
 
 ## Phase 8 — Production
 
-Load testing with k6, Grafana dashboards as code, the runbook exercised (not merely
+The remaining k6 scenarios (`spike.js`, `soak.js`), Grafana dashboards as code, the runbook exercised (not merely
 written), documentation completed, and the production deploy.
 
 **Gate:** 5,000 req/s ingest and 1,000 req/s render sustained for 30 minutes with p99

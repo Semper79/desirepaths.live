@@ -1,7 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": ".",
+    // Widened past this package for exactly one file: `bench/payload.js`, which builds the
+    // load test's request bodies and is parsed by `test/bench-payload.test.ts` with the same
+    // schema this service parses them with. The project emits nothing, so `rootDir` here is
+    // a boundary rather than a layout instruction — and the boundary that matters is the one
+    // ESLint and the workspace graph enforce, not this.
+    "rootDir": "../..",
+    // For that same file. k6 does not run TypeScript, so the builder cannot be `.ts`.
+    "allowJs": true,
     "noEmit": true,
     "types": ["node"]
   },

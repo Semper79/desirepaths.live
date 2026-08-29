@@ -72,6 +72,19 @@ export default tseslint.config(
     },
   },
   {
+    // The k6 load tests. They run inside k6's own JavaScript runtime, not Node and not a
+    // browser: no package.json, no tsconfig, and module specifiers it resolves itself. Type-
+    // aware rules therefore cannot run on them, and the bitwise arithmetic that builds a
+    // client address from a virtual-user number is the clearest way to write that.
+    files: ['bench/**/*.js'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      parserOptions: { projectService: false, project: null },
+      globals: { __ENV: 'readonly', __VU: 'readonly', __ITER: 'readonly', console: 'readonly' },
+    },
+    rules: { 'no-bitwise': 'off' },
+  },
+  {
     files: ['**/test/**/*.ts', '**/*.test.ts'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',

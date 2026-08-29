@@ -20,7 +20,7 @@ morph/
 ├── tsconfig.base.json             ✅ strict + noUncheckedIndexedAccess + exactOptional
 ├── eslint.config.mjs              ✅ flat config; no-any, no-unjustified-non-null
 ├── vitest.config.ts               ✅ coverage + path-scoped thresholds
-├── vitest.workspace.ts            ✅ the six test projects
+├── vitest.workspace.ts            ✅ the nine test projects
 ├── .env.example                   ✅ every variable documented with its failure mode
 ├── .gitattributes                 ✅ LF normalisation
 │
@@ -32,6 +32,11 @@ morph/
 │   ├── bootstrap.mjs              ✅ `make bootstrap`, cross-platform
 │   ├── check-guardrails.mjs       ✅ mechanical enforcement of the forbidden list
 │   └── run-all.mjs                ✅ turbo-free fallback runner
+│
+├── bench/                         k6 load tests — a separate binary, not an npm package
+│   ├── payload.js                 ✅ beacon bodies + 20,000 synthetic visitor identities
+│   ├── ingest.js                  ✅ 5,000 req/s on POST /i, p99 < 25 ms
+│   └── render.js                  ✅ 1,000 req/s on the page, p95 TTFB < 150 ms
 │
 ├── infra/
 │   ├── docker-compose.yml         ✅ 9 services, each labelled with its scaling class
@@ -173,7 +178,7 @@ morph/
     ├── COMPLIANCE.md              ✅
     ├── ROADMAP.md                 ✅
     ├── RUNBOOK.md                 ✅
-    ├── BENCHMARKS.md              🟡 methodology written, numbers pending Phase 8
+    ├── BENCHMARKS.md              🟡 engine measured; load tests written, awaiting a stack
     └── FILE-TREE.md               ✅ this file
 ```
 
