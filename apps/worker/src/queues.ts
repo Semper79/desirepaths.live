@@ -23,6 +23,7 @@ export const QUEUE = {
   cluster: 'morph.cluster',
   audience: 'morph.audience',
   generate: 'morph.generate',
+  report: 'morph.report',
   prune: 'morph.prune',
 } as const;
 
@@ -66,6 +67,15 @@ export const GenerateJobSchema = z.object({
   maxDrafts: z.number().int().min(1).max(5).default(2),
 });
 
+export const ReportJobSchema = z.object({
+  /**
+   * Which hour to report. Omitted for the scheduled run, which reports the hour that has
+   * just finished; present when an operator asks for one, or when an hour is being
+   * re-sent after a failure.
+   */
+  hourStart: z.number().int().positive().optional(),
+});
+
 export const PruneJobSchema = z.object({
   retentionDays: z.number().int().min(1).max(365).default(30),
 });
@@ -75,6 +85,7 @@ export type EmbedJob = z.infer<typeof EmbedJobSchema>;
 export type ClusterJob = z.infer<typeof ClusterJobSchema>;
 export type AudienceJob = z.infer<typeof AudienceJobSchema>;
 export type GenerateJob = z.infer<typeof GenerateJobSchema>;
+export type ReportJob = z.infer<typeof ReportJobSchema>;
 export type PruneJob = z.infer<typeof PruneJobSchema>;
 
 export const JOB_SCHEMAS = {
@@ -83,6 +94,7 @@ export const JOB_SCHEMAS = {
   [QUEUE.cluster]: ClusterJobSchema,
   [QUEUE.audience]: AudienceJobSchema,
   [QUEUE.generate]: GenerateJobSchema,
+  [QUEUE.report]: ReportJobSchema,
   [QUEUE.prune]: PruneJobSchema,
 } as const;
 
@@ -126,6 +138,12 @@ export const POLICY: Readonly<Record<QueueName, QueuePolicy>> = {
   // Twice a day rather than hourly. There is no reader for twelve machine-written
   // articles a day, and no operator with the attention to review them.
   [QUEUE.generate]: { cron: '30 7,15 * * *', attempts: 2, backoffMs: 60_000, concurrency: 1 },
+
+  // Five past the hour, so the hour being reported has finished and ClickHouse has had a
+  // moment to merge the last of its inserts. Two attempts rather than three: a report is
+  // worth retrying once, and an hour that has failed twice is better skipped than sent
+  // late enough to arrive alongside the next one.
+  [QUEUE.report]: { cron: '5 * * * *', attempts: 2, backoffMs: 60_000, concurrency: 1 },
 
   // Nightly, off-peak. Deleting a day of documents is a large write and there is no
   // reason for it to compete with a crawl.

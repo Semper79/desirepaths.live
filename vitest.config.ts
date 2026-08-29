@@ -59,6 +59,11 @@ export default defineConfig({
         // The web app's one database query. The row mapping and the seed it falls back to
         // live in content.ts and are covered; what is left needs a live Postgres.
         'apps/web/src/lib/db.ts',
+        // The report's reads. Same reasoning as postgres.ts: each is a query and a shape
+        // conversion with no branch, needing a live store to run at all, and every number
+        // derived from what they return is covered in lib/report-derive.ts.
+        'apps/worker/src/adapters/postgres-report.ts',
+        'apps/worker/src/adapters/clickhouse-metrics.ts',
       ],
       thresholds: {
         // Section 7: "100% branch coverage in packages/adaptive (including a statistical

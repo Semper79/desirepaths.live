@@ -30,7 +30,9 @@ import { createLogger } from './adapters/logger.js';
 import { deterministicEmbeddings } from './adapters/deterministic-embeddings.js';
 import { httpEmbeddings } from './adapters/http-embeddings.js';
 import { anthropicGenerator } from './adapters/anthropic-generator.js';
-import { clickhouseEngagement } from './adapters/clickhouse.js';
+import { clickhouseEngagement, clickhouseQuery } from './adapters/clickhouse.js';
+import { clickhouseMetrics } from './adapters/clickhouse-metrics.js';
+import { reportRepository, reportRunRepository } from './adapters/postgres-report.js';
 import {
   audienceRepository,
   contentRepository,
@@ -46,6 +48,7 @@ import { runAudience } from './jobs/audience.js';
 import { runGenerate } from './jobs/generate.js';
 import { runPrune } from './jobs/prune.js';
 import { dispatch } from './jobs/dispatch.js';
+import { runReport } from './jobs/report.js';
 import { telegramClient, type TelegramClient } from './adapters/telegram-api.js';
 import type { EmbeddingProvider, Logger } from './ports.js';
 
@@ -65,12 +68,20 @@ const trends = trendRepository(db);
 const content = contentRepository(db);
 const audience = audienceRepository(db);
 
-const engagement = clickhouseEngagement({
+const clickhouse = {
   url: env.CLICKHOUSE_URL,
   database: env.CLICKHOUSE_DATABASE,
   username: env.CLICKHOUSE_USER,
   password: env.CLICKHOUSE_PASSWORD,
-});
+};
+
+const engagement = clickhouseEngagement(clickhouse);
+const metrics = clickhouseMetrics(clickhouseQuery(clickhouse));
+const report = reportRepository(db);
+const runs = reportRunRepository(db);
+
+/** For the uptime line. Set once, at boot, and never adjusted. */
+const startedAt = Date.now();
 
 /**
  * Reward weights, for now the compiled-in defaults.
@@ -168,6 +179,28 @@ const handlers: Readonly<Record<QueueName, (job: Job) => Promise<unknown>>> = {
     runGenerate(
       { trends, documents, content, generator, now, log },
       parseJob(QUEUE.generate, job.data),
+    ),
+
+  [QUEUE.report]: (job) =>
+    runReport(
+      {
+        metrics,
+        report,
+        runs,
+        content,
+        // The report sends through the same client the queue does, so a rate limit hit by
+        // one is waited out for the other rather than raced against it.
+        telegram: bot === null ? null : { send: (text) => bot.send(text) },
+        timezone: env.MORPH_TIMEZONE,
+        startedAt,
+        // Until the holdout's start is recorded, the cumulative lift covers everything
+        // there is — which for a site that has not launched is the same window.
+        holdoutSince: startedAt,
+        autonomy: env.SOCIAL_AUTONOMY,
+        now,
+        log,
+      },
+      parseJob(QUEUE.report, job.data),
     ),
 
   [QUEUE.prune]: (job) => runPrune({ documents, now, log }, parseJob(QUEUE.prune, job.data)),

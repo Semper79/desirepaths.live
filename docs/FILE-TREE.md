@@ -79,7 +79,7 @@ morph/
 │   │   │   ├── guardrails.ts      ✅ holdout, exploration floor, retirement, rollback
 │   │   │   ├── assign.ts          ✅ decide(), with its order of precedence
 │   │   │   └── sim/               ✅ the convergence harness and its CLI
-│   │   └── test/                  ✅ 9 files
+│   │   └── test/                  ✅ 10 files
 │   │
 │   ├── telegram/                  🟡 composer and commands done; transport pending
 │   │   ├── src/
@@ -140,7 +140,7 @@ morph/
 │   │   ├── src/app/               ✅ home, privacy, how-it-works, live, /t/[slug],
 │   │   │                             sitemap, robots, feeds, llms.txt, icon, OG image
 │   │   └── test/                  ✅ 4 files
-│   ├── worker/                    ✅ the scheduled jobs and the bot — 196 tests
+│   ├── worker/                    ✅ the scheduled jobs and the bot — 247 tests
 │   │   ├── src/env.ts             ✅ boot validation, incl. the production embedder rule
 │   │   ├── src/ports.ts           ✅ the seam every job is written against
 │   │   ├── src/queues.ts          ✅ payload schemas, cron, retries, concurrency
@@ -150,6 +150,8 @@ morph/
 │   │   ├── src/jobs/generate.ts   ✅ a draft, never a publication
 │   │   ├── src/jobs/audience.ts   ✅ what readers engage with, as a vector
 │   │   ├── src/jobs/prune.ts      ✅ the 30-day window, enforced not described
+│   │   ├── src/jobs/report.ts     ✅ the hourly report, gathered and sent
+│   │   ├── src/lib/report-derive.ts ✅ every number the report states
 │   │   ├── src/jobs/dispatch.ts   ✅ one Telegram update, end to end
 │   │   ├── src/lib/label.ts       ✅ naming a cluster; slugs
 │   │   ├── src/lib/telegram.ts    ✅ intents, callback data, the queue card

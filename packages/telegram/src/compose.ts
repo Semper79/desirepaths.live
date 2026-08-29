@@ -136,7 +136,7 @@ function conversion(input: ReportInput): string {
     italic('By provider'),
     ...c.byProvider.map(
       (p) =>
-        `  ${escape(p.provider)} — ${escape(String(p.signups))} ${escape(`(${percent(p.conversionRate, 1)} of views)`)}`,
+        `  ${escape(p.provider)} — ${escape(String(p.signups))} ${escape(`(${percent(p.conversionRate, 1)} of starts)`)}`,
     ),
     '',
     italic('Funnel'),

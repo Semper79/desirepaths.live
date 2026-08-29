@@ -162,9 +162,9 @@ stickiness across reloads, and reduced-motion / keyboard-only / screen-reader pa
 - `safety.ts`: nine categorical rules, `block` beating `review` beating `allow`, each
   firing rule named in the output.
 
-**Done — `apps/worker`, 196 tests:**
+**Done — `apps/worker`, 247 tests:**
 
-Six scheduled jobs and the bot, each written against `src/ports.ts` and nothing else — no database
+Seven scheduled jobs and the bot, each written against `src/ports.ts` and nothing else — no database
 client, no queue, no clock. That is what makes "a source is due, robots disallows the
 path, so it is recorded as skipped rather than failed" a unit test instead of a
 docker-compose and a fixture database.
@@ -183,6 +183,10 @@ docker-compose and a fixture database.
 - The Telegram bot: long polling, the command dispatcher, and the approval queue that
   moves a draft to `published`. Long polling rather than a webhook because a webhook
   needs the domain in D2; swapping to one changes the client and nothing above it.
+- `report` — the hourly report. Gathers from ClickHouse and Postgres, derives every
+  number in `lib/report-derive.ts`, composes with the Phase 6 composer, sends, and
+  records the run. Idempotent on `report_run.hour_start`, so a retry or a redeploy
+  cannot put a second copy in the operator's chat.
 - `audience` — the interest vector: per-page engagement from ClickHouse, ranked by the
   same `compositeReward` the bandit optimises, centroid of the above-median half. This is
   the term that makes the trend score about _this site_ rather than about the web.

@@ -414,6 +414,49 @@ same logic with a race in it.
 `content_generated_needs_review` refuses the row without it. Publishing anonymously is a
 constraint violation, not a shortcut.
 
+### D23 — The report compares against the same hour last week, and against nothing else — **Taken**
+
+A site with daily and weekly seasonality has a 03:00 that is always quiet and a Sunday
+that is not a Tuesday. "Down 60% on last hour" at 09:00 on a Monday is a statement about
+breakfast, and an operator who reads a few of those stops reading the rest.
+
+So every comparison in the report — traffic, each source, each country, each page, each
+funnel step, the anomaly alert — is against the same hour seven days earlier. The queries
+are written as "one hour, by timestamp" rather than "this hour versus last", which is what
+lets the same query serve both sides of the comparison.
+
+Three consequences worth stating:
+
+**A zero baseline produces no comparison at all.** A page that did not exist last week has
+no honest percentage change, and every plausible convention — 0, 1, ∞ — reads as a
+measurement in a sentence a human will repeat. `deltaOrNull` returns null.
+
+**The funnel is compared in points, not percent.** "Conversion fell 3 points" is a sentence
+about the funnel; "conversion fell 12%" is a sentence about a percentage, and the two get
+confused every single time.
+
+**The anomaly test needs three weeks before it has an opinion**, and declines entirely when
+the baseline has no variance — otherwise a site so quiet that every week's 04:00 had
+exactly zero sessions would report its first ever visitor as an infinite anomaly.
+
+### D24 — Two sections say "not yet recorded" rather than guessing — **Taken**
+
+The report has nine sections and two of them cannot be filled honestly yet.
+
+**The live theme.** The assignment is chosen per visitor at the edge, so "the live theme"
+is only meaningful as the current champion of each design surface — which needs the
+adaptation aggregation job. Naming a variant that was true for one visitor would be worse
+than naming nothing.
+
+**The holdout's p-value.** The always-valid test lives in `@morph/adaptive` and runs on the
+engine's own state, not on a report's snapshot. Until it is fed, the report says "not
+conclusive", which is both true and the safe direction — a fixed-horizon p-value quoted in
+something read every hour is precisely the mistake §2 exists to avoid.
+
+Both are visible as gaps in the report itself rather than as absent sections, because a
+section that disappears reads as a failure and a section that says what it does not know
+reads as a system that is being honest with you.
+
 ---
 
 ## Deferred, but worth naming now

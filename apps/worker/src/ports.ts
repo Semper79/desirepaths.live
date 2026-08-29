@@ -243,6 +243,136 @@ export interface EngagementRepository {
   byPage(windowDays: number): Promise<readonly PageEngagement[]>;
 }
 
+// -----------------------------------------------------------------------------
+// The hourly report
+// -----------------------------------------------------------------------------
+
+export interface LabelledCount {
+  readonly label: string;
+  readonly value: number;
+}
+
+/**
+ * One hour of behaviour, as ClickHouse holds it.
+ *
+ * Read twice per report — for the hour being reported and for the same hour last week —
+ * so the comparison the report makes is the comparison the query supports. Anything
+ * derived from these numbers is derived in `lib/report-derive.ts`, not here.
+ */
+export interface TrafficFacts {
+  readonly sessions: number;
+  readonly uniques: number;
+  readonly pageviews: number;
+  readonly newVisitors: number;
+  readonly returningVisitors: number;
+  readonly sources: readonly LabelledCount[];
+  readonly countries: readonly LabelledCount[];
+  readonly pages: readonly LabelledCount[];
+}
+
+/** Sessions reaching each funnel step, keyed by step name. */
+export type FunnelFacts = Readonly<Record<string, number>>;
+
+export interface ProviderFacts {
+  readonly provider: string;
+  readonly signups: number;
+  readonly starts: number;
+}
+
+export interface RewardFacts {
+  readonly adaptiveReward: number;
+  readonly adaptiveImpressions: number;
+  readonly holdoutReward: number;
+  readonly holdoutImpressions: number;
+}
+
+/** The trailing hour-of-week baseline the anomaly alert compares against. */
+export interface AnomalyFacts {
+  readonly meanSessions: number;
+  readonly sdSessions: number;
+  readonly weeksObserved: number;
+}
+
+export interface MetricsRepository {
+  traffic(hourStart: number): Promise<TrafficFacts>;
+  funnel(hourStart: number): Promise<FunnelFacts>;
+  providers(hourStart: number): Promise<readonly ProviderFacts[]>;
+  reward(hourStart: number): Promise<RewardFacts>;
+  /** Every hour since the holdout began, for the cumulative lift. */
+  rewardSince(from: number): Promise<RewardFacts>;
+  anomalyProfile(hourStart: number): Promise<AnomalyFacts>;
+  /** Whether the store answers at all. The report's own health line depends on it. */
+  ping(): Promise<boolean>;
+}
+
+export interface AdaptationFacts {
+  readonly action: string;
+  readonly surfaceId: string | null;
+  readonly variantId: string | null;
+  readonly reason: string;
+  readonly impressions: number | null;
+}
+
+export interface ChampionFacts {
+  readonly surfaceId: string;
+  readonly variantId: string;
+  readonly variantLabel: string;
+  readonly alpha: number;
+  readonly beta: number;
+  readonly impressions: number;
+  readonly activeVariants: number;
+}
+
+/** What the report reads out of Postgres that no other job needs. */
+export interface ReportRepository {
+  adaptations(hourStart: number, hourEnd: number): Promise<readonly AdaptationFacts[]>;
+  champions(): Promise<readonly ChampionFacts[]>;
+  rewardVersion(): Promise<number>;
+  /** Clusters first seen in the hour, best first. */
+  newClusters(
+    hourStart: number,
+    hourEnd: number,
+    limit: number,
+  ): Promise<readonly TrendSignalRecord[]>;
+  /** Topics the classifier refused in the hour. */
+  rejectedTopics(
+    hourStart: number,
+    hourEnd: number,
+    limit: number,
+  ): Promise<readonly TrendSignalRecord[]>;
+  publishedInHour(
+    hourStart: number,
+    hourEnd: number,
+  ): Promise<readonly { readonly title: string; readonly slug: string }[]>;
+  documentsFetched(
+    hourStart: number,
+    hourEnd: number,
+  ): Promise<{ readonly documents: number; readonly hosts: number }>;
+  /** Sources whose robots policy has aged out, so the crawler is refusing them. */
+  staleRobotsCount(before: number): Promise<number>;
+  draftsAwaitingReview(): Promise<number>;
+  draftsOlderThan(cutoff: number): Promise<number>;
+  documentsAwaitingEmbedding(): Promise<number>;
+  clustersAwaitingContent(): Promise<number>;
+  ping(): Promise<boolean>;
+}
+
+export interface ReportRun {
+  readonly hourStart: number;
+  readonly kind: 'full' | 'brief';
+  readonly messageIds: readonly number[];
+  readonly charCount: number;
+  readonly inputs: unknown;
+  readonly sentAt: number | null;
+  readonly error: string | null;
+}
+
+export interface ReportRunRepository {
+  /** Has this hour already been reported? `report_run_hour_unique` makes it answerable. */
+  wasSent(hourStart: number): Promise<boolean>;
+  record(run: ReportRun): Promise<void>;
+}
+
 export interface AudienceSnapshot {
   readonly computedAt: number;
   readonly vector: readonly number[];

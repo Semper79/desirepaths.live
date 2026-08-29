@@ -41,6 +41,14 @@ export interface TrafficSection {
 export interface ProviderSignups {
   readonly provider: string;
   readonly signups: number;
+  /**
+   * Of the visitors who *started* with this provider, how many finished.
+   *
+   * Not of everyone who saw the sign-up screen: a `signup_view` has no provider — the
+   * screen shows all of them at once — so that denominator does not exist in the data.
+   * And it would mostly measure where the button was placed, which is the surface the
+   * bandit is already optimising.
+   */
   readonly conversionRate: number;
 }
 
