@@ -56,6 +56,11 @@ const rejected = new Counter('rejected_400');
 const accepted = new Rate('accepted_202');
 
 export const options = {
+  // k6 defaults this to avg/min/med/max/p(90)/p(95) — no p(99). Thresholds compute their
+  // own percentiles and were never affected, but `handleSummary` reads p(99) to print
+  // the verdict, and an absent key there is a TypeError that takes the whole summary with
+  // it: the run happens, the gate passes, and nothing is reported.
+  summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   scenarios: {
     ingest: {
       // Arrival rate, not virtual users: the gate is a statement about requests per

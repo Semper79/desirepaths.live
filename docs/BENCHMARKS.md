@@ -4,7 +4,7 @@ Section 7 of the brief: "Load test with k6: sustain 5,000 req/s on the ingest en
 1,000 req/s on page render; commit the results to `docs/BENCHMARKS.md`."
 
 **Status: the adaptive engine is measured; the load tests are written and unrun.** The
-scripts live in `bench/` and are exercised by the test suite (§2.3), but a number needs a
+scripts live in `bench/` and are exercised by the test suite (§2.5), but a number needs a
 running stack and a machine that is not the one they were written on. Fabricating plausible
 numbers here would be worse than an empty table — a benchmark nobody ran is a lie with a
 chart on it.
@@ -110,15 +110,54 @@ Written, in `bench/`:
 3. **`payload.js`** — the beacon bodies and the visitor identities, shared by both, and
    the reason §2.3 is possible at all.
 
-Not yet written, and honestly Phase 8 work:
+4. **`spike.js`** — 500 → 8,000 req/s in ten seconds, held, then back to baseline. Not a
+   throughput test: latency is _expected_ to degrade under an unannounced sixteen-fold
+   burst, and asserting otherwise would be asserting that the buffer is never used. What
+   must hold is that nothing is lost and that the system comes back. The two baseline
+   phases bracket the burst so recovery is a number rather than an impression.
+5. **`soak.js`** — 1,000 req/s for four hours (`-e HOURS=`). The gate here is **drift, not
+   level**: the first and last tenth of the run are recorded separately and compared, so a
+   system that is 40% slower after four hours fails even at a healthy absolute p99.
+6. **`clickhouse.js`** — the delivery check the two above depend on, described next.
 
-4. **`spike.js`** — 500 → 8,000 req/s in 10 seconds. What is being measured here is not
-   throughput but _behaviour_: the buffer should absorb it, lag should rise and drain, and
-   nothing should be dropped. This is the scenario Redpanda exists for.
-5. **`soak.js`** — 1,000 req/s for 4 hours. Looking for memory growth, connection-pool
-   exhaustion, and ClickHouse part-count drift.
+### 2.3 Counting what arrived, not what was accepted
 
-### 2.3 The trap these scripts are built around
+`POST /i` answers `202` once `sink.publish` resolves — the broker took it. Everything after
+that (Redpanda retention, the Kafka table engine, the materialised view into
+`morph.events`) is invisible from the response, and is exactly what a burst stresses. A
+spike test that counts 202s and concludes that nothing was dropped would pass with the
+producer misconfigured to `acks=0`, which is among the bugs the scenario exists to catch.
+
+So `spike.js` and `soak.js` stamp a run id into every event's `props` and, in teardown, ask
+ClickHouse how many arrived — polling until the count stops rising, because the consumer is
+deliberately behind and reading once would report a draining queue as a loss.
+
+The verdict is three-valued, and that is the point:
+
+| Verdict                    | Meaning                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| complete                   | Every event sent was found in `morph.events`               |
+| lost N                     | The count settled below what was sent. The scenario failed |
+| not checked / inconclusive | No credentials, or still rising when patience ran out      |
+
+The third is reported as `FAIL`, not as a pass with a caveat. A spike run that did not
+verify delivery has not tested the thing it exists for.
+
+### 2.4 What the soak cannot see, and says so
+
+`docs/ROADMAP.md` names three soak failures: memory growth, connection-pool exhaustion, and
+ClickHouse part-count drift. The script measures the third from `system.parts`, and adds
+latency drift and delivery on top. It does **not** measure the first two, and prints that it
+did not.
+
+The reason is worth recording. `infra/prometheus/prometheus.yml` scrapes `/metrics` on the
+api, web and worker services; `infra/prometheus/rules/morph.yml` alerts on nine `morph_*`
+metric names — and **no service currently serves any of them**. `CountingMetrics` in
+`apps/api/src/routes/ingest.ts` says as much: "good enough until Prometheus is wired in
+Phase 8". Until that exists a soak needs a human watching `docker stats`, and the summary
+says so rather than reporting two of three as though it were three of three.
+
+### 2.5 The trap these scripts are built around
 
 The ingest limiter is `{ capacity: 60, refillPerSecond: 2 }`, keyed on the derived
 anonymous identifier — which is `sha256(pepper ‖ salt ‖ ip ‖ user-agent)`. A load generator
@@ -158,7 +197,7 @@ the builder produces with the same `ClientBatchSchema` the collector uses, and a
 schema is strict enough for that to mean something. Schema drift fails on the commit that
 causes it rather than on the afternoon somebody wanted a number.
 
-### 2.4 What each result would mean
+### 2.6 What each result would mean
 
 A load test whose only output is "it passed" has told you nothing. Each scenario has a
 diagnosis attached:
@@ -171,7 +210,7 @@ diagnosis attached:
 | Errors only above ~4,000 req/s                  | Almost certainly file descriptors or ephemeral ports | Tune before concluding anything about the code |
 | Spike drops events                              | The buffer is not configured as intended             | Check `REDPANDA_LINGER_MS` and producer acks   |
 
-### 2.5 Core Web Vitals
+### 2.7 Core Web Vitals
 
 Enforced in CI by Lighthouse against the **adapted** pages — every palette, density and
 layout variant, not only the baseline. A budget that holds only for the variant nobody
@@ -196,7 +235,8 @@ variant that would fail CI is quarantined in production before a human sees the 
 | 2026-08-24 | `40e58e5` | `sim` — non-stationary | 93.4% best share after the shift   |
 | —          | —         | `k6 ingest`            | script written; needs a deployment |
 | —          | —         | `k6 render`            | script written; needs a deployment |
-| —          | —         | `k6 spike`             | pending Phase 8                    |
+| —          | —         | `k6 spike`             | script written; needs a deployment |
+| —          | —         | `k6 soak`              | script written; needs a deployment |
 | —          | —         | Lighthouse             | pending a URL (D2, D3)             |
 
 Append, never overwrite. A benchmark's value is largely in its trend.

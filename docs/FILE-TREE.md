@@ -34,9 +34,12 @@ morph/
 │   └── run-all.mjs                ✅ turbo-free fallback runner
 │
 ├── bench/                         k6 load tests — a separate binary, not an npm package
-│   ├── payload.js                 ✅ beacon bodies + 20,000 synthetic visitor identities
+│   ├── payload.js                 ✅ beacon bodies, visitor identities, the synthetic marker
+│   ├── clickhouse.js              ✅ counts what arrived, so "nothing dropped" is measured
 │   ├── ingest.js                  ✅ 5,000 req/s on POST /i, p99 < 25 ms
-│   └── render.js                  ✅ 1,000 req/s on the page, p95 TTFB < 150 ms
+│   ├── render.js                  ✅ 1,000 req/s on the page, p95 TTFB < 150 ms
+│   ├── spike.js                   ✅ 500 → 8,000 req/s; loss and recovery, not throughput
+│   └── soak.js                    ✅ 4 h at 1,000 req/s; drift, not level
 │
 ├── infra/
 │   ├── docker-compose.yml         ✅ 9 services, each labelled with its scaling class

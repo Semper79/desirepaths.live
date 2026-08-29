@@ -16,6 +16,13 @@
  * path once there is a mix worth reproducing; the honest default is the expensive case,
  * because a budget that only holds on the cheap path is not a budget.
  *
+ * WHY THIS ONE DOES NOT DECLARE ITSELF
+ * The ingest scripts append a marker to their User-Agent so their events are scored as
+ * automated and excluded from the posteriors. This one must not: a high bot score makes
+ * the renderer return the baseline without resolving an assignment at all, which is the
+ * exact work under measurement. It costs nothing to omit, because a GET writes no events
+ * — the only trace a run leaves is sticky assignments in Redis, which expire.
+ *
  * WHAT WOULD MAKE THIS MEASURE NOTHING
  * A 500 that renders fast. The check below looks for the token bag in the response, which
  * is the one thing that proves the adaptive path ran rather than an error page — and it
@@ -30,7 +37,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 import { Rate } from 'k6/metrics';
-import { RENDER_IP_POOL, USER_AGENTS, clientIp, pick } from './payload.js';
+import { BROWSER_AGENTS, RENDER_IP_POOL, clientIp, pick } from './payload.js';
 
 const TARGET = __ENV.TARGET || 'http://localhost:3000';
 const SMOKE = __ENV.MODE === 'smoke';
@@ -41,6 +48,11 @@ const DURATION = SMOKE ? '10s' : '2m';
 const adapted = new Rate('adapted_html');
 
 export const options = {
+  // k6 defaults this to avg/min/med/max/p(90)/p(95) — no p(99). Thresholds compute their
+  // own percentiles and were never affected, but `handleSummary` reads p(99) to print
+  // the verdict, and an absent key there is a TypeError that takes the whole summary with
+  // it: the run happens, the gate passes, and nothing is reported.
+  summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   scenarios: {
     render: {
       executor: 'constant-arrival-rate',
@@ -80,7 +92,7 @@ export default function () {
 
   const response = http.get(`${TARGET}${pick(PATHS)}`, {
     headers: {
-      'user-agent': pick(USER_AGENTS),
+      'user-agent': pick(BROWSER_AGENTS),
       'accept-language': 'en-GB,en;q=0.9',
       accept: 'text/html,application/xhtml+xml',
       'sec-fetch-mode': 'navigate',

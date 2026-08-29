@@ -20,6 +20,7 @@ import { describe, expect, it } from 'vitest';
 import { ClientBatchSchema } from '@morph/core';
 
 import {
+  BROWSER_AGENTS,
   IP_POOL,
   RENDER_IP_POOL,
   batch,
@@ -29,6 +30,7 @@ import {
 } from '../../../bench/payload.js';
 import { consentMaskFromCookie } from '../src/routes/ingest.js';
 import { INGEST_BUCKET } from '../src/lib/rate-limit.js';
+import { isBotUserAgent } from '../src/lib/classify.js';
 
 /**
  * A seeded generator, so a failure is reproducible.
@@ -201,14 +203,39 @@ describe('the load-test identity', () => {
     expect(mask & 2).toBe(2);
   });
 
-  it('presents itself as a browser rather than as a crawler', () => {
-    // The collector scores the user agent and excludes automated traffic from the
-    // posteriors. k6's default agent says `k6`, and a run made entirely as a crawler
-    // exercises a different branch of the enrichment than production does.
+  it('looks like a browser, so the context features are the ones production sees', () => {
+    // `deviceClass` and `viewportBucket` are parsed out of the User-Agent. k6's default
+    // agent says `k6`, and a run whose whole population lands in `unknown` would be
+    // measuring a shape the site never actually serves.
     const random = seeded(13);
 
     for (let i = 0; i < 50; i += 1) {
       expect(beaconHeaders(1, i, random)['user-agent']).toMatch(/^Mozilla\/5\.0 /);
+    }
+  });
+
+  it('declares itself, so its events never become evidence', () => {
+    // The one that matters over a long run. Every aggregate in
+    // `infra/clickhouse/init/002_aggregates.sql` filters `bot_score < 60`; a four-hour
+    // soak at 1,000 req/s is tens of millions of events, and without this they are all
+    // counted as real behaviour. The optimiser would then be learning from k6.
+    const random = seeded(19);
+
+    for (let i = 0; i < 50; i += 1) {
+      // `String(...)` because the header bag comes from a `.js` module with no declared
+      // types, so the indexed read is `any`. Coercing is honest here: the assertion is
+      // about what the collector will do with whatever string arrives.
+      expect(isBotUserAgent(String(beaconHeaders(1, i, random)['user-agent']))).toBe(true);
+    }
+  });
+
+  it('leaves the render agents undeclared, because there the marker would hide the work', () => {
+    // The mirror image, and the reason these are two lists rather than one. A high bot
+    // score makes the renderer serve the baseline without resolving an assignment — so a
+    // declared `render.js` would measure the branch that skips everything it is timing.
+    // A GET writes no events, so there is nothing to exclude it from.
+    for (const agent of BROWSER_AGENTS) {
+      expect(isBotUserAgent(agent)).toBe(false);
     }
   });
 });

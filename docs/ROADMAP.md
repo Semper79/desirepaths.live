@@ -254,11 +254,18 @@ and `docs/COMPLIANCE.md` has a verified date against every platform.
 
 ## Phase 8 — Production
 
-The remaining k6 scenarios (`spike.js`, `soak.js`), Grafana dashboards as code, the runbook exercised (not merely
+Grafana dashboards as code, the runbook exercised (not merely
 written), documentation completed, and the production deploy.
 
+All four k6 scenarios are written (`bench/`). What Phase 8 still owns is the
+**metrics layer they and Grafana both need**: `infra/prometheus/prometheus.yml` scrapes
+`/metrics` on api, web and worker, and `infra/prometheus/rules/morph.yml` alerts on nine
+`morph_*` metric names, none of which any service currently emits. Until that exists the
+soak cannot observe memory or pool depth (it says so in its own summary), and a dashboard
+would be a grid of empty panels.
+
 **Gate:** 5,000 req/s ingest and 1,000 req/s render sustained for 30 minutes with p99
-inside budget, results committed to `docs/BENCHMARKS.md`.
+inside budget, the spike losing no events, and results committed to `docs/BENCHMARKS.md`.
 
 ---
 

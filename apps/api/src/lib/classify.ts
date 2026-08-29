@@ -192,6 +192,17 @@ const BOT_TOKENS = [
   'gtmetrix',
   'pingdom',
   'uptimerobot',
+  // Our own load tests (`bench/`), which are the largest single source of synthetic
+  // traffic this system will ever see: a four-hour soak writes tens of millions of
+  // events. Without this token they arrive wearing a browser's User-Agent, score below
+  // 60, and are counted as evidence — a benchmark that corrupts the thing it measures.
+  //
+  // Excluding them costs the measurement nothing. On the ingest path the score is
+  // computed once and stored; no branch above the write reads it, so a synthetic batch
+  // and a real one do identical work. The render path is the opposite — a high score
+  // skips assignment resolution entirely — which is why `bench/render.js` deliberately
+  // does *not* carry this token. See §2.3 of `docs/BENCHMARKS.md`.
+  'morphbench',
 ];
 
 export function isBotUserAgent(userAgent: string): boolean {

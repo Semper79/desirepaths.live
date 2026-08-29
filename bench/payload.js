@@ -38,12 +38,37 @@ export const SURFACES = [
  * Not k6's default agent: the collector scores it, and a run made entirely as a crawler
  * exercises the crawler path — different branches, different cache behaviour, and not what
  * production does.
+ *
+ * Used bare by `render.js` only. See `SYNTHETIC_AGENTS` for why the ingest side differs.
  */
-export const USER_AGENTS = [
+export const BROWSER_AGENTS = [
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
 ];
+
+/**
+ * The token that tells the collector these events are ours and are not evidence.
+ *
+ * `isBotUserAgent` matches it, which stamps `bot_score = 100`, which is what every
+ * aggregate in `infra/clickhouse/init/002_aggregates.sql` filters on. Without it a
+ * four-hour soak writes tens of millions of synthetic events *into the posteriors* — a
+ * benchmark that corrupts the thing it is measuring, and does so invisibly, because the
+ * damage shows up weeks later as an optimiser confidently serving whatever k6 liked.
+ *
+ * It is free on this path. The ingest route computes the score once and stores it; no
+ * branch above the write reads it, so a synthetic batch and a real one do identical work.
+ */
+export const SYNTHETIC_TOKEN = 'MorphBench/1';
+
+/**
+ * What the ingest-side scripts send: a real browser string with the marker appended.
+ *
+ * Still a browser, because `deviceClass` and `viewportBucket` are parsed out of it and a
+ * run that produced only `unknown` context would be measuring a shape production never
+ * sees. The marker rides along at the end, where a User-Agent's product tokens belong.
+ */
+export const SYNTHETIC_AGENTS = BROWSER_AGENTS.map((agent) => `${agent} ${SYNTHETIC_TOKEN}`);
 
 export const PATHS = ['/', '/how-it-works', '/t/how-this-site-rebuilds-itself', '/privacy'];
 
@@ -136,8 +161,14 @@ export function clientIp(vu, iteration, pool = IP_POOL) {
  * Between one and six events: the client batches on a timer and flushes on `pagehide`, so
  * a real batch is small and variable. A fixed size would measure one point on a curve and
  * report it as the curve.
+ *
+ * `marker` is merged into every event's `props`. `spike.js` and `soak.js` put a run id
+ * there so they can ask ClickHouse afterwards how many of the events they sent actually
+ * arrived — which is the only way "nothing was dropped" is a measurement rather than a
+ * hope. A `202` says the collector handed the batch to the broker; it says nothing about
+ * what happened after that, and the spike scenario exists precisely to stress that gap.
  */
-export function batch(random = Math.random, at = new Date()) {
+export function batch(random = Math.random, at = new Date(), marker = null) {
   const count = 1 + Math.floor(random() * 6);
   const sessionId = uuid(random);
   const ts = at.toISOString();
@@ -163,7 +194,7 @@ export function batch(random = Math.random, at = new Date()) {
       assignmentHash: String(Math.floor(random() * 1e15)),
       holdout: random() < 0.05 ? 1 : 0,
       value: Math.round(random() * 100),
-      props: {},
+      props: marker === null ? {} : { ...marker },
     });
   }
 
@@ -177,7 +208,7 @@ export function batch(random = Math.random, at = new Date()) {
 export function beaconHeaders(vu, iteration, random = Math.random) {
   return {
     'content-type': 'application/json',
-    'user-agent': pick(USER_AGENTS, random),
+    'user-agent': pick(SYNTHETIC_AGENTS, random),
     'accept-language': 'en-GB,en;q=0.9',
     'sec-fetch-mode': 'no-cors',
     'x-real-ip': clientIp(vu, iteration),
