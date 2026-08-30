@@ -20,7 +20,7 @@ morph/
 ├── tsconfig.base.json             ✅ strict + noUncheckedIndexedAccess + exactOptional
 ├── eslint.config.mjs              ✅ flat config; no-any, no-unjustified-non-null
 ├── vitest.config.ts               ✅ coverage + path-scoped thresholds
-├── vitest.workspace.ts            ✅ the nine test projects
+├── vitest.workspace.ts            ✅ the ten test projects
 ├── .env.example                   ✅ every variable documented with its failure mode
 ├── .gitattributes                 ✅ LF normalisation
 │
@@ -46,6 +46,10 @@ morph/
 │   ├── Dockerfile                 ✅ one file, four targets, pruned runtime closures
 │   ├── SCALING.md                 ✅ which service scales how, and what breaks first
 │   ├── caddy/Caddyfile            ✅ TLS, HTTP/3, CSP, the cheap ingest route
+│   ├── grafana/provisioning/
+│   │   ├── datasources/            ✅ Prometheus + ClickHouse, as code
+│   │   └── dashboards/json/        ✅ overview + engine; every expr checked against
+│   │                                  the registry by packages/metrics
 │   ├── clickhouse/init/
 │   │   ├── 001_events.sql         ✅ raw events, Kafka ingest, DLQ, partitioning + TTL
 │   │   └── 002_aggregates.sql     ✅ sessions, rewards, traffic, vitals, funnel, anomaly
