@@ -90,6 +90,14 @@ export default defineWorkspace([
   },
   {
     test: {
+      name: 'social',
+      root: './packages/social',
+      environment: 'node',
+      include: ['test/**/*.test.ts'],
+    },
+  },
+  {
+    test: {
       name: 'telegram',
       root: './packages/telegram',
       environment: 'node',
