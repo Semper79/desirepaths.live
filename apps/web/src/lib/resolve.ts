@@ -13,7 +13,9 @@ import {
   type AssignmentStore,
   type ResolvedAssignment,
 } from './assignment.js';
+import { decisionDurationMs, snapshotAgeSeconds } from '@morph/metrics';
 import { currentSnapshot as readSnapshot } from './snapshot.js';
+import { redisAssignmentStore } from './assignment-store.js';
 import {
   ANON_ID_HEADER,
   BOT_SCORE_HEADER,
@@ -32,19 +34,17 @@ import {
 export { currentSnapshot } from './snapshot.js';
 
 /**
- * Sticky assignments.
+ * Sticky assignments, in Redis.
  *
- * ⚠ Still in process. A restart forgets every sticky assignment and two instances do not
- * share them, so a returning visitor can be re-rolled — the variant stays *valid*, and
- * `isStillServable` still refuses one the guardrails have removed, but §2.2's promise
- * that a returning visitor keeps their variant holds only within one process.
- *
- * Moving it to Redis is a swap of this one line for a client of the same interface, which
- * is why the interface exists. It is deliberately not bundled into the adapt-loop change:
- * the snapshot is what makes the site adaptive at all, and stickiness is a property of how
- * that adaptation is experienced across visits.
+ * §2.2's promise — a returning visitor keeps their variant for thirty days — is now a
+ * property of the system rather than of whichever container answered. `MemoryAssignmentStore`
+ * survives for tests and for running the site with no Redis at all, where a process-lifetime
+ * store is exactly as much stickiness as a single process can honestly offer.
  */
-const store: AssignmentStore = new MemoryAssignmentStore();
+const store: AssignmentStore =
+  process.env['REDIS_URL'] === undefined || process.env['REDIS_URL'].length === 0
+    ? new MemoryAssignmentStore()
+    : redisAssignmentStore();
 
 export interface RequestHeaders {
   get(name: string): string | null;
@@ -75,13 +75,30 @@ export async function assignmentForRequest(headers: RequestHeaders): Promise<Res
   const botScore = Number.parseInt(headers.get(BOT_SCORE_HEADER) ?? '0', 10);
   const cached = await store.read(anonId);
 
+  const snapshot = await readSnapshot();
+
+  // Age is reported here rather than by the worker that wrote it, and the difference
+  // matters: this is the age of what *this renderer is actually serving*, which is what
+  // `morph_snapshot_age_seconds` is asked about during an incident. A worker that thinks
+  // it published fifteen minutes ago and a renderer still holding yesterday's copy is
+  // precisely the disagreement worth being able to see. Zero means nothing was ever
+  // published, so it is reported as such rather than as an infinitely old snapshot.
+  if (snapshot.generatedAt > 0) {
+    snapshotAgeSeconds.set((Date.now() - snapshot.generatedAt) / 1000);
+  }
+
+  // Timed around the resolution alone. The snapshot read is deliberately outside it: §7
+  // budgets the *decision* at 5 ms, and folding a cache miss into that number would make
+  // the budget look breached by a network round trip the decision does not perform.
+  const startedAt = performance.now();
   const resolved = resolveAssignment({
     anonId,
     context,
-    snapshot: await readSnapshot(),
+    snapshot,
     botScore: Number.isFinite(botScore) ? botScore : 0,
     cached,
   });
+  decisionDurationMs.observe(performance.now() - startedAt);
 
   // Only a computed assignment is worth persisting: a crawler's is the baseline by
   // rule, and a sticky one is already there.

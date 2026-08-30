@@ -32,6 +32,17 @@ import { httpEmbeddings } from './adapters/http-embeddings.js';
 import { anthropicGenerator } from './adapters/anthropic-generator.js';
 import { anthropicProse } from './adapters/anthropic-prose.js';
 import { clickhouseEngagement, clickhouseQuery } from './adapters/clickhouse.js';
+import {
+  CONTENT_TYPE,
+  adaptCycleHour,
+  collectRuntimeMetrics,
+  explorationRate,
+  queueFailed,
+  queueWaiting,
+  renderMetrics,
+  variantsQuarantined,
+  variantsRetired,
+} from '@morph/metrics';
 import { clickhouseMetrics } from './adapters/clickhouse-metrics.js';
 import { clickhouseRewards } from './adapters/clickhouse-rewards.js';
 import { postgresAdapt } from './adapters/postgres-adapt.js';
@@ -196,8 +207,13 @@ const handlers: Readonly<Record<QueueName, (job: Job) => Promise<unknown>>> = {
   [QUEUE.embed]: (job) =>
     runEmbed({ documents, embeddings, now, log }, parseJob(QUEUE.embed, job.data)),
 
-  [QUEUE.adapt]: (job) =>
-    runAdapt(
+  /**
+   * The engine's numbers are emitted here rather than inside the job, so `runAdapt` stays
+   * a pure function of its ports and its tests need no metrics fake. The composition root
+   * is where I/O belongs, and a Prometheus counter is I/O by any honest definition.
+   */
+  [QUEUE.adapt]: async (job) => {
+    const outcome = await runAdapt(
       {
         rewards,
         store: adaptStore,
@@ -210,7 +226,21 @@ const handlers: Readonly<Record<QueueName, (job: Job) => Promise<unknown>>> = {
         log,
       },
       parseJob(QUEUE.adapt, job.data),
-    ),
+    );
+
+    if (outcome.kind === 'applied') {
+      variantsRetired.inc(outcome.retired);
+      variantsQuarantined.inc(outcome.quarantined);
+      adaptCycleHour.set(outcome.hour / 1000);
+
+      // Left untouched when the hour measured nothing, rather than set to zero. A gauge
+      // that reports no exploration on a quiet night would fire `ExplorationCollapsed`
+      // every night, and an alert that cries wolf on a schedule is one nobody reads.
+      if (outcome.explorationRate !== null) explorationRate.set(outcome.explorationRate);
+    }
+
+    return outcome;
+  },
 
   [QUEUE.cluster]: async (job) =>
     runCluster(
@@ -332,8 +362,51 @@ async function registerSchedules(): Promise<void> {
  * alive but cannot reach Redis should be restarted, not merely taken out of rotation, and
  * conflating the two makes both answers useless.
  */
+collectRuntimeMetrics('worker');
+
+/**
+ * Queue depth, read at scrape time rather than pushed.
+ *
+ * A gauge that is only updated when a job runs reports the depth as it was during the last
+ * job, which on a stalled queue is the one number that will never change again — precisely
+ * the situation `QueueBacklog` in `morph.yml` exists to catch. Reading on scrape costs one
+ * round trip per queue every fifteen seconds and always describes now.
+ */
+async function sampleQueueDepth(): Promise<void> {
+  await Promise.all(
+    queues.map(async (queue) => {
+      const [waiting, failed] = await Promise.all([
+        queue.getWaitingCount(),
+        queue.getFailedCount(),
+      ]);
+
+      queueWaiting.set({ queue: queue.name }, waiting);
+      queueFailed.set({ queue: queue.name }, failed);
+    }),
+  );
+}
+
 const health = createServer((request, response) => {
   const ready = connection.status === 'ready';
+
+  if (request.url === '/metrics') {
+    sampleQueueDepth()
+      .catch(() => {
+        // A Redis that cannot answer leaves the queue gauges at their previous values,
+        // which is stale but not wrong — and the `up` series plus `ServiceDown` already
+        // say the worker is in trouble. Failing the whole scrape would take the runtime
+        // metrics down with it, and those are the ones that explain why.
+      })
+      .then(renderMetrics)
+      .then((body) => {
+        response.writeHead(200, { 'content-type': CONTENT_TYPE });
+        response.end(body);
+      })
+      .catch(() => {
+        response.writeHead(500).end();
+      });
+    return;
+  }
 
   if (request.url === '/ready') {
     response.writeHead(ready ? 200 : 503, { 'content-type': 'application/json' });

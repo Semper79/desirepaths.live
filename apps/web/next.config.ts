@@ -11,7 +11,13 @@ import type { NextConfig } from 'next';
 const config: NextConfig = {
   reactStrictMode: true,
 
-  transpilePackages: ['@morph/core', '@morph/adaptive', '@morph/seo', '@morph/ui'],
+  transpilePackages: [
+    '@morph/core',
+    '@morph/adaptive',
+    '@morph/seo',
+    '@morph/ui',
+    '@morph/metrics',
+  ],
 
   /**
    * Resolve `./thing.js` to `./thing.ts`.

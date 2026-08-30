@@ -13,6 +13,9 @@
  * and never blocks on a refresh that is already in flight, so a burst of concurrent
  * requests after an expiry produces one Redis round trip rather than four hundred.
  *
+ * The client itself, and why its timeouts are what they are, is in `redis.ts` — shared
+ * with the sticky assignment store so one outage produces one error stream.
+ *
  * WHY A STALE COPY IS SERVED WHILE REFRESHING FAILS
  * A Redis blip must not un-adapt the site. An hour-old decision set is a good decision
  * set; falling back to baselines because a network call timed out would throw away
@@ -21,8 +24,8 @@
  * being refreshed is visible on the page rather than hidden behind it.
  */
 
-import Redis from 'ioredis';
 import type { PosteriorSnapshot } from './assignment.js';
+import { redis } from './redis.js';
 
 /** Shared with the worker. Changing it on one side only makes the site stop adapting. */
 const SNAPSHOT_KEY = 'morph:snapshot:current';
@@ -51,41 +54,10 @@ const RETRY_AFTER_MS = 5_000;
 /** What every path falls back to: a correct, un-adapted page. Never an error. */
 const COLD: PosteriorSnapshot = { arms: {}, adaptationEnabled: true, generatedAt: 0 };
 
-let client: Redis | null = null;
 let cached: PosteriorSnapshot = COLD;
 let cachedAt = 0;
 let attemptedAt = 0;
 let inFlight: Promise<void> | null = null;
-
-function connection(): Redis | null {
-  const url = process.env['REDIS_URL'];
-  if (url === undefined || url.length === 0) return null;
-
-  client ??= new Redis(url, {
-    // Bounded, not disabled. `enableOfflineQueue: false` fails instantly, which sounds
-    // ideal until you notice it also fails the *first* command after boot — the one that
-    // triggers the connection — so the snapshot would never be read on the first attempt.
-    // Queuing it and bounding the wait means the read works normally and an unreachable
-    // Redis costs one timeout rather than a hung render.
-    maxRetriesPerRequest: 1,
-    connectTimeout: 500,
-    commandTimeout: 500,
-    lazyConnect: true,
-  });
-
-  // Required, not optional politeness. An ioredis client with no error listener emits an
-  // unhandled EventEmitter error event on every failed reconnect — which Node treats as a
-  // throw, from a background timer, with no request to attribute it to. Found by pointing
-  // this at a dead port and watching the log.
-  //
-  // Swallowed rather than logged per event, because a Redis that is down produces one of
-  // these every retry interval for as long as it is down, and a renderer that fills its
-  // log with them buries whatever else is happening. The outage is already visible where
-  // it matters: the snapshot stops advancing and the freshness term on the page falls.
-  client.on('error', () => {});
-
-  return client;
-}
 
 /**
  * Parse what came back, structurally.
@@ -148,11 +120,11 @@ async function refresh(): Promise<void> {
   // the same amount as one that fails quickly.
   attemptedAt = Date.now();
 
-  const redis = connection();
-  if (redis === null) return;
+  const client = redis();
+  if (client === null) return;
 
   try {
-    const raw = await redis.get(SNAPSHOT_KEY);
+    const raw = await client.get(SNAPSHOT_KEY);
     if (raw === null) return;
 
     const parsed = parseSnapshot(raw);

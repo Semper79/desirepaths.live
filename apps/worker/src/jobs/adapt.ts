@@ -39,6 +39,7 @@ import {
   advancePosteriors,
   buildSnapshot,
   decideAdaptations,
+  explorationRateOf,
   targetHour,
   type CycleConfig,
 } from '../lib/adapt-derive.js';
@@ -75,6 +76,8 @@ export type AdaptOutcome =
       readonly variants: number;
       readonly retired: number;
       readonly quarantined: number;
+      /** Null when no contested surface saw traffic. See `explorationRateOf`. */
+      readonly explorationRate: number | null;
     }
   | { readonly kind: 'already_applied'; readonly hour: number }
   | { readonly kind: 'no_variants' };
@@ -131,5 +134,12 @@ export async function runAdapt(deps: AdaptDeps, job: AdaptJob): Promise<AdaptOut
     adaptationEnabled: deps.adaptationEnabled,
   });
 
-  return { kind: 'applied', hour, variants: posteriors.length, retired, quarantined };
+  return {
+    kind: 'applied',
+    hour,
+    variants: posteriors.length,
+    retired,
+    quarantined,
+    explorationRate: explorationRateOf(posteriors, rewards),
+  };
 }

@@ -14,6 +14,7 @@
   "dependencies": {
     "@morph/adaptive": "workspace:*",
     "@morph/core": "workspace:*",
+    "@morph/metrics": "workspace:*",
     "@morph/seo": "workspace:*",
     "@morph/ui": "workspace:*",
     "next": "^15.1.0",

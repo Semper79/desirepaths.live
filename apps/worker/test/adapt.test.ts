@@ -16,6 +16,7 @@ import {
   buildSnapshot,
   cycleConfigFrom,
   decideAdaptations,
+  explorationRateOf,
   targetHour,
 } from '../src/lib/adapt-derive.js';
 import { runAdapt } from '../src/jobs/adapt.js';
@@ -270,6 +271,69 @@ describe('decideAdaptations', () => {
     );
 
     expect(records[0]?.action).toBe('retire');
+  });
+});
+
+describe('explorationRateOf', () => {
+  const leader: StoredPosterior = {
+    surfaceId: 's',
+    variantId: 's#leader',
+    alpha: 400,
+    beta: 600,
+    impressions: 1_000,
+  };
+  const challenger: StoredPosterior = {
+    surfaceId: 's',
+    variantId: 's#other',
+    alpha: 100,
+    beta: 900,
+    impressions: 1_000,
+  };
+
+  it('measures the share of traffic that did not go to the leader', () => {
+    const rate = explorationRateOf(
+      [leader, challenger],
+      [rewardOf('s', 's#leader', 900, 0.1), rewardOf('s', 's#other', 100, 0.1)],
+    );
+
+    expect(rate).toBeCloseTo(0.1, 6);
+  });
+
+  it('reports nothing rather than zero when no contested surface saw traffic', () => {
+    // The distinction the alert depends on. A quiet night has not measured an exploration
+    // rate of zero — it has not measured one — and reporting zero would fire
+    // ExplorationCollapsed every night until somebody stopped reading the alerts.
+    expect(explorationRateOf([leader, challenger], [])).toBeNull();
+  });
+
+  it('ignores surfaces with nothing to explore', () => {
+    // A surface reduced to one variant has no exploration to do. Counting its traffic as
+    // exploitation would drag the measured rate down every time a variant was retired —
+    // making a healthy retirement look like a collapsing bandit.
+    const only: StoredPosterior = {
+      surfaceId: 'solo',
+      variantId: 'solo#a',
+      alpha: 2,
+      beta: 2,
+      impressions: 50_000,
+    };
+
+    const rate = explorationRateOf(
+      [leader, challenger, only],
+      [
+        rewardOf('s', 's#leader', 900, 0.1),
+        rewardOf('s', 's#other', 100, 0.1),
+        rewardOf('solo', 'solo#a', 50_000, 0.1),
+      ],
+    );
+
+    expect(rate).toBeCloseTo(0.1, 6);
+  });
+
+  it('counts a variant with no reward row as having had no traffic', () => {
+    const rate = explorationRateOf([leader, challenger], [rewardOf('s', 's#leader', 500, 0.1)]);
+
+    expect(rate).toBe(0);
   });
 });
 

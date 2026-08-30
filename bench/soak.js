@@ -11,17 +11,19 @@
  * tenth are recorded as separate metrics and compared in the summary. A system that is
  * 40% slower after four hours has failed even at a p99 of 18 ms.
  *
- * WHAT THIS CAN AND CANNOT SEE
- * Two of the three named failures are observable from here. Latency drift is measured
- * directly, and ClickHouse part count is queried from `system.parts` — parts accumulate
- * when inserts outrun merges, and the end state is `too many parts` rejecting every write.
+ * WHAT THIS WATCHES
+ * All three failures `docs/ROADMAP.md` names, which was not true when this was written.
+ * Latency drift is measured directly. ClickHouse part count comes from `system.parts` —
+ * parts accumulate when inserts outrun merges, and the end state is `too many parts`
+ * rejecting every write. And process memory is now scraped from the collector's own
+ * `/metrics`, which `@morph/metrics` serves and which nothing served before.
  *
- * Process memory and connection-pool exhaustion are **not** observable from here, and this
- * script does not pretend otherwise. They need `/metrics` on the collector, which
- * `infra/prometheus/prometheus.yml` already scrapes and which no service currently serves
- * — `CountingMetrics` in `apps/api/src/routes/ingest.ts` says so in as many words. Until
- * that exists, a soak run needs a human watching `docker stats`, and the summary below
- * says so rather than quietly reporting two of three as if it were three of three.
+ * That last one is the reason to run a soak at all. A leak of a megabyte an hour is
+ * invisible in any single sample and unmistakable across four, and it is precisely the
+ * failure a load test measuring only latency will call a pass.
+ *
+ * Connection-pool depth is still not watched: Postgres and Redis do not export pool gauges
+ * yet, and a number invented here would be worse than the gap.
  *
  * Usage:
  *   k6 run bench/soak.js                        # four hours
@@ -34,6 +36,7 @@ import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 import { batch, beaconHeaders } from './payload.js';
 import { activePartCount, awaitDelivery, clickhouseConfigured } from './clickhouse.js';
+import { METRICS, residentMemoryMb } from './metrics.js';
 
 const TARGET = __ENV.TARGET || 'http://localhost:3001';
 const SMOKE = __ENV.MODE === 'smoke';
@@ -65,6 +68,8 @@ const ttfbEarly = new Trend('ttfb_early', true);
 const ttfbLate = new Trend('ttfb_late', true);
 const partsEarly = new Trend('clickhouse_parts_early');
 const partsLate = new Trend('clickhouse_parts_late');
+const memoryEarly = new Trend('collector_rss_mb_early');
+const memoryLate = new Trend('collector_rss_mb_late');
 
 export const options = {
   // k6 defaults this to avg/min/med/max/p(90)/p(95) — no p(99). Thresholds compute their
@@ -140,14 +145,25 @@ export default function () {
 }
 
 export function sampleParts() {
+  const where = phase();
+  if (where === 'middle') return;
+
+  // The collector's own resident set, read from the process under load rather than from
+  // Prometheus — a test whose job is to find out whether the system is healthy should not
+  // depend on the monitoring stack being healthy to take its measurements.
+  const rss = residentMemoryMb(METRICS.api);
+  if (rss !== null) {
+    if (where === 'early') memoryEarly.add(rss);
+    else memoryLate.add(rss);
+  }
+
   if (!clickhouseConfigured()) return;
 
   const parts = activePartCount();
   if (parts === null) return;
 
-  const where = phase();
   if (where === 'early') partsEarly.add(parts);
-  else if (where === 'late') partsLate.add(parts);
+  else partsLate.add(parts);
 }
 
 /** Same bridge as `spike.js`, and the same fail-safe default. */
@@ -211,6 +227,12 @@ export function handleSummary(data) {
     data.metrics.clickhouse_parts_late,
     '',
   );
+  const memory = drift(
+    'memory  ',
+    data.metrics.collector_rss_mb_early,
+    data.metrics.collector_rss_mb_late,
+    ' MB',
+  );
 
   let deliveryLine;
   let deliveryOk;
@@ -227,17 +249,18 @@ export function handleSummary(data) {
       : `  delivery  ${delivery.count} of ${sent} events — ${sent - delivery.count} LOST`;
   }
 
-  const passed = latency.ok && parts.ok && deliveryOk && refused === 0;
+  const passed = latency.ok && parts.ok && memory.ok && deliveryOk && refused === 0;
 
   const lines = [
     '',
     `  soak — ${passed ? 'PASS' : 'FAIL'}   ${(DURATION_MS / 3_600_000).toFixed(2)} h at ${RATE} req/s`,
     latency.line,
     parts.line,
+    memory.line,
     deliveryLine,
     '',
-    '  not observed: process memory and connection-pool depth. Both need /metrics on the',
-    '  collector, which Prometheus is configured to scrape and nothing currently serves.',
+    '  not observed: connection-pool depth. Postgres and Redis export no pool gauges yet,',
+    '  and a number invented here would be worse than the gap.',
     '',
   ];
 

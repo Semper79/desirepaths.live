@@ -145,19 +145,28 @@ The verdict is three-valued, and that is the point:
 The third is reported as `FAIL`, not as a pass with a caveat. A spike run that did not
 verify delivery has not tested the thing it exists for.
 
-### 2.4 What the soak cannot see, and says so
+### 2.4 What the soak watches, and the one thing it still cannot
 
-`docs/ROADMAP.md` names three soak failures: memory growth, connection-pool exhaustion, and
-ClickHouse part-count drift. The script measures the third from `system.parts`, and adds
-latency drift and delivery on top. It does **not** measure the first two, and prints that it
-did not.
+`docs/ROADMAP.md` names three soak failures: memory growth, connection-pool exhaustion,
+and ClickHouse part-count drift. The script now measures two of them directly and adds
+latency drift and delivery completeness on top.
 
-The reason is worth recording. `infra/prometheus/prometheus.yml` scrapes `/metrics` on the
-api, web and worker services; `infra/prometheus/rules/morph.yml` alerts on nine `morph_*`
-metric names — and **no service currently serves any of them**. `CountingMetrics` in
-`apps/api/src/routes/ingest.ts` says as much: "good enough until Prometheus is wired in
-Phase 8". Until that exists a soak needs a human watching `docker stats`, and the summary
-says so rather than reporting two of three as though it were three of three.
+Memory is the reason to run a soak at all. A leak of a megabyte an hour is invisible in
+any single sample and unmistakable across four, and it is exactly the failure a load test
+measuring only latency will call a pass. It is read from the collector's own `/metrics`
+rather than from Prometheus, deliberately: a test whose job is to find out whether the
+system is healthy should not need the monitoring stack to be healthy in order to take its
+measurements.
+
+That endpoint did not exist when these scripts were written. `prometheus.yml` scraped
+three of them, `rules/morph.yml` alerted on nine `morph_*` names, and no service emitted
+one — so every rule evaluated against nothing and was permanently not-firing, which from
+the outside is indistinguishable from a healthy system. `packages/metrics` closed that,
+and `packages/metrics/test/contract.test.ts` reads the rules file off disk and fails the
+build if a name drifts.
+
+**Still unwatched:** connection-pool depth. Postgres and Redis export no pool gauges yet,
+and a number invented here would be worse than the gap.
 
 ### 2.5 The trap these scripts are built around
 

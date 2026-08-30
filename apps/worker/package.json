@@ -14,6 +14,7 @@
   "dependencies": {
     "@morph/adaptive": "workspace:*",
     "@morph/core": "workspace:*",
+    "@morph/metrics": "workspace:*",
     "@morph/crawler": "workspace:*",
     "bullmq": "^5.34.0",
     "drizzle-orm": "^0.36.4",
