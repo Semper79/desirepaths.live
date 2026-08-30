@@ -37,10 +37,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: {
-      canonical: meta.canonical,
-      types: { 'application/rss+xml': `${site.origin}/changes.xml` },
-    },
+    // No `types` override: a page-level one replaces the layout's outright, which would
+    // have made this the only page on the site where the writing feed is undiscoverable.
+    alternates: { canonical: meta.canonical },
     openGraph: { title, description, url: meta.canonical, type: 'website' },
     twitter: { card: 'summary_large_image', title, description },
   };

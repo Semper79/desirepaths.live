@@ -122,6 +122,18 @@ baseline while a browser does not.
 - `/privacy`, `/how-it-works`, `/live` and `/t/[slug]`, so the sitemap stops advertising
   pages that do not exist. `/live` reports the variant of every surface this visitor was
   served and why, read from the same decision object the renderer used.
+- `/proof` — **the page nobody else can publish.** What the site has actually worked out
+  about its own design, ranked by how convincing each finding is, with the credible
+  interval and the sample size beside it. Every A/B vendor runs this machinery and none of
+  them can show it working, because the results belong to their customers; this site is its
+  own customer. Carries a `Dataset` in JSON-LD so each finding is individually quotable,
+  and a social card generated from the live figures so every share is a current claim.
+  Undecided results are shown next to settled ones — a page with only the wins is a
+  scoreboard, not evidence.
+- `/changes` and `/changes.xml` — the site's own decisions as a changelog and an RSS feed,
+  each entry keeping the reason written when the decision was made, word for word. The
+  retention half of the same argument `/proof` makes for acquisition, and content the
+  machine produces by operating rather than by writing.
 - Icon and social card generated from the design tokens, so the mark cannot drift from
   the palette and structured data never points at a 404.
 

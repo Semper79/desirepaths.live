@@ -111,6 +111,7 @@ morph/
 │   │   ├── src/feed.ts            ✅ RSS 2.0 and Atom 1.0
 │   │   ├── src/aeo.ts             ✅ robots.txt and llms.txt
 │   │   ├── src/meta.ts            ✅ canonical URLs, Open Graph, Twitter cards
+│   │   ├── src/jsonld.ts          ✅ Organization, WebSite, Article, FAQ, Dataset
 │   │   └── test/                  ✅ 2 files
 │   │
 │   ├── ui/                        ✅ the token contract

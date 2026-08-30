@@ -44,8 +44,22 @@ export function generateMetadata(): Metadata {
     description: site.description,
     alternates: {
       canonical: meta.canonical,
+      /**
+       * Both feeds, each named.
+       *
+       * A reader offered two unlabelled `application/rss+xml` alternates picks one and
+       * the subscriber never learns the other existed — and these two carry completely
+       * different things: one is what the site wrote, the other is what it did to itself.
+       * The titles are the only thing distinguishing them in a subscribe dialog.
+       */
       types: {
-        'application/rss+xml': `${site.origin}/feed.xml`,
+        'application/rss+xml': [
+          { url: `${site.origin}/feed.xml`, title: `${site.name} — writing` },
+          {
+            url: `${site.origin}/changes.xml`,
+            title: `${site.name} — what it changed about itself`,
+          },
+        ],
         'application/atom+xml': `${site.origin}/atom.xml`,
       },
     },
