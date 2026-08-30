@@ -123,6 +123,15 @@ describe('ThinkingBar markup', () => {
     expect(render(reading)).toContain(reading.reason);
   });
 
+  it('offers somewhere to check the number', () => {
+    // A site claiming to rewrite itself and offering nowhere to verify is asking to be
+    // taken on faith, which is the one thing this product cannot ask for. A reader who
+    // has just met a number they did not expect is exactly the one who will follow it.
+    const reading = siteSophistication(snapshotOf({}, 1_000), 1_000);
+
+    expect(render(reading)).toContain('href="/proof"');
+  });
+
   it('exposes a meter rather than a progressbar', () => {
     // A progressbar promises a task that finishes. This moves in both directions.
     const reading = siteSophistication(snapshotOf({ 'hero.headline': arms(true) }, 1_000), 1_000);

@@ -80,6 +80,18 @@ export function ThinkingBar({ reading }: { readonly reading: Sophistication }): 
         {reading.observations.toLocaleString('en-GB')} observations. This figure is read from the
         same decision the page above was built with — it is not an illustration.
       </p>
+
+      {/*
+        The link out, and the most important one on the page.
+
+        A site that says "I rewrite myself" and offers nowhere to check is asking to be
+        taken on faith, which is the one thing this product cannot ask for. `/proof` is
+        where the claim becomes checkable, and a reader who has just read a number they
+        did not expect is exactly the reader who will follow it.
+      */}
+      <p className="thinking-more">
+        <a href="/proof">See what it has worked out →</a>
+      </p>
     </section>
   );
 }

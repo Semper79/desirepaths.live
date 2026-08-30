@@ -422,6 +422,27 @@ body:has(.consent) main {
   font-size: 0.8125rem;
 }
 
+/* The link out of the reading and into the evidence behind it. */
+.thinking-more {
+  margin: calc(var(--space-unit) * 2) 0 0;
+  font-size: 0.9375rem;
+}
+
+.thinking-more a {
+  color: var(--color-accent);
+  text-decoration: none;
+  /* Padded to the tap target rather than left as bare text: this is the one link on the
+     home page the whole design wants a thumb to reach. */
+  display: inline-block;
+  min-block-size: var(--tap-min);
+  line-height: var(--tap-min);
+}
+
+.thinking-more a:hover,
+.thinking-more a:focus-visible {
+  text-decoration: underline;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .thinking-fill {
     transition: none;

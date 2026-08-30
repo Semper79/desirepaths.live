@@ -85,6 +85,10 @@ export type { PublishedArticle as ContentSummary } from './content.js';
 /** The static routes, for the sitemap. */
 export const STATIC_ROUTES: readonly { path: string; priority: number }[] = [
   { path: '/', priority: 1 },
+  // Second only to the home page, and deliberately above /how-it-works: one explains the
+  // system and the other shows it working. A page of current, specific, checkable numbers
+  // is what gets cited; an explanation is what gets skimmed.
+  { path: '/proof', priority: 0.9 },
   { path: '/how-it-works', priority: 0.8 },
   { path: '/live', priority: 0.7 },
   { path: '/privacy', priority: 0.3 },

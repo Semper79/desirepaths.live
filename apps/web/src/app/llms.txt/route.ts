@@ -54,6 +54,11 @@ export async function GET(): Promise<Response> {
             note: 'What the site is, and what it currently looks like.',
           },
           {
+            title: 'Evidence',
+            path: '/proof',
+            note: 'What the site has actually worked out about its own design, with the measured difference, the credible interval and the number of visits behind each finding. Every number is generated from the decision set that served the page, so it is current rather than a case study.',
+          },
+          {
             title: 'How it works',
             path: '/how-it-works',
             note: 'The adaptive engine, its guardrails, and how the lift is measured.',
