@@ -27,6 +27,14 @@ export default defineWorkspace([
   },
   {
     test: {
+      name: 'admin',
+      root: './apps/admin',
+      environment: 'node',
+      include: ['test/**/*.test.ts'],
+    },
+  },
+  {
+    test: {
       name: 'api',
       root: './apps/api',
       environment: 'node',

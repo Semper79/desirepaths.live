@@ -247,13 +247,43 @@ same structured input, and immediate alert escalation.
 
 ---
 
-## Phase 7 — Growth and the admin console
+## Phase 7 — Growth and the admin console 🟡 _the machinery exists; no connectors yet_
 
-`packages/social`: connectors, token-bucket limiters, circuit breakers, the scheduler
-with per-platform timing optimisation, format optimisation through the same bandit
-machinery, the referral loop, and SEO/AEO — JSON-LD, dynamic OG images, sitemap, RSS.
+**Done — `packages/social`:**
 
-Then `apps/admin`.
+The part every connector will share, built before any of them so that no connector gets to
+invent its own rate limiting. Four gates in `decide()`, each failing closed: verification,
+then the circuit breaker, then the daily cap, then the token bucket. Pure, clock as a
+parameter, state in and state out.
+
+Every platform entry is **unverified and says so**, and `assertVerified` refuses to act
+through one nobody has checked. The daily caps sit far below every documented ceiling — 40
+against X's 100, 25 against Meta's 50 — because operating at 95% of a published limit makes
+every retry an overage. A test asserts `docs/COMPLIANCE.md` quotes the same numbers the
+limiter enforces.
+
+`decide()` returns permission, a delay, or a refusal, and never an alternative route.
+That is the forbidden list in `CLAUDE.md` made structural rather than promised.
+
+**Done — `apps/admin`:**
+
+The operator console. Single operator, one secret, a signed session cookie with the expiry
+inside the signed payload — `Max-Age` is a request the client may ignore, so a replayed
+token has to fail server-side. Constant-time comparison, and a refusal to issue a session
+against a secret under 32 characters.
+
+This is deliberately **not** Phase 4's Auth.js. That is for visitors signing up to the
+public site: different audience, different threat model, different table. Merging them
+would put the console behind an internet-facing flow.
+
+One page so far, and it is the one that exists nowhere else: the surface registry joined to
+the live posteriors. The Telegram report says what changed this hour; this says what _could_
+change and what the evidence says about each option. It distinguishes "no evidence yet" from
+"reduced to one live variant", which look identical in a table and mean opposite things.
+
+**Remaining:** the connectors themselves, the scheduler, the referral loop, and the
+adaptation-log view in the console. Every connector needs credentials and a human re-reading
+that platform's published limits before `verifiedAt` can be set.
 
 **Gate:** every connector respects its documented limits under a simulated 429 storm,
 and `docs/COMPLIANCE.md` has a verified date against every platform.

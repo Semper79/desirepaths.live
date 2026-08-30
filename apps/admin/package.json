@@ -1,0 +1,30 @@
+{
+  "name": "@morph/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The operator console. Auth-gated, single operator, no user table.",
+  "scripts": {
+    "build": "next build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dev": "next dev --port 3002",
+    "start": "next start --port 3002",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@morph/adaptive": "workspace:*",
+    "@morph/core": "workspace:*",
+    "@morph/ui": "workspace:*",
+    "ioredis": "^5.4.1",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  }
+}

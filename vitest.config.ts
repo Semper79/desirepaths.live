@@ -21,6 +21,7 @@ export default defineConfig({
         'packages/*/src/**/*.ts',
         'apps/api/src/**/*.ts',
         'apps/web/src/lib/**/*.ts',
+        'apps/admin/src/lib/**/*.ts',
         'apps/worker/src/**/*.ts',
       ],
       exclude: [
@@ -63,6 +64,9 @@ export default defineConfig({
         // The web app's one database query. The row mapping and the seed it falls back to
         // live in content.ts and are covered; what is left needs a live Postgres.
         'apps/web/src/lib/db.ts',
+        // The console's Redis read: a client, a GET and a fallback. What is worth testing
+        // is the parse, and `parseSnapshot` is covered directly.
+        'apps/admin/src/lib/snapshot.ts',
         // The report's reads. Same reasoning as postgres.ts: each is a query and a shape
         // conversion with no branch, needing a live store to run at all, and every number
         // derived from what they return is covered in lib/report-derive.ts.

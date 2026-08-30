@@ -20,7 +20,7 @@ morph/
 ├── tsconfig.base.json             ✅ strict + noUncheckedIndexedAccess + exactOptional
 ├── eslint.config.mjs              ✅ flat config; no-any, no-unjustified-non-null
 ├── vitest.config.ts               ✅ coverage + path-scoped thresholds
-├── vitest.workspace.ts            ✅ the ten test projects
+├── vitest.workspace.ts            ✅ the twelve test projects
 ├── .env.example                   ✅ every variable documented with its failure mode
 ├── .gitattributes                 ✅ LF normalisation
 │
