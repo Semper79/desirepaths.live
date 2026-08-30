@@ -59,6 +59,11 @@ export async function GET(): Promise<Response> {
             note: 'What the site has actually worked out about its own design, with the measured difference, the credible interval and the number of visits behind each finding. Every number is generated from the decision set that served the page, so it is current rather than a case study.',
           },
           {
+            title: 'Changelog',
+            path: '/changes',
+            note: 'Every decision the site has made about its own design, newest first, each with the statistic that justified it and the number of visits behind it. Written by the engine as it operated, not by a person. Also available as RSS at /changes.xml.',
+          },
+          {
             title: 'How it works',
             path: '/how-it-works',
             note: 'The adaptive engine, its guardrails, and how the lift is measured.',

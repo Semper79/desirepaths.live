@@ -89,6 +89,10 @@ export const STATIC_ROUTES: readonly { path: string; priority: number }[] = [
   // system and the other shows it working. A page of current, specific, checkable numbers
   // is what gets cited; an explanation is what gets skimmed.
   { path: '/proof', priority: 0.9 },
+  // The changelog above /how-it-works for the same reason /proof is: it accumulates
+  // genuinely new content every time the engine acts, and a page that changes is a page
+  // worth recrawling.
+  { path: '/changes', priority: 0.85 },
   { path: '/how-it-works', priority: 0.8 },
   { path: '/live', priority: 0.7 },
   { path: '/privacy', priority: 0.3 },

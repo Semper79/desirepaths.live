@@ -443,3 +443,32 @@ describe('canonical URLs and metadata', () => {
     expect(html).toContain('&lt;script&gt;');
   });
 });
+
+describe('the feed self link', () => {
+  const site: FeedSite = {
+    origin: 'https://desirepath.live',
+    title: 'Desire Path',
+    description: 'A site that changes itself.',
+  };
+
+  it('names the feed it is actually in', () => {
+    // Hard-coded to /feed.xml until a second feed existed. A feed declaring itself to be a
+    // different feed is not a cosmetic error: readers use the self link to deduplicate and
+    // to follow redirects, so two feeds claiming one identity can collapse into a single
+    // subscription and the subscriber silently stops receiving half of what they asked for.
+    const xml = renderRss({ ...site, selfPath: '/changes.xml' }, [], new Date(0));
+
+    expect(xml).toContain('https://desirepath.live/changes.xml" rel="self"');
+    expect(xml).not.toContain('/feed.xml');
+  });
+
+  it('still defaults to /feed.xml for the content feed', () => {
+    expect(renderRss(site, [], new Date(0))).toContain('/feed.xml" rel="self"');
+  });
+
+  it('applies to Atom as well, which had the same hard-coded path', () => {
+    const xml = renderAtom({ ...site, selfPath: '/changes.atom' }, [], new Date(0));
+
+    expect(xml).toContain('https://desirepath.live/changes.atom');
+  });
+});

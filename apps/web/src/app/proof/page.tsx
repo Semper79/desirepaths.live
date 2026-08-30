@@ -377,6 +377,10 @@ export default async function ProofPage() {
               says exactly what is collected.{' '}
               <a href="/live" style={{ color: 'var(--color-accent)' }}>
                 See what you were served
+              </a>{' '}
+              or{' '}
+              <a href="/changes" style={{ color: 'var(--color-accent)' }}>
+                follow what it changes
               </a>
               .
             </p>

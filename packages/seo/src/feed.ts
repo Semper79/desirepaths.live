@@ -22,6 +22,15 @@ export interface FeedSite {
   readonly authorEmail?: string;
   readonly authorName?: string;
   readonly language?: string;
+  /**
+   * Path of this feed, for the `rel="self"` link.
+   *
+   * Defaults to `/feed.xml`, which was hard-coded until a second feed existed. A feed
+   * declaring itself to be a different feed is not a cosmetic error: readers use the self
+   * link to deduplicate and to follow redirects, so two feeds claiming the same identity
+   * can silently collapse into one subscription.
+   */
+  readonly selfPath?: string;
 }
 
 export interface FeedItem {
@@ -44,7 +53,7 @@ export interface FeedItem {
  * looks to a subscriber exactly like a compromised feed.
  */
 export function renderRss(site: FeedSite, items: readonly FeedItem[], now: Date): string {
-  const selfUrl = absoluteUrl(site.origin, '/feed.xml');
+  const selfUrl = absoluteUrl(site.origin, site.selfPath ?? '/feed.xml');
 
   const entries = items.map((item) => {
     const url = absoluteUrl(site.origin, item.path);
@@ -89,7 +98,7 @@ export function renderRss(site: FeedSite, items: readonly FeedItem[], now: Date)
  * without inventing a UUID scheme that has to be stored somewhere forever.
  */
 export function renderAtom(site: FeedSite, items: readonly FeedItem[], now: Date): string {
-  const selfUrl = absoluteUrl(site.origin, '/atom.xml');
+  const selfUrl = absoluteUrl(site.origin, site.selfPath ?? '/atom.xml');
   const homeUrl = absoluteUrl(site.origin, '/');
 
   const entries = items.map((item) => {
