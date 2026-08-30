@@ -16,9 +16,9 @@
  */
 
 import type { Metadata } from 'next';
-import { pageMeta } from '@morph/seo';
+import { dataset, graph, pageMeta, serialiseJsonLd } from '@morph/seo';
 import { currentSnapshot } from '../../lib/resolve.js';
-import { proofFrom, headline, format, type SettledSurface } from '../../lib/proof.js';
+import { proofFrom, headline, measurements, format, type SettledSurface } from '../../lib/proof.js';
 import { siteIdentity } from '../../lib/site.js';
 
 export const dynamic = 'force-dynamic';
@@ -198,148 +198,176 @@ function Finding({ row, settled }: { row: SettledSurface; settled: boolean }) {
 }
 
 export default async function ProofPage() {
+  const site = siteIdentity();
   const snapshot = await currentSnapshot();
   const proof = proofFrom(snapshot.arms, snapshot.generatedAt, snapshot.adaptationEnabled);
   const nothingYet = proof.settled.length === 0 && proof.stillDeciding.length === 0;
 
+  const structured = serialiseJsonLd(
+    graph([
+      dataset(
+        {
+          origin: site.origin,
+          name: site.name,
+          description: site.description,
+          logoUrl: site.logoUrl,
+        },
+        {
+          url: `${site.origin}/proof`,
+          name: 'What Desire Path has worked out about its own design',
+          description: headline(proof),
+          measuredAt: new Date(
+            proof.generatedAt === 0 ? Date.now() : proof.generatedAt,
+          ).toISOString(),
+          measurements: measurements(proof),
+        },
+      ),
+    ]),
+  );
+
   return (
-    <article
-      style={{
-        // The gutter lives on the article rather than on the shared layout, which other
-        // pages manage themselves. Without it the text sits flush against both edges at
-        // 375px — which is the width most shares are opened at, and the one place this
-        // page has to look composed rather than merely correct.
-        maxWidth: 'calc(var(--measure) + 48px)',
-        margin: '0 auto',
-        padding: 'clamp(32px, 6vw, 72px) 24px 96px',
-      }}
-    >
-      <header style={{ marginBottom: 48 }}>
-        <p
-          style={{
-            margin: '0 0 12px',
-            fontSize: 13,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
-            color: 'var(--color-accent)',
-          }}
-        >
-          Evidence
-        </p>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structured }} />
+      <article
+        style={{
+          // The gutter lives on the article rather than on the shared layout, which other
+          // pages manage themselves. Without it the text sits flush against both edges at
+          // 375px — which is the width most shares are opened at, and the one place this
+          // page has to look composed rather than merely correct.
+          maxWidth: 'calc(var(--measure) + 48px)',
+          margin: '0 auto',
+          padding: 'clamp(32px, 6vw, 72px) 24px 96px',
+        }}
+      >
+        <header style={{ marginBottom: 48 }}>
+          <p
+            style={{
+              margin: '0 0 12px',
+              fontSize: 13,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              color: 'var(--color-accent)',
+            }}
+          >
+            Evidence
+          </p>
 
-        <h1
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 'clamp(34px, 7vw, 58px)',
-            lineHeight: 1.05,
-            letterSpacing: 'var(--tracking-display)',
-            margin: '0 0 20px',
-          }}
-        >
-          What this site has worked out about itself.
-        </h1>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(34px, 7vw, 58px)',
+              lineHeight: 1.05,
+              letterSpacing: 'var(--tracking-display)',
+              margin: '0 0 20px',
+            }}
+          >
+            What this site has worked out about itself.
+          </h1>
 
-        <p style={{ fontSize: 18, lineHeight: 1.55, margin: 0, color: 'var(--color-text-muted)' }}>
-          {headline(proof)}
-        </p>
-      </header>
+          <p
+            style={{ fontSize: 18, lineHeight: 1.55, margin: 0, color: 'var(--color-text-muted)' }}
+          >
+            {headline(proof)}
+          </p>
+        </header>
 
-      {nothingYet ? (
-        <p
+        {nothingYet ? (
+          <p
+            style={{
+              padding: '20px 22px',
+              border: '1px solid var(--color-border)',
+              borderRadius: 12,
+              color: 'var(--color-text-muted)',
+              lineHeight: 1.6,
+            }}
+          >
+            Nothing yet. The engine folds an hour of measured behaviour into its posteriors every
+            hour, and until it has done that at least once, every part of this page would be a
+            guess. It says so rather than showing a plausible chart.
+          </p>
+        ) : null}
+
+        {proof.settled.length > 0 ? (
+          <section style={{ marginBottom: 56 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: '0 0 4px' }}>
+              Settled
+            </h2>
+            <p style={{ margin: '0 0 8px', color: 'var(--color-text-muted)', fontSize: 15 }}>
+              Decisions where the evidence has stopped being ambiguous — under a 5% chance the
+              runner-up is actually better. The same bar the engine uses before it retires anything.
+            </p>
+            <ul style={{ padding: 0, margin: 0 }}>
+              {proof.settled.map((row) => (
+                <Finding key={row.key} row={row} settled />
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {proof.stillDeciding.length > 0 ? (
+          <section style={{ marginBottom: 56 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: '0 0 4px' }}>
+              Still deciding
+            </h2>
+            <p style={{ margin: '0 0 8px', color: 'var(--color-text-muted)', fontSize: 15 }}>
+              Currently being served the leader, without enough evidence to call it. Shown because a
+              page with only the settled results would be a scoreboard rather than evidence.
+            </p>
+            <ul style={{ padding: 0, margin: 0 }}>
+              {proof.stillDeciding.map((row) => (
+                <Finding key={row.key} row={row} settled={false} />
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {proof.notYetMeasured.length > 0 ? (
+          <section style={{ marginBottom: 56 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: '0 0 4px' }}>
+              Not yet measured
+            </h2>
+            <p style={{ margin: '0 0 12px', color: 'var(--color-text-muted)', fontSize: 15 }}>
+              {proof.notYetMeasured.length} surfaces with no live comparison running — either no
+              evidence has arrived yet, or every option but one has already been retired.
+            </p>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--color-text-muted)' }}>
+              {proof.notYetMeasured.map((key) => (
+                <code key={key} style={{ marginRight: 14, display: 'inline-block' }}>
+                  {key}
+                </code>
+              ))}
+            </p>
+          </section>
+        ) : null}
+
+        <footer
           style={{
-            padding: '20px 22px',
-            border: '1px solid var(--color-border)',
-            borderRadius: 12,
+            borderTop: '1px solid var(--color-border)',
+            paddingTop: 24,
             color: 'var(--color-text-muted)',
+            fontSize: 14,
             lineHeight: 1.6,
           }}
         >
-          Nothing yet. The engine folds an hour of measured behaviour into its posteriors every
-          hour, and until it has done that at least once, every part of this page would be a guess.
-          It says so rather than showing a plausible chart.
-        </p>
-      ) : null}
-
-      {proof.settled.length > 0 ? (
-        <section style={{ marginBottom: 56 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: '0 0 4px' }}>
-            Settled
-          </h2>
-          <p style={{ margin: '0 0 8px', color: 'var(--color-text-muted)', fontSize: 15 }}>
-            Decisions where the evidence has stopped being ambiguous — under a 5% chance the
-            runner-up is actually better. The same bar the engine uses before it retires anything.
+          <p style={{ margin: '0 0 10px' }}>
+            Every number here comes from the same decision set that rendered this page. There is no
+            separate reporting path, which is why it can be published at all.
           </p>
-          <ul style={{ padding: 0, margin: 0 }}>
-            {proof.settled.map((row) => (
-              <Finding key={row.key} row={row} settled />
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {proof.stillDeciding.length > 0 ? (
-        <section style={{ marginBottom: 56 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: '0 0 4px' }}>
-            Still deciding
-          </h2>
-          <p style={{ margin: '0 0 8px', color: 'var(--color-text-muted)', fontSize: 15 }}>
-            Currently being served the leader, without enough evidence to call it. Shown because a
-            page with only the settled results would be a scoreboard rather than evidence.
+          <p style={{ margin: 0 }}>
+            Five per cent of visitors are pinned to an un-adapted baseline and never counted in the
+            figures above — that cohort is how the site measures itself against not adapting.
+            Measurement is anonymous, first-party and cookieless;{' '}
+            <a href="/privacy" style={{ color: 'var(--color-accent)' }}>
+              the privacy page
+            </a>{' '}
+            says exactly what is collected.{' '}
+            <a href="/live" style={{ color: 'var(--color-accent)' }}>
+              See what you were served
+            </a>
+            .
           </p>
-          <ul style={{ padding: 0, margin: 0 }}>
-            {proof.stillDeciding.map((row) => (
-              <Finding key={row.key} row={row} settled={false} />
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {proof.notYetMeasured.length > 0 ? (
-        <section style={{ marginBottom: 56 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: '0 0 4px' }}>
-            Not yet measured
-          </h2>
-          <p style={{ margin: '0 0 12px', color: 'var(--color-text-muted)', fontSize: 15 }}>
-            {proof.notYetMeasured.length} surfaces with no live comparison running — either no
-            evidence has arrived yet, or every option but one has already been retired.
-          </p>
-          <p style={{ margin: 0, fontSize: 14, color: 'var(--color-text-muted)' }}>
-            {proof.notYetMeasured.map((key) => (
-              <code key={key} style={{ marginRight: 14, display: 'inline-block' }}>
-                {key}
-              </code>
-            ))}
-          </p>
-        </section>
-      ) : null}
-
-      <footer
-        style={{
-          borderTop: '1px solid var(--color-border)',
-          paddingTop: 24,
-          color: 'var(--color-text-muted)',
-          fontSize: 14,
-          lineHeight: 1.6,
-        }}
-      >
-        <p style={{ margin: '0 0 10px' }}>
-          Every number here comes from the same decision set that rendered this page. There is no
-          separate reporting path, which is why it can be published at all.
-        </p>
-        <p style={{ margin: 0 }}>
-          Five per cent of visitors are pinned to an un-adapted baseline and never counted in the
-          figures above — that cohort is how the site measures itself against not adapting.
-          Measurement is anonymous, first-party and cookieless;{' '}
-          <a href="/privacy" style={{ color: 'var(--color-accent)' }}>
-            the privacy page
-          </a>{' '}
-          says exactly what is collected.{' '}
-          <a href="/live" style={{ color: 'var(--color-accent)' }}>
-            See what you were served
-          </a>
-          .
-        </p>
-      </footer>
-    </article>
+        </footer>
+      </article>
+    </>
   );
 }

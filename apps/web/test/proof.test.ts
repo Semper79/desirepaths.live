@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { SURFACES, SURFACE_KEYS } from '@morph/core';
 import type { Arm } from '@morph/adaptive';
-import { format, headline, proofFrom } from '../src/lib/proof.js';
+import { format, headline, measurements, proofFrom } from '../src/lib/proof.js';
 
 const found = SURFACE_KEYS.find((key) => SURFACES[key].variants.length > 1);
 if (found === undefined) throw new Error('no surface has more than one variant');
@@ -145,6 +145,53 @@ describe('headline', () => {
 
     expect(headline(proof)).toContain('300%');
     expect(headline(proof)).toContain('40.0k');
+  });
+});
+
+describe('measurements', () => {
+  it('publishes only the settled findings', () => {
+    // The load-bearing decision. A model has no way to carry "under a 5% chance the
+    // runner-up is better" through a summary, so an ambiguous figure in structured data
+    // becomes a confident claim somewhere else, with our name on it. The page shows the
+    // undecided results to a human who can read the caveat; this layer does not.
+    const proof = proofFrom(
+      { [SURFACE]: arms([0.4, 0.1]), [SECOND]: arms([0.3, 0.3], 200) },
+      1_000,
+      true,
+    );
+
+    expect(proof.stillDeciding).toHaveLength(1);
+
+    const names = measurements(proof).map((m) => m.name);
+    expect(names).toContain(SURFACE);
+    expect(names).not.toContain(SECOND);
+  });
+
+  it('always carries the two totals, even with nothing settled', () => {
+    // A dataset with no variableMeasured entries is indistinguishable from a broken one.
+    // Zero settled decisions is a fact worth publishing, not an absence.
+    const names = measurements(proofFrom({}, 0, true)).map((m) => m.name);
+
+    expect(names).toEqual(['Design decisions settled', 'Measured visits']);
+  });
+
+  it('gives every measurement a unit a crawler understands', () => {
+    const proof = proofFrom({ [SURFACE]: arms([0.4, 0.1]) }, 1_000, true);
+
+    for (const measurement of measurements(proof)) {
+      expect(['P1', 'C62'], measurement.name).toContain(measurement.unitCode);
+      // The description is what gets quoted alongside the number, so an empty one wastes
+      // the entry entirely.
+      expect(measurement.description.length).toBeGreaterThan(40);
+    }
+  });
+
+  it('carries the interval into the description, so a quoted figure keeps its error bar', () => {
+    const proof = proofFrom({ [SURFACE]: arms([0.4, 0.1]) }, 1_000, true);
+    const finding = measurements(proof).find((m) => m.name === SURFACE);
+
+    expect(finding?.description).toContain('credible interval');
+    expect(finding?.description).toContain('measured visits');
   });
 });
 

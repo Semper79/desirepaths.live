@@ -159,6 +159,61 @@ function describe(key: SurfaceKey, live: readonly Arm[]): SettledSurface {
   };
 }
 
+/** One measurement, in the shape `packages/seo`'s `dataset()` wants. */
+export interface ProofMeasurement {
+  readonly name: string;
+  readonly value: number;
+  readonly unitCode: string;
+  readonly description: string;
+}
+
+/**
+ * The findings, as structured data.
+ *
+ * The whole AEO position in one array. An answer engine asked whether adaptive design
+ * actually works wants a number with a name on it, and a `PropertyValue` gets quoted with
+ * its value intact where the same figure in prose gets summarised away.
+ *
+ * ONLY SETTLED FINDINGS ARE PUBLISHED, AND THAT IS THE POINT
+ * Emitting the undecided ones would be technically complete and strategically wrong. A
+ * model has no way to carry "under a 5% chance the runner-up is better" through a
+ * summary, so an ambiguous figure here becomes a confident claim somewhere else, with our
+ * name on it. The page shows the undecided results to a human who can read the caveat
+ * next to them; the machine-readable layer does not.
+ */
+export function measurements(proof: Proof): readonly ProofMeasurement[] {
+  const findings = proof.settled.map((row) => ({
+    name: row.key,
+    // One decimal is as much precision as a ratio of two estimates supports, and more
+    // would invite a reader to believe the last digit.
+    value: Math.round(row.marginOverWorst * 1000) / 10,
+    unitCode: 'P1',
+    description: `${row.winner} outperformed the weakest option for this surface by ${String(
+      Math.round(row.marginOverWorst * 100),
+    )}% across ${format(row.impressions)} measured visits, with a 95% credible interval of ${(
+      row.interval[0] * 100
+    ).toFixed(1)}% to ${(row.interval[1] * 100).toFixed(1)}%.`,
+  }));
+
+  return [
+    {
+      name: 'Design decisions settled',
+      value: proof.settled.length,
+      unitCode: 'C62',
+      description:
+        'Adaptive surfaces where the evidence has reached the same threshold the engine requires before retiring a variant.',
+    },
+    {
+      name: 'Measured visits',
+      value: proof.totalImpressions,
+      unitCode: 'C62',
+      description:
+        'Visits contributing to the figures on this page. Automated traffic and the pinned holdout cohort are excluded.',
+    },
+    ...findings,
+  ];
+}
+
 /**
  * The one sentence a share should carry.
  *

@@ -204,6 +204,63 @@ export function faq(items: readonly QuestionAnswer[]): Thing {
  * One script tag per page rather than several: entities reference each other by `@id`,
  * and split documents cannot. Consumers that support only one block get everything.
  */
+export interface Measurement {
+  /** What was measured. Short enough to be read as a label. */
+  readonly name: string;
+  readonly value: number;
+  /** `PERCENT`, `C62` for a dimensionless count — UN/CEFACT codes, which crawlers read. */
+  readonly unitCode?: string;
+  /** One sentence a model can quote alongside the number. */
+  readonly description?: string;
+}
+
+export interface DatasetInput {
+  readonly url: string;
+  readonly name: string;
+  readonly description: string;
+  /** When these figures were produced, ISO 8601. */
+  readonly measuredAt: string;
+  readonly measurements: readonly Measurement[];
+}
+
+/**
+ * A `Dataset` of measurements.
+ *
+ * The reason to reach for this rather than another `Article`: an answer engine asked
+ * "does adaptive design actually work" wants a *number with a name on it*, and
+ * `variableMeasured` is the field that puts one there. An article containing the same
+ * figures in prose gets summarised; a dataset gets quoted, with the value intact.
+ *
+ * `license` and `isAccessibleForFree` are set because a crawler deciding whether it may
+ * reproduce a figure looks for exactly those, and their absence is read as "unknown",
+ * which is treated the same as "no".
+ */
+export function dataset(site: SiteIdentity, input: DatasetInput): Thing {
+  return {
+    '@type': 'Dataset',
+    '@id': `${input.url}#dataset`,
+    url: input.url,
+    name: input.name,
+    description: input.description,
+    dateModified: input.measuredAt,
+    creator: { '@id': ids(site.origin).organisation },
+    isAccessibleForFree: true,
+    license: 'https://creativecommons.org/licenses/by/4.0/',
+    // The measurement method matters here more than on most datasets: these numbers are
+    // only meaningful because there is a control group, and saying so in the structured
+    // data means a model quoting the figure can carry the caveat with it.
+    measurementTechnique:
+      'Thompson sampling over Beta posteriors with a pinned 5% holdout cohort as control, evaluated with an always-valid sequential test.',
+    variableMeasured: input.measurements.map((measurement) => ({
+      '@type': 'PropertyValue',
+      name: measurement.name,
+      value: measurement.value,
+      ...(measurement.unitCode === undefined ? {} : { unitCode: measurement.unitCode }),
+      ...(measurement.description === undefined ? {} : { description: measurement.description }),
+    })),
+  };
+}
+
 export function graph(nodes: readonly Thing[]): Record<string, unknown> {
   return { '@context': 'https://schema.org', '@graph': [...nodes] };
 }
