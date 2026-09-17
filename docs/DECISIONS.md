@@ -735,3 +735,126 @@ exceptions, and a rate above one is not a rate.
 
 The general point is worth keeping: a threshold checked against an absent measurement is
 worse than no threshold, because it looks like protection.
+
+---
+
+### D31 — The whole stack moves to Cloudflare — **Taken**
+
+The operator needs this on Cloudflare, from an account that does not exist yet. That was
+not the target the architecture was built against: `infra/docker-compose.yml` assumes a
+machine with Postgres, ClickHouse, Redis, Redpanda, Caddy, Prometheus and Grafana on it.
+
+**What survives, and why it survives.** `packages/adaptive` has zero runtime dependencies
+and performs no I/O — a rule in `CLAUDE.md` from the first commit, justified there as what
+keeps decision latency under 5 ms and makes the engine exhaustively testable. It turns out
+to be what makes this port a port rather than a rewrite: the bandit runs unmodified on a
+Worker. The same holds for the jobs, which are written against `src/ports.ts` with thin
+adapters that coverage already excludes. The adapters are replaced; the logic is not.
+
+Concretely: `packages/adaptive`, `packages/core` schemas, `packages/seo`, `packages/ui`,
+every page, every zod boundary, and the k6 scripts in `bench/` all survive. The domain
+logic of the ingest route and of all four jobs survives.
+
+**The mapping.**
+
+| Today | On Cloudflare |
+| --- | --- |
+| Next.js in a container | Workers via OpenNext (D32) |
+| Fastify ingest (`apps/api`) | one Worker; the route logic is unchanged |
+| Postgres — content, `adaptation_log` | D1, via `drizzle-orm/d1` |
+| ClickHouse — raw events, aggregates | Analytics Engine, plus D1 rollups (D33) |
+| Redis — assignment stickiness, buckets | Durable Objects (D33); KV for the snapshot |
+| Redpanda | Queues |
+| BullMQ schedulers | Cron Triggers |
+| Prometheus + `prom-client` | dies — see below |
+
+**What dies, and what that costs.** `packages/metrics` cannot run on a Worker:
+`prom-client` requires `node:cluster`, and a Worker has no process to scrape. The nine
+`morph_*` metrics and the contract test that pins them to the alert rules go with it, and
+the two Grafana dashboards lose their datasource. That is a real loss of work and it is
+not recoverable by being clever — the pull model does not exist here. The replacement is
+Analytics Engine as the metrics store and Grafana reading it over the SQL API, which is a
+different shape: no `histogram_quantile` over Prometheus buckets, no recording rules.
+
+**What it costs in money, stated plainly.** The Workers free plan allows 100,000 requests
+per day. The design target in `CLAUDE.md` is 5M events per day — fifty times that — so the
+free plan is a launch configuration, not the target configuration. Workers Paid is $5 per
+month and includes 10M requests; at the design target the bill is tens of dollars a month,
+not thousands, but it is not zero and it scales with traffic in a way a fixed VPS does not.
+The honest summary: cheaper than a VPS until roughly 1M events/day, more expensive after.
+
+**What was not considered and why.** Keeping ClickHouse on a managed host and pointing
+Workers at it over HTTP would preserve the aggregates exactly. It was rejected because it
+reintroduces the thing the operator is trying to avoid — a server to run and pay for — and
+because a cross-network read on the adaptive path cannot meet the 5 ms budget.
+
+---
+
+### D32 — OpenNext, not vinext, even though Cloudflare recommends vinext — **Taken**
+
+Cloudflare's own documentation now points new Next.js projects at `vinext`, a Vite plugin
+that reimplements the Next.js API surface, and describes the OpenNext adapter as the path
+for maintaining an existing application. Taking the recommendation would be the default
+choice and it is the wrong one here.
+
+`vinext` reimplements the API surface rather than adapting the output of `next build`. That
+buys faster builds and smaller bundles and costs coverage of the long tail — and the
+reported gaps include App Router CSS ordering and cascade regressions.
+
+For most sites that is a cosmetic risk. For this one it is the product. MORPH's adaptive
+surfaces are CSS custom properties resolved per request: layout, type scale and colour are
+what the engine changes, and the changes are what `/proof` publishes evidence about. A
+cascade regression here does not misalign a component — it silently decouples the design a
+visitor sees from the design the posteriors think was served, which poisons the evidence
+rather than breaking the page. The failure would look like a bad experiment result.
+
+So: OpenNext, which adapts real `next build` output and has been tested far longer. Revisit
+when `vinext` is no longer described as experimental, and only behind a visual diff of the
+resolved custom properties across every surface.
+
+---
+
+### D33 — Exact counters in Durable Objects; Analytics Engine for everything sampled — **Taken**
+
+This is the one that would have been a silent catastrophe.
+
+Analytics Engine downsamples on write and on read when an index receives large volumes,
+and exposes the rate as `_sample_interval` so queries can weight by it. Weighted
+aggregates recover the right *mean*. They do not recover the right *confidence*.
+
+The bandit's Beta posteriors are pseudo-counts. Feed them a count reconstructed as
+`sum(_sample_interval)` and the mean is right while the implied certainty is inflated by
+the sampling factor: a variant seen 100 times at 1-in-100 sampling enters the posterior as
+10,000 observations. The mSPRT then crosses its boundary on noise, `probabilityGreater`
+reports 97%, and the adapt job retires a perfectly good variant with a confident-looking
+reason attached. Nothing logs an error. `/proof` publishes it as a settled finding.
+
+This is the same class of failure `apps/worker/src/env.ts` already refuses for the
+deterministic embedding provider — a component that is meaningless in production while
+nothing appears broken — so it gets the same treatment: made impossible, not discouraged.
+
+**The split.**
+
+- **Durable Objects hold the counters the engine reasons from.** One object per surface,
+  SQLite-backed, holding exact impressions and rewards per variant. Surfaces number in the
+  tens, writes are batched behind an alarm rather than one per event, and the adapt job
+  reads exact integers. No sampling touches the evidence.
+- **Analytics Engine holds the event stream** — Core Web Vitals, referrer classes, country,
+  device, client errors. Sampling is statistically fine for all of it, and
+  `quantileExactWeighted(q, column, _sample_interval)` gives the p75 and p95 that
+  `vitals_hourly` currently computes from quantile states.
+- **D1 holds content, `adaptation_log`, and hourly rollups.** Analytics Engine keeps data
+  for three months and then deletes it rather than rolling it up, so a cron materialises
+  the hourly aggregates into D1 inside that window. This is the replacement for the
+  materialized views in `infra/clickhouse/init/`, and it is a job that must not silently
+  stop: a gap in it is unrecoverable, because the source is gone.
+
+**What it costs.** Durable Object writes are billed and rate-limited — 100,000 SQLite row
+writes per day on the free plan — which is what forces the batching. A surface receiving a
+burst has its counter flushed on an alarm, so the posteriors can lag the traffic by the
+flush interval. That is acceptable: the adapt job runs hourly and `assignment` reads the
+published snapshot, neither of which needs a counter current to the second.
+
+**The line that is not negotiable.** If a counter the engine reasons from ever has to come
+from a sampled source, it stops being evidence. Sampled numbers may inform, rank and
+display; they may not enter a posterior.
