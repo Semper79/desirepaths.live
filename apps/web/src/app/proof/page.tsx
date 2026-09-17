@@ -1,9 +1,8 @@
 /**
  * The evidence page.
  *
- * Every A/B testing vendor runs this machinery and none of them can show it working,
- * because the results belong to their customers. This site is its own customer, so the
- * numbers are publishable — and publishing them is the differentiator, not a flourish.
+ * The numbers here are publishable because this site is the thing being optimised rather
+ * than somebody else's site running the optimiser — see the note in `lib/proof.ts`.
  *
  * Designed to be screenshotted. One enormous number, then the findings ranked by how
  * convincing they are, then an honest account of what is still undecided. A page that

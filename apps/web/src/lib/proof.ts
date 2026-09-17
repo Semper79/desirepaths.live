@@ -2,16 +2,12 @@
  * What the site has worked out, in public.
  *
  * `/live` answers "what did *I* get, and why". This answers "what has this thing actually
- * learned", which is a different question with a different audience — and it is the one
- * nobody else can answer. Optimizely, VWO, AB Tasty and Kameleoon all run this machinery
- * and none of them can show it working, because the results belong to their customers.
- * Here the site is its own customer, so the evidence is publishable.
+ * learned", which is a different question with a different audience.
  *
- * WHY THIS IS THE COMMERCIAL SURFACE AND NOT JUST A CURIOSITY
- * A page of specific, current, checkable numbers is the most citable thing a site can
- * have. It is what an AI crawler quotes, what somebody screenshots, and what a buyer looks
- * at instead of a case study. `docs/ARCHITECTURE.md` calls transparency the moat; this is
- * the moat rendered.
+ * It is publishable here for a structural reason rather than a brave one: an adaptive
+ * optimiser normally runs on somebody else's site, so its results are that customer's to
+ * disclose. This site is the thing being optimised, so the evidence is ours to show. See
+ * D27 in `docs/DECISIONS.md`.
  *
  * Pure, and derived only from the published snapshot. Every number here is one the engine
  * actually used to serve a page — there is no separate reporting path that could flatter

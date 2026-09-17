@@ -6,8 +6,8 @@
  * "this website retired one of its own headlines this morning, here is the statistic that
  * killed it" is content produced by operating rather than by writing.
  *
- * It is also the retention mechanic. Somebody who reads `/proof` once has seen the
- * evidence; somebody subscribed here finds out every time it moves.
+ * Somebody who reads `/proof` once has seen the evidence as it stood that day; somebody
+ * subscribed here finds out every time it moves.
  */
 
 import { renderRss, type FeedItem } from '@morph/seo';

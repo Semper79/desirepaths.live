@@ -611,13 +611,6 @@ actually knows, derived from the same posteriors that chose the page around it, 
 four-way breakdown underneath and a plain-language sentence saying what is holding the
 number down.
 
-**Why this is the commercial decision it looks like.** The content is not the product and
-never will be — auto-generated trend copy is the lowest-value inventory on the web. The
-engine is the product, and the site is its demo. A checkable number on a public page is the
-one claim a buyer cannot get from a vendor deck, and it is exactly the kind of quotable
-fact answer engines cite, which is the top of the funnel this whole SEO/AEO posture exists
-to feed.
-
 **What makes it worth anything.** Three rules, each enforced rather than intended:
 
 1. **It is not a surface.** No entry in the registry, rendered outside `sectionOrder`, and

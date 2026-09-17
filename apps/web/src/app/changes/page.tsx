@@ -1,11 +1,10 @@
 /**
  * What the site has changed about itself, most recent first.
  *
- * `/proof` says what it currently believes; this says when it changed its mind. That is
- * the half with a narrative in it, and narrative is what people subscribe to — a feed of
- * "this website just retired one of its own headlines, and here is the statistic that
- * killed it" is content the machine produces by operating, with no model and no editorial
- * calendar behind it.
+ * `/proof` says what it currently believes; this says when it changed its mind, which is
+ * the half with a narrative in it. "This website just retired one of its own headlines,
+ * and here is the statistic that killed it" is content the machine produces by operating,
+ * with no model and no editorial calendar behind it.
  *
  * Every entry keeps the reason written when the decision was made, verbatim. Rewriting
  * them into something friendlier would put a gap between what the operator was told and
