@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The Prometheus contract: one definition per metric name, shared by every service that emits one.",
+  "description": "The metric contract: one declaration per metric name, shared by every service that emits one, with a pluggable sink.",
   "exports": {
     ".": "./src/index.ts"
   },
@@ -11,9 +11,6 @@
     "build": "tsc --noEmit -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
-  },
-  "dependencies": {
-    "prom-client": "^15.1.3"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

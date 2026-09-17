@@ -33,13 +33,10 @@ import { anthropicGenerator } from './adapters/anthropic-generator.js';
 import { anthropicProse } from './adapters/anthropic-prose.js';
 import { clickhouseEngagement, clickhouseQuery } from './adapters/clickhouse.js';
 import {
-  CONTENT_TYPE,
   adaptCycleHour,
-  collectRuntimeMetrics,
   explorationRate,
   queueFailed,
   queueWaiting,
-  renderMetrics,
   variantsQuarantined,
   variantsRetired,
 } from '@morph/metrics';
@@ -362,15 +359,18 @@ async function registerSchedules(): Promise<void> {
  * alive but cannot reach Redis should be restarted, not merely taken out of rotation, and
  * conflating the two makes both answers useless.
  */
-collectRuntimeMetrics('worker');
-
+// No runtime metrics: `collectRuntimeMetrics` went with prom-client (D31), and a Worker
+// has no process, heap or event loop to report on. Named in `@morph/metrics` as a
+// permanent loss rather than an unimplemented one.
 /**
- * Queue depth, read at scrape time rather than pushed.
+ * Queue depth, sampled on a timer.
  *
- * A gauge that is only updated when a job runs reports the depth as it was during the last
- * job, which on a stalled queue is the one number that will never change again — precisely
- * the situation `QueueBacklog` in `morph.yml` exists to catch. Reading on scrape costs one
- * round trip per queue every fifteen seconds and always describes now.
+ * It used to be read at scrape time, which was the better design while something scraped:
+ * a gauge only updated when a job runs reports the depth as it was during the last job,
+ * which on a stalled queue is the one number that will never change again — precisely the
+ * situation `QueueBacklog` exists to catch. With the pull model gone (D31) the sampling
+ * has to be pushed on an interval instead, and the interval is what now decides how stale
+ * the number can be.
  */
 async function sampleQueueDepth(): Promise<void> {
   await Promise.all(
@@ -389,24 +389,10 @@ async function sampleQueueDepth(): Promise<void> {
 const health = createServer((request, response) => {
   const ready = connection.status === 'ready';
 
-  if (request.url === '/metrics') {
-    sampleQueueDepth()
-      .catch(() => {
-        // A Redis that cannot answer leaves the queue gauges at their previous values,
-        // which is stale but not wrong — and the `up` series plus `ServiceDown` already
-        // say the worker is in trouble. Failing the whole scrape would take the runtime
-        // metrics down with it, and those are the ones that explain why.
-      })
-      .then(renderMetrics)
-      .then((body) => {
-        response.writeHead(200, { 'content-type': CONTENT_TYPE });
-        response.end(body);
-      })
-      .catch(() => {
-        response.writeHead(500).end();
-      });
-    return;
-  }
+  // `/metrics` is gone. Prometheus pulls and there is nothing left to pull from: the
+  // exposition format went with prom-client, and this process is being replaced by Cron
+  // Triggers that no scraper can reach. Queue depth is still sampled — by the cycle that
+  // needs it, not by whoever happened to scrape.
 
   if (request.url === '/ready') {
     response.writeHead(ready ? 200 : 503, { 'content-type': 'application/json' });
@@ -514,6 +500,25 @@ async function handleUpdate(client: TelegramClient, raw: unknown): Promise<void>
 
 await registerSchedules();
 health.listen(env.WORKER_HEALTH_PORT);
+
+/**
+ * Fifteen seconds, because that is what `prometheus.yml` scraped at and the alert
+ * thresholds were tuned against that resolution. Changing the cadence changes how long a
+ * backlog has to persist before `QueueBacklog` would see it, so the two move together or
+ * not at all.
+ *
+ * `unref` so a pending timer cannot hold the process open during a shutdown that is
+ * otherwise complete.
+ */
+const QUEUE_SAMPLE_MS = 15_000;
+const queueSampler = setInterval(() => {
+  void sampleQueueDepth().catch(() => {
+    // A Redis that cannot answer leaves the gauges at their previous values, which is
+    // stale but not wrong. The worker being in trouble is already visible elsewhere, and
+    // a telemetry read is not worth a log line every fifteen seconds during an outage.
+  });
+}, QUEUE_SAMPLE_MS);
+queueSampler.unref();
 
 if (bot !== null) {
   // Not awaited: the loop never returns. Failures inside it are logged, and the process

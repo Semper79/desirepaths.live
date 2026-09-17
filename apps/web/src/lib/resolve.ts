@@ -16,6 +16,7 @@ import {
 import { decisionDurationMs, snapshotAgeSeconds } from '@morph/metrics';
 import { currentSnapshot as readSnapshot } from './snapshot.js';
 import { kvAssignmentStore } from './kv-assignment-store.js';
+import { ensureTelemetry } from './telemetry.js';
 import {
   ANON_ID_HEADER,
   BOT_SCORE_HEADER,
@@ -58,6 +59,11 @@ export interface RequestHeaders {
  * baseline is always safe; rendering nothing is not.
  */
 export async function assignmentForRequest(headers: RequestHeaders): Promise<ResolvedAssignment> {
+  // Before the first `observe` below, not after: a metric recorded into the default sink
+  // is counted and dropped, and the first request of every isolate would be the one that
+  // vanished.
+  await ensureTelemetry();
+
   const anonId = headers.get(ANON_ID_HEADER);
   const context: VisitorContext | null = decodeContext(headers.get(CONTEXT_HEADER));
 
