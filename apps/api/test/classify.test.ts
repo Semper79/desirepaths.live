@@ -7,7 +7,6 @@ import {
   isBotUserAgent,
   viewportBucket,
 } from '../src/lib/classify.js';
-import { INGEST_BUCKET, TokenBucketLimiter } from '../src/lib/rate-limit.js';
 
 describe('deviceClass', () => {
   it('prefers client hints over the user agent', () => {
@@ -231,78 +230,5 @@ describe('bot detection', () => {
     const high = botScore({ ...base, eventRate: 30 });
     expect(mid).toBeGreaterThan(low);
     expect(high).toBeGreaterThan(mid);
-  });
-});
-
-describe('TokenBucketLimiter', () => {
-  it('rejects an invalid configuration', () => {
-    expect(() => new TokenBucketLimiter({ capacity: 0, refillPerSecond: 1 })).toThrow(RangeError);
-    expect(() => new TokenBucketLimiter({ capacity: 1, refillPerSecond: 0 })).toThrow(RangeError);
-  });
-
-  it('permits a burst up to capacity, then stops', () => {
-    const limiter = new TokenBucketLimiter({ capacity: 5, refillPerSecond: 1 });
-    for (let i = 0; i < 5; i += 1) {
-      expect(limiter.consume('v1', 0).allowed, `call ${String(i)}`).toBe(true);
-    }
-    const denied = limiter.consume('v1', 0);
-    expect(denied.allowed).toBe(false);
-    expect(denied.remaining).toBe(0);
-    expect(denied.retryAfterMs).toBe(1_000);
-  });
-
-  it('refills at the configured rate', () => {
-    const limiter = new TokenBucketLimiter({ capacity: 5, refillPerSecond: 2 });
-    for (let i = 0; i < 5; i += 1) limiter.consume('v1', 0);
-    expect(limiter.consume('v1', 0).allowed).toBe(false);
-    expect(limiter.consume('v1', 500).allowed).toBe(true);
-  });
-
-  it('never refills beyond capacity', () => {
-    const limiter = new TokenBucketLimiter({ capacity: 3, refillPerSecond: 1 });
-    limiter.consume('v1', 0);
-    // An hour later the bucket is full, not overflowing.
-    expect(limiter.consume('v1', 3_600_000).remaining).toBe(2);
-  });
-
-  it('has no window edge - the failure mode a fixed window has', () => {
-    const limiter = new TokenBucketLimiter({ capacity: 10, refillPerSecond: 10 });
-    // Drain at the end of one notional second...
-    for (let i = 0; i < 10; i += 1) limiter.consume('v1', 999);
-    // ...and immediately at the start of the next. A fixed window would hand over a
-    // whole fresh budget here, letting a client send 2x the intended rate across the
-    // boundary. A token bucket has refilled 0.01 tokens in 1ms and says no.
-    expect(limiter.consume('v1', 1_000).allowed).toBe(false);
-    // A full second later the budget really has returned.
-    expect(limiter.consume('v1', 1_999).allowed).toBe(true);
-  });
-
-  it('keeps clients independent', () => {
-    const limiter = new TokenBucketLimiter({ capacity: 1, refillPerSecond: 1 });
-    expect(limiter.consume('a', 0).allowed).toBe(true);
-    expect(limiter.consume('b', 0).allowed).toBe(true);
-    expect(limiter.consume('a', 0).allowed).toBe(false);
-  });
-
-  it('charges a batch its true cost', () => {
-    const limiter = new TokenBucketLimiter({ capacity: 10, refillPerSecond: 1 });
-    expect(limiter.consume('v1', 0, 7).allowed).toBe(true);
-    expect(limiter.consume('v1', 0, 7).allowed).toBe(false);
-  });
-
-  it('bounds memory, and fails permissively when it evicts', () => {
-    const limiter = new TokenBucketLimiter({ capacity: 1, refillPerSecond: 1 }, 100);
-    for (let i = 0; i < 500; i += 1) limiter.consume(`client-${String(i)}`, 0);
-    expect(limiter.size).toBeLessThanOrEqual(100);
-    // An evicted client gets a fresh bucket rather than a lockout: the safe direction.
-    expect(limiter.consume('client-0', 0).allowed).toBe(true);
-  });
-
-  it('uses ingest defaults sized for a real session', () => {
-    const limiter = new TokenBucketLimiter(INGEST_BUCKET);
-    // An energetic page load: scroll, engagement pings, vitals, a few clicks.
-    for (let i = 0; i < 40; i += 1) {
-      expect(limiter.consume('v1', i * 100).allowed, `event ${String(i)}`).toBe(true);
-    }
   });
 });

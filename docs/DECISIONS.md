@@ -888,3 +888,66 @@ object per rotating daily anonymous id, which is the wrong tool at any price.
 **The line that is not negotiable.** If a counter the engine reasons from ever has to come
 from a sampled source, it stops being evidence. Sampled numbers may inform, rank and
 display; they may not enter a posterior.
+
+---
+
+### D34 — The collector trusts `cf-connecting-ip`, and rate-limits beacons instead of events — **Taken**
+
+Two changes, one forced by the port and one a genuine loosening that should not be
+discovered later by reading the code.
+
+**The bug.** `apps/api` read `x-real-ip`, which the Caddyfile filled from `{remote_host}`
+— the TCP peer. That was correct behind Caddy and is wrong behind Cloudflare, where the
+peer is a Cloudflare PoP. Every visitor arriving through one datacentre would have hashed
+to the same anonymous id, and since the rate limiter is keyed on that hash, an entire PoP
+would have shared a single 60-token bucket: the collector would have answered 429 to
+almost everything under any real traffic, and the analytics would have shown a handful of
+impossibly busy visitors.
+
+`cf-connecting-ip` is set by the edge itself and cannot be reached by a client. It is the
+only address header here worth believing, and `apps/web/src/middleware.ts` already read it
+— the collector was the half that did not. `test/ingest.test.ts` now pins both directions:
+a forged `x-real-ip` must not move the identity, and the edge header must.
+
+The country moves the same way, from an `x-country` header Caddy set to `request.cf.country`.
+A header a client can send is a claim about identity, and §3's rule is that a client may
+report what it observed and never what it is.
+
+**The loosening.** The token bucket was in-process: `{ capacity: 60, refillPerSecond: 2 }`,
+charged per _event_, so a batch of forty cost forty tokens. That cannot survive the port.
+Isolates are many and short-lived, so in-process state limits nothing; the alternatives
+were a Durable Object or Cloudflare's rate limiting binding.
+
+A Durable Object would have preserved the semantics exactly and cost a round trip on the
+5,000 req/s path, plus roughly 430M object requests a day. At $0.15 per million that is
+about $65 a day to enforce a limit that exists to save money. It was not close.
+
+So: the platform limiter, which counts **calls, not events**, at 120 beacons per minute per
+anonymous id. The honest accounting of what that gives up:
+
+|                         | Before     | After                     |
+| ----------------------- | ---------- | ------------------------- |
+| Sustained               | 2 events/s | 2 beacons/s               |
+| Burst                   | 60 events  | 120 beacons in any minute |
+| Worst case per identity | 2 events/s | 100 events/s              |
+
+Fifty times looser, because `IngestBatchSchema` caps a beacon at fifty events and a
+beacon is now one unit instead of fifty. The cap is what keeps the worst case finite at
+all, which makes it load-bearing rather than a tidy validation detail — and it is worth
+knowing that relaxing that `.max(50)` would quietly relax this too.
+
+**Why that is acceptable here, and where it would not be.** The limiter is cost and abuse
+protection, not measurement protection. What protects the measurements is elsewhere and
+unchanged: the bot classifier scores automated traffic at 100 and the aggregates exclude
+it, and D33 already forbids anything sampled from entering a posterior. A visitor who
+floods inflates an Analytics Engine row count and their own session's numbers; they cannot
+move a Beta.
+
+It would not be acceptable if the limiter were the thing standing between one client and
+the evidence. It is not, and the day it becomes so this decision has to be reopened.
+
+**The fixed window, which is the other thing lost.** A token bucket has no window edge; a
+fixed window hands over a whole fresh budget at the boundary, so a client can send twice
+the intended rate across it. `classify.test.ts` used to have a case pinning exactly that
+property. It is gone with the implementation, and the platform's behaviour at the boundary
+is Cloudflare's to define rather than ours to test.

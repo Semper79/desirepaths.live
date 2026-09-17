@@ -45,8 +45,14 @@ export interface MorphBindings {
   readonly ASSIGNMENTS?: KVNamespace;
   /** The published posterior snapshot, written by the adapt cron. */
   readonly SNAPSHOT?: KVNamespace;
-  /** The raw event stream. Sampled, and therefore never a source for a posterior. D33. */
-  readonly EVENTS?: AnalyticsEngineDataset;
+  /**
+   * `morph_*` instrument observations.
+   *
+   * Not the event stream: that belongs to the ingest Worker. This one is deliberately the
+   * only dataset the renderer can reach, so a posterior cannot be fed from here even by
+   * accident (D33).
+   */
+  readonly METRICS?: AnalyticsEngineDataset;
 }
 
 /**
@@ -83,9 +89,9 @@ export async function snapshotKv(): Promise<KVNamespace | null> {
   return (await cloudflareEnv())?.SNAPSHOT ?? null;
 }
 
-/** The event dataset, or `null` when unbound. */
-export async function eventsDataset(): Promise<AnalyticsEngineDataset | null> {
-  return (await cloudflareEnv())?.EVENTS ?? null;
+/** The metric dataset, or `null` when unbound. */
+export async function metricsDataset(): Promise<AnalyticsEngineDataset | null> {
+  return (await cloudflareEnv())?.METRICS ?? null;
 }
 
 /**
@@ -103,7 +109,7 @@ export async function bindingReport(): Promise<{
   const env = await cloudflareEnv();
   if (env === null) return { onWorkers: false, missing: [] };
 
-  const required: readonly (keyof MorphBindings)[] = ['DB', 'ASSIGNMENTS', 'SNAPSHOT', 'EVENTS'];
+  const required: readonly (keyof MorphBindings)[] = ['DB', 'ASSIGNMENTS', 'SNAPSHOT', 'METRICS'];
   return {
     onWorkers: true,
     missing: required.filter((name) => env[name] === undefined),

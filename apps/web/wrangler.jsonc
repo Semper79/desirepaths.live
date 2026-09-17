@@ -74,14 +74,17 @@
   ],
 
   /**
-   * The raw event stream. Sampled by the platform, and therefore never a source for a
-   * posterior — see D33, which is the decision this binding exists on the wrong side of
-   * if anyone forgets.
+   * Instrument observations only.
+   *
+   * The renderer does not write behavioural events — the browser beacon goes to the ingest
+   * Worker, which owns `morph_events`. Binding both here would have given this Worker a
+   * capability it has no reason to hold, and D33's line is easier to keep when the wrong
+   * dataset is simply not reachable from the render path.
    */
   "analytics_engine_datasets": [
     {
-      "binding": "EVENTS",
-      "dataset": "morph_events",
+      "binding": "METRICS",
+      "dataset": "morph_metrics",
     },
   ],
 

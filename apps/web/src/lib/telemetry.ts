@@ -14,13 +14,13 @@
  * Cloudflare context.
  *
  * WHY A FAILURE HERE IS SWALLOWED
- * Everything this does is telemetry. A deployment with no `EVENTS` binding should serve
+ * Everything this does is telemetry. A deployment with no `METRICS` binding should serve
  * pages and be visibly unmonitored — `/api/ready` reports the missing binding — rather
  * than fail to render because it could not set up its own instrumentation.
  */
 
 import { analyticsEngineSink, installMetricSink } from '@morph/metrics';
-import { eventsDataset } from './bindings.js';
+import { metricsDataset } from './bindings.js';
 
 let installed = false;
 
@@ -28,7 +28,7 @@ export async function ensureTelemetry(): Promise<void> {
   if (installed) return;
 
   try {
-    const dataset = await eventsDataset();
+    const dataset = await metricsDataset();
     if (dataset === null) return;
 
     installMetricSink(analyticsEngineSink(dataset, 'web'));

@@ -16,7 +16,10 @@
  * client of that contract, and this sits beside the route's own tests.
  */
 
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { unstable_readConfig } from 'wrangler';
 import { ClientBatchSchema } from '@morph/core';
 
 import {
@@ -28,9 +31,15 @@ import {
   clientIp,
   uuid,
 } from '../../../bench/payload.js';
-import { consentMaskFromCookie } from '../src/routes/ingest.js';
-import { INGEST_BUCKET } from '../src/lib/rate-limit.js';
+import { consentMaskFromCookie } from '../src/lib/consent-cookie.js';
 import { isBotUserAgent } from '../src/lib/classify.js';
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+interface RateLimitBinding {
+  readonly name: string;
+  readonly simple: { readonly limit: number; readonly period: number };
+}
 
 /**
  * A seeded generator, so a failure is reproducible.
@@ -117,13 +126,45 @@ describe('the load-test payload', () => {
   });
 });
 
+/**
+ * The ingest rate limit, read from the config that actually enforces it.
+ *
+ * Restating the number here would let the bench keep believing an old limit after somebody
+ * changed the real one, and the symptom would be a benchmark that measures 429s at line
+ * speed while reporting a triumphant, meaningless throughput. Reading `wrangler.jsonc` is
+ * the same discipline `@morph/metrics` uses for the alert rules: the assumption is checked
+ * against its own source rather than copied from it.
+ *
+ * Through wrangler's own parser rather than a comment-stripping regex. The file is JSONC
+ * and the first version of this did strip comments by hand — which would have survived
+ * today's config and broken on the first `//` that appeared inside a string, in a test
+ * whose failure reads as "the bench is misconfigured". Using the parser that runs in
+ * production removes the class of bug rather than the instance.
+ */
+function ingestRateLimit(): { readonly limit: number; readonly period: number } {
+  // Annotated at the boundary: wrangler ships its config types as `.d.mts`, which this
+  // project's resolution does not pick up, so the return arrives unresolved. Naming the
+  // one field this test reads is narrower than widening the whole project's module
+  // resolution for a test helper.
+  const config: { ratelimits?: RateLimitBinding[] } = unstable_readConfig({
+    config: join(here, '..', 'wrangler.jsonc'),
+  });
+
+  const limiter = config.ratelimits?.find((r) => r.name === 'INGEST_LIMITER');
+
+  if (limiter === undefined) throw new Error('INGEST_LIMITER is not configured');
+  return limiter.simple;
+}
+
 describe('the load-test identity', () => {
   it('spreads across enough identities that the rate limiter is not the constraint', () => {
-    // The point of the whole exercise. `INGEST_BUCKET` refills `refillPerSecond` tokens
-    // per identity per second, so sustaining 5,000 req/s needs at least
-    // 5000 / refillPerSecond distinct identities. Anything less and the benchmark measures
-    // 429s at line speed and reports a triumphant, meaningless number.
-    const needed = 5000 / INGEST_BUCKET.refillPerSecond;
+    // The point of the whole exercise. The limiter permits `limit` beacons per `period`
+    // seconds per identity (D34), so sustaining 5,000 req/s needs at least
+    // 5000 / (limit / period) distinct identities. Anything less and the benchmark
+    // measures 429s rather than throughput.
+    const { limit, period } = ingestRateLimit();
+    const beaconsPerSecondPerIdentity = limit / period;
+    const needed = 5000 / beaconsPerSecondPerIdentity;
 
     expect(IP_POOL).toBeGreaterThan(needed * 4);
   });

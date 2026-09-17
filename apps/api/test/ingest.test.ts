@@ -1,11 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { FastifyInstance } from 'fastify';
-import { buildServer } from '../src/server.js';
-import { MemorySink } from '../src/lib/producer.js';
-import { CountingMetrics, consentMaskFromCookie } from '../src/routes/ingest.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetMetricSink } from '@morph/metrics';
+import worker from '../src/worker.js';
+import { consentMaskFromCookie } from '../src/lib/consent-cookie.js';
 import { VisitorIdentity } from '@morph/core';
 import { enrich, hourOfWeek } from '../src/lib/enrich.js';
-import { loadEnv } from '../src/env.js';
 
 const PEPPER = 'p'.repeat(64);
 const NOW = new Date('2026-08-24T14:30:00.000Z'); // a Monday
@@ -33,8 +31,9 @@ const BROWSER_HEADERS = {
   'accept-language': 'it-IT,it;q=0.9',
   'sec-fetch-site': 'same-origin',
   'sec-ch-ua-mobile': '?1',
-  'x-real-ip': '203.0.113.7',
-  'x-country': 'it',
+  // The header the Cloudflare edge sets. `x-real-ip` used to be read here and is now
+  // deliberately ignored — see the forged-header case below, which is D34's regression test.
+  'cf-connecting-ip': '203.0.113.7',
   cookie: 'morph_consent=3',
   'content-type': 'application/json',
 };
@@ -207,259 +206,302 @@ describe('enrich — the trust boundary', () => {
   });
 });
 
+/**
+ * The Worker, driven the way the runtime drives it.
+ *
+ * `app.inject` is gone with Fastify (D31). A Worker's entry point is a plain function over
+ * (Request, Env, ExecutionContext), so a test needs no harness at all — which is a real
+ * gain: what runs here is what runs in production, rather than a framework's simulation
+ * of a request.
+ */
+
+/** Captures data points instead of writing them. */
+function capturingDataset() {
+  const points: { blobs?: unknown[]; doubles?: number[] }[] = [];
+  return {
+    points,
+    writeDataPoint(event?: { blobs?: unknown[]; doubles?: number[] }) {
+      if (event !== undefined) points.push(event);
+    },
+  };
+}
+
+/** A limiter that permits everything until a case says otherwise. */
+function fakeLimiter() {
+  return {
+    calls: [] as string[],
+    allow: true,
+    limit(options: { key: string }) {
+      this.calls.push(options.key);
+      return Promise.resolve({ success: this.allow });
+    },
+  };
+}
+
+function buildEnv(over: Record<string, unknown> = {}) {
+  return {
+    EVENTS: capturingDataset(),
+    METRICS: capturingDataset(),
+    INGEST_LIMITER: fakeLimiter(),
+    ANON_ID_PEPPER: PEPPER,
+    MORPH_PUBLIC_URL: 'https://' + SELF,
+    MORPH_TIMEZONE: 'Europe/Rome',
+    ...over,
+  };
+}
+
+/** `cf` cannot be set through the Request constructor, so it is attached afterwards. */
+function beacon(
+  body: unknown,
+  headers: Record<string, string> = BROWSER_HEADERS,
+  country = 'IT',
+): Request {
+  const request = new Request('https://ingest.example/i', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  Object.defineProperty(request, 'cf', { value: { country }, configurable: true });
+  return request;
+}
+
+/**
+ * A real `ExecutionContext`, not a cast.
+ *
+ * The handler only reaches `waitUntil` and `passThroughOnException`, so it would have been
+ * shorter to stub those two and assert the rest away. Everything the interface also
+ * declares is implemented as a throw instead, which costs four lines and buys the thing an
+ * assertion would have destroyed: if this Worker ever starts using `tracing` or `abort`,
+ * the test says so rather than silently handing it `undefined`.
+ */
+const ctx: ExecutionContext = {
+  waitUntil() {
+    /* nothing is deferred on these paths */
+  },
+  passThroughOnException() {
+    // The handler catches its own errors on purpose (D31). If this fires, an exception
+    // reached the runtime and the collector answered with whatever Cloudflare decided
+    // instead of the 503 a retry queue understands.
+    throw new Error('the collector must never pass an exception through');
+  },
+  abort() {
+    throw new Error('the collector never aborts its own invocation');
+  },
+  get exports(): never {
+    throw new Error('the collector has no entrypoints to call');
+  },
+  get tracing(): never {
+    throw new Error('tracing is not wired in these tests');
+  },
+  props: {},
+};
+
+/** The published event, decoded back out of its data point. Mirrors the row contract. */
+function publishedEvent(env: ReturnType<typeof buildEnv>, at = 0) {
+  const point = env.EVENTS.points[at];
+  const blobs = point?.blobs ?? [];
+  return {
+    type: blobs[0] as string,
+    anonId: blobs[1] as string,
+    path: blobs[3] as string,
+    device: blobs[4] as string,
+    country: blobs[5] as string,
+    referrerClass: blobs[6] as string,
+    consentMask: point?.doubles?.[2],
+  };
+}
+
 describe('POST /i', () => {
-  let app: FastifyInstance;
-  let sink: MemorySink;
-  let metrics: CountingMetrics;
+  let env: ReturnType<typeof buildEnv>;
 
-  beforeEach(async () => {
-    sink = new MemorySink();
-    metrics = new CountingMetrics();
-    await sink.connect();
-    app = buildServer({
-      sink,
-      pepper: PEPPER,
-      selfHost: SELF,
-      timezone: 'Europe/Rome',
-      metrics,
-      now: () => NOW,
-    });
-    await app.ready();
+  beforeEach(() => {
+    env = buildEnv();
+    // Back to the null sink between cases, so an observation from one cannot be counted
+    // by the next. The Worker installs the real one itself on every request.
+    resetMetricSink();
   });
 
-  afterEach(async () => {
-    await app.close();
-  });
+  async function send(
+    body: unknown = { events: [clientEvent()] },
+    headers: Record<string, string> = BROWSER_HEADERS,
+  ): Promise<Response> {
+    return worker.fetch(beacon(body, headers), env, ctx);
+  }
 
   it('accepts a valid beacon with 202 and an empty body', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/i',
-      headers: BROWSER_HEADERS,
-      payload: { events: [clientEvent()] },
-    });
+    const response = await send();
 
-    expect(response.statusCode).toBe(202);
-    expect(response.body).toBe('');
-    expect(sink.published).toHaveLength(1);
-    expect(metrics.acceptedTotal).toBe(1);
+    expect(response.status).toBe(202);
+    expect(await response.text()).toBe('');
+    expect(env.EVENTS.points).toHaveLength(1);
   });
 
   it('publishes the enriched event, not the client payload', async () => {
-    await app.inject({
-      method: 'POST',
-      url: '/i',
-      headers: BROWSER_HEADERS,
-      payload: { events: [clientEvent()], referrer: 'https://chatgpt.com/c/1' },
-    });
+    await send({ events: [clientEvent()], referrer: 'https://chatgpt.com/c/1' });
 
-    const published = sink.published[0];
-    expect(published?.anonId).toMatch(/^[0-9a-f]{32}$/);
-    expect(published?.ctx.referrerClass).toBe('ai_agent');
-    expect(published?.ctx.country).toBe('IT');
-    expect(published?.consentMask).toBe(3);
+    const published = publishedEvent(env);
+    expect(published.anonId).toMatch(/^[0-9a-f]{32}$/);
+    expect(published.referrerClass).toBe('ai_agent');
+    expect(published.country).toBe('IT');
+    expect(published.consentMask).toBe(3);
+  });
+
+  it('takes the country from the edge, not from a header a client can set', async () => {
+    // x-country used to carry this and was set by Caddy. A client sending one is now
+    // simply ignored: request.cf.country is the edge's own geolocation.
+    await send({ events: [clientEvent()] }, { ...BROWSER_HEADERS, 'x-country': 'US' });
+
+    expect(publishedEvent(env).country).toBe('IT');
   });
 
   it('rejects a malformed body with 400', async () => {
-    const response = await app.inject({
+    const response = await send({ events: 'not an array' });
+
+    expect(response.status).toBe(400);
+    expect(env.EVENTS.points).toHaveLength(0);
+  });
+
+  it('rejects unparseable JSON with 400 rather than throwing', async () => {
+    const request = new Request('https://ingest.example/i', {
       method: 'POST',
-      url: '/i',
       headers: BROWSER_HEADERS,
-      payload: { events: 'not an array' },
+      body: '{ not json',
     });
-    expect(response.statusCode).toBe(400);
-    expect(sink.published).toHaveLength(0);
-    expect(metrics.rejectedTotal).toBe(1);
+    Object.defineProperty(request, 'cf', { value: { country: 'IT' } });
+
+    const response = await worker.fetch(request, env, ctx);
+    expect(response.status).toBe(400);
   });
 
   it('accepts a batch whose every event was rejected, without publishing', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/i',
-      headers: BROWSER_HEADERS,
-      payload: { events: [clientEvent({ type: 'scroll_depth', value: 900 })] },
-    });
-    expect(response.statusCode).toBe(202);
-    expect(sink.published).toHaveLength(0);
-    expect(metrics.rejectedTotal).toBe(1);
+    const response = await send({ events: [clientEvent({ type: 'scroll_depth', value: 900 })] });
+
+    expect(response.status).toBe(202);
+    expect(env.EVENTS.points).toHaveLength(0);
   });
 
-  it('rate-limits a client that floods, and says when to retry', async () => {
-    const send = async (): Promise<number> => {
-      const r = await app.inject({
-        method: 'POST',
-        url: '/i',
-        headers: BROWSER_HEADERS,
-        payload: { events: [clientEvent()] },
-      });
-      return r.statusCode;
-    };
-
-    // Time is frozen, so nothing refills: the bucket's full capacity and no more.
-    const codes: number[] = [];
-    for (let i = 0; i < 65; i += 1) codes.push(await send());
-
-    expect(codes.filter((c) => c === 202)).toHaveLength(60);
-    expect(codes.filter((c) => c === 429).length).toBeGreaterThan(0);
-    expect(metrics.rateLimitedTotal).toBeGreaterThan(0);
-
-    const limited = await app.inject({
+  it('refuses a body larger than the cap before allocating it', async () => {
+    // Content-Length is a claim; the cap is enforced on the bytes actually read. A Worker
+    // has 128 MB, and .text() on an unbounded body is how it runs out of them.
+    const huge = 'x'.repeat(300 * 1024);
+    const request = new Request('https://ingest.example/i', {
       method: 'POST',
-      url: '/i',
       headers: BROWSER_HEADERS,
-      payload: { events: [clientEvent()] },
+      body: JSON.stringify({ padding: huge }),
     });
-    expect(limited.headers['retry-after']).toBeDefined();
+    Object.defineProperty(request, 'cf', { value: { country: 'IT' } });
+
+    const response = await worker.fetch(request, env, ctx);
+    expect(response.status).toBe(413);
+  });
+
+  it('rate-limits on the derived anonymous id, and says when to retry', async () => {
+    env.INGEST_LIMITER.allow = false;
+    const response = await send();
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('60');
+    expect(env.EVENTS.points).toHaveLength(0);
+
+    // Keyed on the anonymous id, not on an address: the limiter never sees an IP.
+    expect(env.INGEST_LIMITER.calls[0]).toMatch(/^[0-9a-f]{32}$/);
   });
 
   it('limits per visitor, not globally', async () => {
-    for (let i = 0; i < 61; i += 1) {
-      await app.inject({
-        method: 'POST',
-        url: '/i',
-        headers: BROWSER_HEADERS,
-        payload: { events: [clientEvent()] },
-      });
-    }
-    const other = await app.inject({
-      method: 'POST',
-      url: '/i',
-      headers: { ...BROWSER_HEADERS, 'x-real-ip': '198.51.100.9' },
-      payload: { events: [clientEvent()] },
-    });
-    expect(other.statusCode).toBe(202);
+    await send();
+    await send(
+      { events: [clientEvent()] },
+      { ...BROWSER_HEADERS, 'cf-connecting-ip': '198.51.100.9' },
+    );
+
+    const [first, second] = env.INGEST_LIMITER.calls;
+    expect(first).not.toBe(second);
   });
 
-  it('returns 503 with a retry hint when the sink is unavailable', async () => {
-    sink.failOnce();
-    const response = await app.inject({
-      method: 'POST',
-      url: '/i',
-      headers: BROWSER_HEADERS,
-      payload: { events: [clientEvent()] },
-    });
-    expect(response.statusCode).toBe(503);
-    expect(response.headers['retry-after']).toBe('5');
-    expect(metrics.sinkFailureTotal).toBe(1);
-  });
+  it('ignores a forged x-real-ip, and identifies by cf-connecting-ip', async () => {
+    // D34's regression test, and the reason the port touched this file at all.
+    //
+    // The Fastify version read x-real-ip, which Caddy filled from the TCP peer. Behind
+    // Cloudflare that peer is a PoP, so every visitor through one datacentre would have
+    // hashed to the same anonymous id and shared one rate-limit bucket. The forged
+    // headers must change nothing here; the edge header must change everything.
+    await send(
+      { events: [clientEvent()] },
+      { ...BROWSER_HEADERS, 'x-real-ip': '10.0.0.1', 'x-forwarded-for': '10.0.0.2' },
+    );
+    const withForged = publishedEvent(env).anonId;
 
-  it('does not trust a forged X-Forwarded-For over the proxy header', async () => {
-    const withForged = await app.inject({
-      method: 'POST',
-      url: '/i',
-      headers: { ...BROWSER_HEADERS, 'x-forwarded-for': '10.0.0.1' },
-      payload: { events: [clientEvent()] },
-    });
-    expect(withForged.statusCode).toBe(202);
+    env.EVENTS.points.length = 0;
+    await send();
+    expect(publishedEvent(env).anonId, 'forged headers must not move the identity').toBe(
+      withForged,
+    );
 
-    const forgedId = sink.published.at(-1)?.anonId;
-    sink.published.length = 0;
-
-    await app.inject({
-      method: 'POST',
-      url: '/i',
-      headers: BROWSER_HEADERS,
-      payload: { events: [clientEvent()] },
-    });
-    // Same X-Real-IP, so the same visitor, regardless of the forwarded header.
-    expect(sink.published.at(-1)?.anonId).toBe(forgedId);
+    env.EVENTS.points.length = 0;
+    await send(
+      { events: [clientEvent()] },
+      { ...BROWSER_HEADERS, 'cf-connecting-ip': '198.51.100.9' },
+    );
+    expect(publishedEvent(env).anonId, 'the edge header must move it').not.toBe(withForged);
   });
 
   it('treats a visitor with no consent cookie as necessary-only', async () => {
     const { cookie, ...noCookie } = BROWSER_HEADERS;
     void cookie;
-    await app.inject({
-      method: 'POST',
-      url: '/i',
-      headers: noCookie,
-      payload: { events: [clientEvent()] },
-    });
-    expect(sink.published[0]?.consentMask).toBe(1);
+    await send({ events: [clientEvent()] }, noCookie);
+
+    expect(publishedEvent(env).consentMask).toBe(1);
+  });
+
+  it('records the outcome as a metric rather than a log line', async () => {
+    // Read from the METRICS dataset rather than from a sink installed here, because the
+    // Worker installs its own on every request and would overwrite one this test set —
+    // which it should, since that is the only moment the binding exists. The first version
+    // of this case asserted against a MemorySink and failed for exactly that reason.
+    await send();
+    await send({ events: 'not an array' });
+
+    const outcomes = env.METRICS.points
+      .filter((p) => p.blobs?.[0] === 'morph_ingest_requests_total')
+      .map((p) => p.blobs?.[2]);
+
+    expect(outcomes).toEqual(['accepted', 'rejected']);
+  });
+
+  it('refuses a method other than POST', async () => {
+    const request = new Request('https://ingest.example/i', { method: 'GET' });
+    const response = await worker.fetch(request, env, ctx);
+
+    expect(response.status).toBe(405);
+    expect(response.headers.get('allow')).toBe('POST');
   });
 });
 
 describe('health and readiness', () => {
-  it('reports alive without touching a dependency', async () => {
-    const sink = new MemorySink(); // deliberately not connected
-    const app = buildServer({ sink, pepper: PEPPER, selfHost: SELF, timezone: 'Europe/Rome' });
-    await app.ready();
+  const ok = buildEnv();
 
-    const health = await app.inject({ method: 'GET', url: '/health' });
-    expect(health.statusCode).toBe(200);
-    expect(health.json()).toMatchObject({ status: 'ok' });
-
-    // Not ready: a liveness pass with a readiness fail is exactly the right state for a
-    // healthy process whose downstream is unavailable.
-    const ready = await app.inject({ method: 'GET', url: '/ready' });
-    expect(ready.statusCode).toBe(503);
-    expect(ready.json()).toMatchObject({ ready: false, checks: { sink: false } });
-
-    await app.close();
+  it('is healthy', async () => {
+    const health = await worker.fetch(new Request('https://ingest.example/health'), ok, ctx);
+    expect(health.status).toBe(200);
   });
 
-  it('reports ready once the sink is connected', async () => {
-    const sink = new MemorySink();
-    await sink.connect();
-    const app = buildServer({ sink, pepper: PEPPER, selfHost: SELF, timezone: 'Europe/Rome' });
-    await app.ready();
-
-    const ready = await app.inject({ method: 'GET', url: '/ready' });
-    expect(ready.statusCode).toBe(200);
-    await app.close();
-  });
-});
-
-describe('environment validation', () => {
-  const valid = {
-    NODE_ENV: 'production',
-    MORPH_PUBLIC_URL: 'https://morph.example',
-    ANON_ID_PEPPER: PEPPER,
-    REDPANDA_BROKERS: 'a:9092,b:9092',
-  };
-
-  it('accepts a complete environment and splits the broker list', () => {
-    const env = loadEnv(valid);
-    expect(env.REDPANDA_BROKERS).toEqual(['a:9092', 'b:9092']);
-    expect(env.PORT).toBe(3001);
+  it('is ready with a real pepper', async () => {
+    const ready = await worker.fetch(new Request('https://ingest.example/ready'), ok, ctx);
+    expect(ready.status).toBe(200);
   });
 
-  it('refuses the placeholder pepper', () => {
-    expect(() =>
-      loadEnv({
-        ...valid,
-        ANON_ID_PEPPER: 'replace-with-openssl-rand-hex-32',
-      }),
-    ).toThrow(/placeholder/);
+  it('is not ready without one', async () => {
+    // A collector that accepts events while hashing every visitor to the same id is worse
+    // than one that refuses them, because the damage is silent and retroactive.
+    const weak = buildEnv({ ANON_ID_PEPPER: 'short' });
+    const ready = await worker.fetch(new Request('https://ingest.example/ready'), weak, ctx);
+
+    expect(ready.status).toBe(503);
+    expect(await ready.json()).toEqual({ ready: false });
   });
 
-  it('refuses a pepper too short to be a secret', () => {
-    expect(() => loadEnv({ ...valid, ANON_ID_PEPPER: 'short' })).toThrow(/at least 32 characters/);
-  });
-
-  it('refuses the consent bypass in production', () => {
-    expect(() => loadEnv({ ...valid, MORPH_DEV_BYPASS_CONSENT: '1' })).toThrow(
-      /must not be set in production/,
-    );
-  });
-
-  it('allows the consent bypass in development', () => {
-    expect(() =>
-      loadEnv({
-        ...valid,
-        NODE_ENV: 'development',
-        MORPH_PUBLIC_URL: 'http://localhost:3000',
-        MORPH_DEV_BYPASS_CONSENT: '1',
-      }),
-    ).not.toThrow();
-  });
-
-  it('refuses plaintext http in production', () => {
-    expect(() => loadEnv({ ...valid, MORPH_PUBLIC_URL: 'http://morph.example' })).toThrow(
-      /https in production/,
-    );
-  });
-
-  it('names the variable that is wrong', () => {
-    expect(() => loadEnv({ ...valid, REDPANDA_BROKERS: '' })).toThrow(/REDPANDA_BROKERS/);
+  it('closes every other path', async () => {
+    const response = await worker.fetch(new Request('https://ingest.example/admin'), ok, ctx);
+    expect(response.status).toBe(404);
   });
 });
