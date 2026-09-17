@@ -1,50 +1,48 @@
 /**
- * The published content index, read from Postgres.
+ * The published content index, read from D1.
  *
- * This is where the content pipeline stops being a pipeline and becomes a website. Until
- * now `apps/web` rendered a hand-written array: the worker could generate a draft, an
- * operator could approve it, and nothing would ever display it.
+ * This is where the content pipeline stops being a pipeline and becomes a website. The
+ * Postgres version this replaces (D31) held a lazily-created connection pool; a Worker has
+ * neither a pool nor a process to hold one in, so the binding is fetched per call and
+ * Drizzle is constructed around it. That is cheap — `drizzle(binding)` wraps an object, it
+ * does not open anything — and it is the only shape that is correct, because `env` belongs
+ * to the request rather than to the isolate.
  *
  * WHY THERE IS A FALLBACK, AND WHY IT CANNOT HIDE AN OUTAGE
- * With no `DATABASE_URL` this returns the seed set from `content.ts`. That is a
- * development convenience — `next build` and `pnpm dev` work on a laptop without Docker,
+ * With no D1 binding this returns the seed set from `content.ts`. That is a development
+ * convenience — `next build` and `pnpm dev` work on a laptop with no Cloudflare account,
  * and the sitemap, the feeds and `/llms.txt` are exercised by something real rather than
  * by an empty array, which is the one input that makes every serialisation bug invisible.
  *
- * But a *configured* database that fails is an error, not a reason to fall back. A site
- * quietly serving fixture content because Postgres is down would look healthy, would be
- * indexed by search engines, and would take somebody a long afternoon to notice. So the
- * query is allowed to throw, and only the absence of configuration is treated as a
- * development signal.
+ * But a *bound* database that fails is an error, not a reason to fall back. A site quietly
+ * serving fixture content because D1 is unreachable would look healthy, would be indexed
+ * by search engines, and would take somebody a long afternoon to notice. So the query is
+ * allowed to throw, and only the absence of a binding is treated as a development signal.
+ *
+ * That distinction is worth more here than it was under Postgres. A missing `DATABASE_URL`
+ * was almost always a laptop; a missing D1 binding can also be a deployment whose
+ * `wrangler.jsonc` is wrong, which is a production fault wearing a development costume.
+ * `/api/ready` is what tells those apart, via `bindingReport()` — this module deliberately
+ * does not try, because the answer it would guess at is one a readiness probe knows.
  */
 
 import { and, desc, eq, gte, inArray } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { adaptationLog, content } from '@morph/core/db';
+import { drizzle } from 'drizzle-orm/d1';
+import { adaptationLog, content } from '@morph/core/db/sqlite';
 import { SEED_CONTENT, toArticle, type PublishedArticle } from './content.js';
+import { d1 } from './bindings.js';
 import type { AdaptationRow } from './changes.js';
 
-/**
- * One connection pool for the process, created lazily.
- *
- * `max: 4` because this reads a handful of small rows on a cached path; the ingest
- * collector is the process that needs headroom, and it does not share this pool.
- */
-let pool: ReturnType<typeof postgres> | null = null;
-
-function database(): ReturnType<typeof drizzle> | null {
-  const url = process.env['DATABASE_URL'];
-  if (url === undefined || url === '') return null;
-
-  pool ??= postgres(url, { max: 4 });
-  return drizzle(pool);
+/** `null` when there is no D1 binding, which is a supported state, not a broken one. */
+async function database(): Promise<ReturnType<typeof drizzle> | null> {
+  const binding = await d1();
+  return binding === null ? null : drizzle(binding);
 }
 
 let warned = false;
 
 export async function publishedArticles(): Promise<readonly PublishedArticle[]> {
-  const db = database();
+  const db = await database();
 
   if (db === null) {
     if (!warned) {
@@ -52,7 +50,7 @@ export async function publishedArticles(): Promise<readonly PublishedArticle[]> 
       // The web app has no logger, and a silent fallback to fixture content is exactly
       // what this warning exists to prevent.
       console.warn(
-        '[morph] DATABASE_URL is not set; serving seed content. This is a development fallback and must not be the state in production.',
+        '[morph] No D1 binding; serving seed content. This is a development fallback and must not be the state in production.',
       );
     }
     return SEED_CONTENT;
@@ -88,15 +86,15 @@ export async function publishedArticles(): Promise<readonly PublishedArticle[]> 
  * WHY THE FALLBACK IS AN EMPTY LIST AND NOT FIXTURES
  * `publishedArticles` falls back to seed content so the feeds and the sitemap are
  * exercised by something real during development. This must not: invented adaptations
- * would be a page of fabricated evidence about how well the system works, which is the
- * one thing this site cannot publish even as a development convenience. With no database
- * the page says nothing has been recorded, which is true.
+ * would be a page of fabricated evidence about how well the system works, which is the one
+ * thing this site cannot publish even as a development convenience. With no binding the
+ * page says nothing has been recorded, which is true.
  */
 export async function recentAdaptations(
   windowDays = 90,
   limit = 60,
 ): Promise<readonly AdaptationRow[]> {
-  const db = database();
+  const db = await database();
   if (db === null) return [];
 
   const since = new Date(Date.now() - windowDays * 86_400_000);
@@ -127,8 +125,8 @@ export async function recentAdaptations(
     variantId: row.variantId,
     reason: row.reason,
     // No fallback and no cast: the column is `notNull` and Drizzle already types it, so
-    // both would be dead code that reads as defensiveness. `next build` runs a
-    // type-aware ESLint pass the root `pnpm lint` does not, and it caught exactly that.
+    // both would be dead code that reads as defensiveness. `next build` runs a type-aware
+    // ESLint pass the root `pnpm lint` does not, and it caught exactly that.
     stats: row.stats,
   }));
 }

@@ -1,0 +1,116 @@
+/**
+ * The public renderer, as a Cloudflare Worker (D31).
+ *
+ * PLACEHOLDER IDS
+ * Every `"id": "REPLACE_ME__*"` below is a resource that does not exist yet, because the
+ * account does not exist yet. `infra/cloudflare/README.md` has the `wrangler` commands
+ * that create each one and print the id to paste back here. They are left as loud
+ * placeholders rather than plausible-looking hex so that a deploy attempted before they
+ * are filled in fails immediately and obviously, instead of binding to nothing and
+ * serving seed content that looks like a working site.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "desirepath-web",
+  "main": ".open-next/worker.js",
+
+  /**
+   * Pinned, not floating. The compatibility date decides runtime semantics, and a Worker
+   * whose behaviour changes because time passed is the kind of outage nobody can bisect.
+   * Moving it is a deliberate edit with the changelog read first.
+   */
+  "compatibility_date": "2026-09-01",
+
+  /**
+   * `nodejs_compat` is required by OpenNext: Next's server code reaches for `node:` builtins
+   * — Buffer, streams, async_hooks — and without this flag the Worker fails at import time
+   * rather than at the first request, which is at least an honest failure.
+   */
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+
+  /**
+   * Observability on, and this one is not optional.
+   *
+   * `packages/metrics` does not survive the port — prom-client needs `node:cluster` and a
+   * Worker has no process to scrape — so Workers Logs is the only thing standing between
+   * an exception in the render path and silence. See D31.
+   */
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+
+  /** Content, the adaptation log, configuration, the rollups. */
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "morph",
+      "database_id": "REPLACE_ME__D1_DATABASE_ID",
+      "migrations_dir": "../../infra/d1/migrations",
+    },
+  ],
+
+  "kv_namespaces": [
+    /** Sticky assignments, keyed on the rotating daily anonymous id. 30-day TTL. */
+    {
+      "binding": "ASSIGNMENTS",
+      "id": "REPLACE_ME__KV_ASSIGNMENTS_ID",
+    },
+    /**
+     * The published posterior snapshot: one key, rewritten hourly by the adapt cron and
+     * read by every render. Separate from ASSIGNMENTS because the two have nothing in
+     * common operationally — this one is a single hot key that must never be purged, that
+     * one is millions of cold keys that expire on their own.
+     */
+    {
+      "binding": "SNAPSHOT",
+      "id": "REPLACE_ME__KV_SNAPSHOT_ID",
+    },
+  ],
+
+  /**
+   * The raw event stream. Sampled by the platform, and therefore never a source for a
+   * posterior — see D33, which is the decision this binding exists on the wrong side of
+   * if anyone forgets.
+   */
+  "analytics_engine_datasets": [
+    {
+      "binding": "EVENTS",
+      "dataset": "morph_events",
+    },
+  ],
+
+  "vars": {
+    /**
+     * Not secrets. The public origin drives canonical URLs, feed self-links and OAuth
+     * callbacks; MORPH_INDEXABLE defaults to "0" everywhere and is set to "1" on exactly
+     * one deployment, because an indexed staging site outranks the real thing for its own
+     * brand name and takes months to unwind.
+     */
+    "MORPH_PUBLIC_URL": "https://desirepath.live",
+    "MORPH_INDEXABLE": "0",
+    "MORPH_ENVIRONMENT_NAME": "production",
+  },
+
+  /**
+   * ANON_ID_PEPPER is a secret and is deliberately absent from this file.
+   * `wrangler secret put ANON_ID_PEPPER` — it is the input to the visitor hash, and a
+   * pepper in version control is a pepper that is no longer a pepper.
+   */
+
+  "env": {
+    "staging": {
+      "name": "desirepath-web-staging",
+      "vars": {
+        "MORPH_PUBLIC_URL": "https://staging.desirepath.live",
+        "MORPH_INDEXABLE": "0",
+        "MORPH_ENVIRONMENT_NAME": "staging",
+      },
+    },
+  },
+}

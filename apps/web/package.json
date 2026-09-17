@@ -17,18 +17,19 @@
     "@morph/metrics": "workspace:*",
     "@morph/seo": "workspace:*",
     "@morph/ui": "workspace:*",
-    "next": "^15.1.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "@opennextjs/cloudflare": "^1.20.6",
     "drizzle-orm": "^0.36.4",
-    "ioredis": "^5.4.1",
-    "postgres": "^3.4.5"
+    "next": "^15.5.24",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260917.1",
     "@types/node": "^22.9.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "wrangler": "^4.133.0"
   }
 }

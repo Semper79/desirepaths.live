@@ -1,31 +1,33 @@
 /**
  * Reading the decision set the worker publishes.
  *
- * The other end of `apps/worker/src/adapters/redis-snapshot.ts`. Until this existed the
- * renderer resolved every surface to its baseline for ever — the engine had no consumer,
- * and the reading on the home page sat at zero not because the site was new but because
- * the wire was not connected.
+ * The other end of what the adapt cron publishes. Until this existed the renderer resolved
+ * every surface to its baseline for ever — the engine had no consumer, and the reading on
+ * the home page sat at zero not because the site was new but because the wire was not
+ * connected.
  *
  * WHY IT IS CACHED IN PROCESS
  * The snapshot changes once an hour and is identical for every visitor, so a read per
  * request would be the same bytes fetched thousands of times inside a 150 ms budget that
- * also has to cover the assignment resolution itself. The cache is refreshed on demand
- * and never blocks on a refresh that is already in flight, so a burst of concurrent
- * requests after an expiry produces one Redis round trip rather than four hundred.
+ * also has to cover the assignment resolution itself. The cache is refreshed on demand and
+ * never blocks on a refresh that is already in flight, so a burst of concurrent requests
+ * after an expiry produces one KV round trip rather than four hundred.
  *
- * The client itself, and why its timeouts are what they are, is in `redis.ts` — shared
- * with the sticky assignment store so one outage produces one error stream.
+ * An isolate is shorter-lived and more numerous than the Node process this was written
+ * for, so the cache hits less often than it used to. It is still worth having: KV is read
+ * through a colo cache, and the in-process copy is what keeps the *decision* off the
+ * network entirely for the requests that follow the first.
  *
  * WHY A STALE COPY IS SERVED WHILE REFRESHING FAILS
- * A Redis blip must not un-adapt the site. An hour-old decision set is a good decision
- * set; falling back to baselines because a network call timed out would throw away
- * everything the system knows over a problem that will likely have resolved by the next
- * request. `sophistication()` reports the age either way, so a snapshot that has stopped
- * being refreshed is visible on the page rather than hidden behind it.
+ * A KV blip must not un-adapt the site. An hour-old decision set is a good decision set;
+ * falling back to baselines because a read failed would throw away everything the system
+ * knows over a problem that will likely have resolved by the next request.
+ * `sophistication()` reports the age either way, so a snapshot that has stopped being
+ * refreshed is visible on the page rather than hidden behind it.
  */
 
 import type { PosteriorSnapshot } from './assignment.js';
-import { redis } from './redis.js';
+import { snapshotKv } from './bindings.js';
 
 /** Shared with the worker. Changing it on one side only makes the site stop adapting. */
 const SNAPSHOT_KEY = 'morph:snapshot:current';
@@ -120,11 +122,11 @@ async function refresh(): Promise<void> {
   // the same amount as one that fails quickly.
   attemptedAt = Date.now();
 
-  const client = redis();
-  if (client === null) return;
+  const kv = await snapshotKv();
+  if (kv === null) return;
 
   try {
-    const raw = await client.get(SNAPSHOT_KEY);
+    const raw = await kv.get(SNAPSHOT_KEY, 'text');
     if (raw === null) return;
 
     const parsed = parseSnapshot(raw);

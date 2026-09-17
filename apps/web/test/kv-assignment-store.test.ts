@@ -1,5 +1,5 @@
 /**
- * Parsing a sticky assignment back out of Redis.
+ * Parsing a sticky assignment back out of KV.
  *
  * This runs on every returning visitor and its failure mode is invisible from the page:
  * an assignment with a missing surface would be served as if it were complete, and the
@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { BASELINE_ASSIGNMENT, SURFACE_KEYS } from '@morph/core';
 
-import { parseAssignment } from '../src/lib/assignment-store.js';
+import { parseAssignment } from '../src/lib/kv-assignment-store.js';
 
 const stored = JSON.stringify(BASELINE_ASSIGNMENT);
 

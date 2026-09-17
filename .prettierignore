@@ -4,3 +4,10 @@ dist
 coverage
 .turbo
 pnpm-lock.yaml
+
+# Written by `drizzle-kit generate`, which rewrites them on every run. Formatting them
+# means the next generate reintroduces the diff and the gate fails on a generated file.
+infra/d1/migrations/meta
+
+# OpenNext build output.
+.open-next

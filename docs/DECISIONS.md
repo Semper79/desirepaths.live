@@ -94,7 +94,17 @@ this was built under. Renaming those is a migration with a downtime window that 
 a visitor can see. The rule is written at the top of `apps/web/src/lib/site.ts`: a comment
 describing the system may say MORPH; a string a person reads says Desire Path.
 
-### D3 — Hosting and jurisdiction — **Taken: A**
+### D3 — Hosting and jurisdiction — ~~**Taken: A**~~ **Superseded by D31**
+
+> The operator needs this on Cloudflare, so there is no Hetzner box and the reasoning below
+> is kept only because the jurisdiction half of it still applies and is now harder. A single
+> server in Falkenstein made "where does the data live" a one-word answer. Cloudflare's edge
+> does not: a visitor's request is processed at whichever PoP is nearest, which can be
+> outside the EU. What the ingest Worker actually does with it is the mitigation and it is a
+> real one — the IP is hashed inside the request and never stored — but `docs/PRIVACY.md`
+> has to say so in those terms rather than by naming a datacentre. D1 and Durable Objects
+> support EU jurisdiction constraints; that is a configuration decision this port has not
+> made yet, and it belongs with D4.
 
 | Option                                         | Notes                                                                                                                      |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -757,16 +767,16 @@ logic of the ingest route and of all four jobs survives.
 
 **The mapping.**
 
-| Today | On Cloudflare |
-| --- | --- |
-| Next.js in a container | Workers via OpenNext (D32) |
-| Fastify ingest (`apps/api`) | one Worker; the route logic is unchanged |
-| Postgres — content, `adaptation_log` | D1, via `drizzle-orm/d1` |
-| ClickHouse — raw events, aggregates | Analytics Engine, plus D1 rollups (D33) |
-| Redis — assignment stickiness, buckets | Durable Objects (D33); KV for the snapshot |
-| Redpanda | Queues |
-| BullMQ schedulers | Cron Triggers |
-| Prometheus + `prom-client` | dies — see below |
+| Today                                  | On Cloudflare                                                               |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| Next.js in a container                 | Workers via OpenNext (D32)                                                  |
+| Fastify ingest (`apps/api`)            | one Worker; the route logic is unchanged                                    |
+| Postgres — content, `adaptation_log`   | D1, via `drizzle-orm/d1`                                                    |
+| ClickHouse — raw events, aggregates    | Analytics Engine, plus D1 rollups (D33)                                     |
+| Redis — assignment stickiness, buckets | KV for assignments and the snapshot; Durable Objects for the counters (D33) |
+| Redpanda                               | Queues                                                                      |
+| BullMQ schedulers                      | Cron Triggers                                                               |
+| Prometheus + `prom-client`             | dies — see below                                                            |
 
 **What dies, and what that costs.** `packages/metrics` cannot run on a Worker:
 `prom-client` requires `node:cluster`, and a Worker has no process to scrape. The nine
@@ -820,7 +830,7 @@ This is the one that would have been a silent catastrophe.
 
 Analytics Engine downsamples on write and on read when an index receives large volumes,
 and exposes the rate as `_sample_interval` so queries can weight by it. Weighted
-aggregates recover the right *mean*. They do not recover the right *confidence*.
+aggregates recover the right _mean_. They do not recover the right _confidence_.
 
 The bandit's Beta posteriors are pseudo-counts. Feed them a count reconstructed as
 `sum(_sample_interval)` and the mean is right while the implied certainty is inflated by
@@ -854,6 +864,26 @@ writes per day on the free plan — which is what forces the batching. A surface
 burst has its counter flushed on an alarm, so the posteriors can lag the traffic by the
 flush interval. That is acceptable: the adapt job runs hourly and `assignment` reads the
 published snapshot, neither of which needs a counter current to the second.
+
+**Sticky assignments go to KV, not to Durable Objects, and the difference is the point.**
+The first draft of D31 sent them to a Durable Object on the reasoning that KV's eventual
+consistency would corrupt attribution. That reasoning was wrong, and the correction is
+worth keeping because it is the same distinction this decision is built on.
+
+A stale KV read returns no assignment. The resolver then rolls a fresh one, the page
+renders _that_ variant, and the impression is recorded against the variant actually
+served. Nothing is mis-attributed. What it costs is measurement noise — one visitor
+contributing to two variants — and a page that changes under a returning reader. Both were
+already accepted: `assignment-store.ts` has always treated a failed read as "no sticky
+assignment", because the alternative is a 500 when a cache blinks.
+
+So the rule is not "Durable Objects are more correct". It is that **staleness is
+acceptable wherever the stale answer is indistinguishable from an honest absence, and
+unacceptable wherever it enters a number the engine reasons from.** A missing assignment is
+an honest absence. A count that is 1% of the truth is not — it is a lie with a plausible
+shape. Assignments and the published snapshot go to KV, which is read-optimised, TTL-native
+and an order of magnitude cheaper. One Durable Object per visitor would also have meant one
+object per rotating daily anonymous id, which is the wrong tool at any price.
 
 **The line that is not negotiable.** If a counter the engine reasons from ever has to come
 from a sampled source, it stops being evidence. Sampled numbers may inform, rank and

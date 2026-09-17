@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./surfaces": "./src/surfaces/index.ts",
-    "./db": "./src/db/schema.ts"
+    "./db": "./src/db/schema.ts",
+    "./db/sqlite": "./src/db/sqlite.ts"
   },
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",

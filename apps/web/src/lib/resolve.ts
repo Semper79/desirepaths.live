@@ -15,7 +15,7 @@ import {
 } from './assignment.js';
 import { decisionDurationMs, snapshotAgeSeconds } from '@morph/metrics';
 import { currentSnapshot as readSnapshot } from './snapshot.js';
-import { redisAssignmentStore } from './assignment-store.js';
+import { kvAssignmentStore } from './kv-assignment-store.js';
 import {
   ANON_ID_HEADER,
   BOT_SCORE_HEADER,
@@ -26,25 +26,25 @@ import {
 /**
  * The posterior snapshot, re-exported so callers have one import for the whole seam.
  *
- * Reads what `apps/worker`'s adapt job publishes, through a one-minute in-process cache.
- * Before the first cycle — or with no `REDIS_URL` — it answers with the cold snapshot,
- * which resolves every surface to its baseline: a correct page, never a slow one and
- * never an error.
+ * Reads what the adapt cron publishes, through a one-minute in-process cache. Before the
+ * first cycle — or with no KV binding — it answers with the cold snapshot, which resolves
+ * every surface to its baseline: a correct page, never a slow one and never an error.
  */
 export { currentSnapshot } from './snapshot.js';
 
 /**
- * Sticky assignments, in Redis.
+ * Sticky assignments, in Workers KV (D31).
  *
- * §2.2's promise — a returning visitor keeps their variant for thirty days — is now a
- * property of the system rather than of whichever container answered. `MemoryAssignmentStore`
- * survives for tests and for running the site with no Redis at all, where a process-lifetime
- * store is exactly as much stickiness as a single process can honestly offer.
+ * §2.2's promise — a returning visitor keeps their variant for thirty days — is a property
+ * of the system rather than of whichever isolate answered. `MemoryAssignmentStore` is the
+ * fallback while there is no KV binding, where a process-lifetime store is exactly as much
+ * stickiness as a single process can honestly offer.
+ *
+ * The fallback is passed in rather than selected here, because the binding belongs to the
+ * request: a check at module scope would find no `env`, pick memory, and keep picking it
+ * for the life of the isolate.
  */
-const store: AssignmentStore =
-  process.env['REDIS_URL'] === undefined || process.env['REDIS_URL'].length === 0
-    ? new MemoryAssignmentStore()
-    : redisAssignmentStore();
+const store: AssignmentStore = kvAssignmentStore(new MemoryAssignmentStore());
 
 export interface RequestHeaders {
   get(name: string): string | null;

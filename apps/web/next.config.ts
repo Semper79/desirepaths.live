@@ -61,7 +61,7 @@ const config: NextConfig = {
    */
   async rewrites() {
     if (process.env.NODE_ENV === 'production') return [];
-    const collector = process.env.MORPH_COLLECTOR_URL ?? 'http://localhost:3001';
+    const collector = process.env['MORPH_COLLECTOR_URL'] ?? 'http://localhost:3001';
     return [{ source: '/i', destination: `${collector}/i` }];
   },
 
