@@ -45,3 +45,10 @@ next-env.d.ts
 
 # k6 writes its raw summary here; the numbers that matter live in docs/BENCHMARKS.md.
 bench/results/
+
+# Wrangler local state: a miniflare SQLite database and its WAL, recreated by
+# `wrangler d1 migrations apply --local`.
+.wrangler
+
+# OpenNext build output.
+.open-next

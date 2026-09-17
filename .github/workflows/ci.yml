@@ -265,5 +265,30 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy
-        run: echo "Deployment is wired in Phase 8; see docs/RUNBOOK.md#deploy."
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Expand-only, and applied before the new Worker takes traffic: the old code must
+      # be able to read the new schema, because a deploy that fails after migrating has
+      # to roll back to a version that still works.
+      - name: Apply D1 migrations
+        working-directory: apps/web
+        run: pnpm exec wrangler d1 migrations apply morph --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Linux, and that is not incidental. OpenNext's standalone step symlinks the
+      # dependency tree, which Windows refuses without Developer Mode or an elevated
+      # shell — so the build runs here rather than on a maintainer's laptop.
+      # `infra/cloudflare/README.md` has the local workaround for anyone who needs one.
+      - name: Build and deploy the renderer
+        working-directory: apps/web
+        run: pnpm exec opennextjs-cloudflare deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
