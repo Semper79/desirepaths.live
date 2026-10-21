@@ -26,7 +26,12 @@
  * be spoofed by a client, and is the only header here worth believing.
  */
 
-import { VisitorIdentity, type IngestEvent } from '@morph/core';
+import {
+  VisitorIdentity,
+  controllerFrom,
+  missingControllerFields,
+  type IngestEvent,
+} from '@morph/core';
 import {
   analyticsEngineSink,
   ingestErrors,
@@ -81,6 +86,15 @@ interface Env {
   readonly ANON_ID_PEPPER: string;
   readonly MORPH_PUBLIC_URL: string;
   readonly MORPH_TIMEZONE: string;
+  /**
+   * The data controller (D4). Not optional in practice: without all three the collector
+   * refuses every beacon, because measuring a visitor who has not been told who is
+   * responsible is the one thing Art. 13 does not permit.
+   */
+  readonly MORPH_CONTROLLER_NAME?: string;
+  readonly MORPH_CONTROLLER_ADDRESS?: string;
+  readonly MORPH_CONTROLLER_EMAIL?: string;
+  readonly MORPH_CONTROLLER_DPO_EMAIL?: string;
 }
 
 /** A beacon's response is discarded; only the status and `retry-after` are ever read. */
@@ -131,11 +145,33 @@ async function readBoundedText(request: Request): Promise<string | null> {
   return new TextDecoder().decode(joined);
 }
 
+/**
+ * Whether this deployment is allowed to measure anybody (D4).
+ *
+ * Checked before the body is read, so an unconfigured deployment spends nothing on a
+ * payload it will refuse. A 503 rather than a 403: the condition is temporary and fixable
+ * by the operator, and a retrying client is the correct behaviour once it is fixed.
+ *
+ * This is the enforcement half of what `/privacy` publishes. The page says "nothing about
+ * you is being recorded" in this state, and that sentence is only true because of this
+ * function — the two read the same check from `@morph/core` so they cannot drift into
+ * disagreeing.
+ */
+function mayMeasure(env: Env): boolean {
+  return controllerFrom(env) !== null;
+}
+
 async function handleIngest(
   request: Request,
   env: Env,
   publisher: EventPublisher,
 ): Promise<Response> {
+  if (!mayMeasure(env)) {
+    ingestRequests.inc({ outcome: 'rejected' });
+    ingestErrors.inc({ reason: 'no_controller' });
+    return empty(503, { 'retry-after': '3600' });
+  }
+
   const raw = await readBoundedText(request);
   if (raw === null) {
     ingestRequests.inc({ outcome: 'rejected' });
@@ -265,10 +301,24 @@ export default {
     }
 
     if (url.pathname === '/ready') {
-      // A missing pepper is deliberately not ready: the collector would accept events and
-      // hash every visitor to the same id, which is worse than refusing them.
-      const ready = env.ANON_ID_PEPPER.length >= 32;
-      return Response.json({ ready }, { status: ready ? 200 : 503 });
+      // Two checks, both of which make the collector worse than useless when they fail
+      // rather than merely degraded.
+      //
+      // A missing pepper means every visitor hashes to the same id — the data would look
+      // plausible and be fiction. A missing controller means measuring people who have not
+      // been told who is responsible, which is not a quality problem but an unlawful one.
+      //
+      // The missing variables are named in the response: "not ready" with no reason sends
+      // somebody into the source at the worst possible moment.
+      const missing = [
+        ...(env.ANON_ID_PEPPER.length >= 32 ? [] : ['ANON_ID_PEPPER']),
+        ...missingControllerFields(env),
+      ];
+
+      return Response.json(
+        { ready: missing.length === 0, missing },
+        { status: missing.length === 0 ? 200 : 503 },
+      );
     }
 
     // Everything else is closed. There is no public API here, and an open 404 surface is

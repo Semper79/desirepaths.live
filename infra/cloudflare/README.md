@@ -23,8 +23,18 @@ a paid plan — the free tier is a real launch configuration (see "What this cos
 ## 1. The database
 
 ```bash
-pnpm exec wrangler d1 create morph
+pnpm exec wrangler d1 create morph --jurisdiction eu
 ```
+
+**`--jurisdiction eu` is not optional and not changeable later.** It restricts where the
+data is stored _and_ where queries run, and there is no command that moves an existing
+database into a jurisdiction — the only way to change it is to create a new database and
+migrate. Right now that costs nothing because there is no content; after launch it is a
+migration with a downtime window. `docs/PRIVACY.md` §0 explains why this matters more on
+Cloudflare than it did on a single server in Falkenstein.
+
+Do not reach for `--location weur` instead: that is a hint about the primary replica, it
+is ignored when a jurisdiction is set, and a hint is not a guarantee.
 
 It prints a `database_id`. Paste it into `apps/web/wrangler.jsonc`, replacing
 `REPLACE_ME__D1_DATABASE_ID`.
@@ -93,6 +103,32 @@ a new visitor, once — so it is better rotated than recovered.
 
 ---
 
+## 4b. The data controller — the one step that blocks launch
+
+Three facts, and only you have them:
+
+| Variable                     | What it is                                                    |
+| ---------------------------- | ------------------------------------------------------------- |
+| `MORPH_CONTROLLER_NAME`      | The legal entity, or your own name if there is no company     |
+| `MORPH_CONTROLLER_ADDRESS`   | Registered office, or your residence as a sole trader         |
+| `MORPH_CONTROLLER_EMAIL`     | Where erasure and access requests arrive                      |
+| `MORPH_CONTROLLER_DPO_EMAIL` | Only if an Art. 37 data protection officer has been appointed |
+
+Put them in the `vars` block of both `wrangler.jsonc` files, or — if you would rather a
+residential address not sit in the repository — set them per Worker:
+
+```bash
+pnpm exec wrangler secret put MORPH_CONTROLLER_NAME
+```
+
+**Until all three are set, nothing measures anybody.** That is enforced rather than
+documented: the collector answers 503 to every beacon, `/ready` refuses the deployment and
+names the missing variables, and `/privacy` tells the visitor that nothing is being
+recorded. All three statements are true in that state, which is why it is safe to deploy
+the renderer before you have decided this — see "Publishing in two steps" below.
+
+---
+
 ## 5. The domain
 
 In the Cloudflare dashboard, add `desirepath.live` as a zone and point the registrar's
@@ -118,6 +154,27 @@ The deploy job in `.github/workflows/ci.yml` needs two repository secrets:
 
 The token also needs **Account → Account Analytics → Read** if Grafana is going to query
 the Analytics Engine SQL API with it.
+
+---
+
+## Publishing in two steps
+
+The controller decision blocks measuring people, not serving pages. So it does not have to
+block a first deployment:
+
+**Step one, now.** Deploy the renderer only, to the `staging` environment, with
+`MORPH_INDEXABLE=0` and the collector not deployed. No visitor is measured, so Art. 13
+does not engage, so D4 does not block it. What this proves is the part that cannot be
+proved from a laptop: that OpenNext's output actually runs on Workers, that D1 answers, and
+that the pages are the right pages.
+
+```bash
+cd apps/web && pnpm exec opennextjs-cloudflare deploy --env staging
+```
+
+**Step two, once the controller is decided.** Deploy the collector, set the three
+variables, and flip `MORPH_INDEXABLE` to `"1"` on production when you actually want search
+engines to find it.
 
 ---
 

@@ -246,6 +246,12 @@ function buildEnv(over: Record<string, unknown> = {}) {
     ANON_ID_PEPPER: PEPPER,
     MORPH_PUBLIC_URL: 'https://' + SELF,
     MORPH_TIMEZONE: 'Europe/Rome',
+    // Configured by default, because almost every case here is about something else and a
+    // collector with no controller refuses every beacon (D4). The refusal has its own
+    // case below rather than being the implicit state of the whole file.
+    MORPH_CONTROLLER_NAME: 'Example Operator Srl',
+    MORPH_CONTROLLER_ADDRESS: 'Via Esempio 1, 24100 Bergamo, Italy',
+    MORPH_CONTROLLER_EMAIL: 'privacy@morph.example',
     ...over,
   };
 }
@@ -468,6 +474,41 @@ describe('POST /i', () => {
     expect(outcomes).toEqual(['accepted', 'rejected']);
   });
 
+  it('refuses every beacon when no data controller is configured', async () => {
+    // D4, enforced rather than documented. Art. 13 requires the visitor to be told who is
+    // responsible before any processing, so a deployment that cannot name a controller
+    // does not get to measure anybody. /privacy says exactly this in the same state, and
+    // the sentence there is only true because of this refusal.
+    env = buildEnv({
+      MORPH_CONTROLLER_NAME: undefined,
+      MORPH_CONTROLLER_ADDRESS: undefined,
+      MORPH_CONTROLLER_EMAIL: undefined,
+    });
+
+    const response = await send();
+
+    expect(response.status).toBe(503);
+    expect(env.EVENTS.points).toHaveLength(0);
+    // An hour, not five seconds: this is fixed by an operator editing configuration, not
+    // by a transient blip, and a client retrying every five seconds helps nobody.
+    expect(response.headers.get('retry-after')).toBe('3600');
+  });
+
+  it('refuses a partially configured controller, rather than publishing half a notice', async () => {
+    // A name with no contact address satisfies nothing — Art. 13 wants both — so a
+    // half-filled configuration is treated as none at all.
+    env = buildEnv({ MORPH_CONTROLLER_EMAIL: undefined });
+
+    expect((await send()).status).toBe(503);
+    expect(env.EVENTS.points).toHaveLength(0);
+  });
+
+  it('refuses a controller whose contact address is not an address', async () => {
+    env = buildEnv({ MORPH_CONTROLLER_EMAIL: 'not-an-email' });
+
+    expect((await send()).status).toBe(503);
+  });
+
   it('refuses a method other than POST', async () => {
     const request = new Request('https://ingest.example/i', { method: 'GET' });
     const response = await worker.fetch(request, env, ctx);
@@ -490,14 +531,31 @@ describe('health and readiness', () => {
     expect(ready.status).toBe(200);
   });
 
-  it('is not ready without one', async () => {
+  it('is not ready without one, and says which variable', async () => {
     // A collector that accepts events while hashing every visitor to the same id is worse
-    // than one that refuses them, because the damage is silent and retroactive.
+    // than one that refuses them, because the damage is silent and retroactive. Naming the
+    // variable matters as much as the status: "not ready" with no reason sends somebody
+    // into the source at the worst possible moment.
     const weak = buildEnv({ ANON_ID_PEPPER: 'short' });
     const ready = await worker.fetch(new Request('https://ingest.example/ready'), weak, ctx);
 
     expect(ready.status).toBe(503);
-    expect(await ready.json()).toEqual({ ready: false });
+    expect(await ready.json()).toEqual({ ready: false, missing: ['ANON_ID_PEPPER'] });
+  });
+
+  it('is not ready without a data controller', async () => {
+    const anonymous = buildEnv({
+      MORPH_CONTROLLER_NAME: undefined,
+      MORPH_CONTROLLER_ADDRESS: undefined,
+      MORPH_CONTROLLER_EMAIL: undefined,
+    });
+    const ready = await worker.fetch(new Request('https://ingest.example/ready'), anonymous, ctx);
+
+    expect(ready.status).toBe(503);
+    expect(await ready.json()).toEqual({
+      ready: false,
+      missing: ['MORPH_CONTROLLER_NAME', 'MORPH_CONTROLLER_ADDRESS', 'MORPH_CONTROLLER_EMAIL'],
+    });
   });
 
   it('closes every other path', async () => {

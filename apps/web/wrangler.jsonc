@@ -98,6 +98,30 @@
     "MORPH_PUBLIC_URL": "https://desirepath.live",
     "MORPH_INDEXABLE": "0",
     "MORPH_ENVIRONMENT_NAME": "production",
+
+    /**
+     * The data controller (D4). GDPR Art. 13 requires a visitor to be told who is
+     * responsible and how to reach them before any processing happens.
+     *
+     * These are deliberately EMPTY in version control. There is no placeholder and no
+     * example value, because a plausible-looking controller in a privacy notice is a false
+     * legal record — worse than a missing one, since it reads as finished.
+     *
+     * Until all three are set:
+     *   - the collector refuses every beacon with 503,
+     *   - `/ready` refuses the deployment and names the missing variables,
+     *   - `/privacy` says so in those words rather than rendering a gap.
+     *
+     * Set them with `wrangler secret put` if you would rather the address not sit in the
+     * repository — they are not secrets in the cryptographic sense, but a private
+     * individual's residence is personal data and belongs wherever the operator wants it.
+     *
+     * MORPH_CONTROLLER_DPO_EMAIL is optional and only applies if an Art. 37 data protection
+     * officer has been appointed.
+     */
+    "MORPH_CONTROLLER_NAME": "",
+    "MORPH_CONTROLLER_ADDRESS": "",
+    "MORPH_CONTROLLER_EMAIL": "",
   },
 
   /**

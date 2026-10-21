@@ -122,7 +122,33 @@ answer there is what `docs/PRIVACY.md` names as controller.
 
 ---
 
-### D4 — Legal identity of the data controller
+### D4 — Legal identity of the data controller — **Enforced; three facts still needed**
+
+> **What changed.** The decision is still the operator's, but it no longer blocks building
+> and it can no longer be forgotten. `packages/core/src/controller.ts` reads the identity
+> from three variables and returns `null` for anything partial, and both services act on
+> that: the collector refuses every beacon with 503, `/ready` refuses the deployment and
+> names the missing variables, and `/privacy` tells the visitor that nothing is being
+> recorded — which is true, because of the first two.
+>
+> This is the treatment `apps/worker/src/env.ts` already gives the deterministic embedding
+> provider: a component that is meaningless in production is made impossible rather than
+> discouraged. The earlier state was worse than either, because a privacy page with a gap
+> in it looks finished.
+>
+> **Nothing is invented.** There is no default, no example and no fallback anywhere in the
+> path. A plausible-looking controller in a privacy notice is a false legal record, and a
+> false legal record is worse than a missing one — so the absence is rendered as an
+> absence, in words, on the public page.
+>
+> **What this unblocks.** The renderer can be deployed now. Art. 13 engages on processing,
+> not on serving pages, so a staging deployment with the collector absent measures nobody
+> and needs none of this. `infra/cloudflare/README.md` has that as a two-step launch.
+>
+> **One thing that has a deadline.** D1 takes `--jurisdiction eu` only at creation; there
+> is no command that moves an existing database. The database has not been created yet, so
+> this is free today and a migration the day after launch. It belongs with this decision
+> rather than after it — see `docs/PRIVACY.md` §0.
 
 Not deferrable: `docs/PRIVACY.md` must name a controller and a contact address, and it
 must be published before the first visitor is measured. A sole trader, an SRL and a

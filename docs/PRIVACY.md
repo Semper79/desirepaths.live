@@ -5,8 +5,62 @@ the system actually does with personal data and where in the code each claim is
 enforced. The public-facing privacy notice is generated from it and must never say more
 than it does.
 
-> **Open decision:** the controller identity is D4 in `docs/DECISIONS.md` and must be
-> filled in before the first visitor is measured.
+> **The controller identity (D4) is enforced, not awaited.** Three variables —
+> `MORPH_CONTROLLER_NAME`, `MORPH_CONTROLLER_ADDRESS`, `MORPH_CONTROLLER_EMAIL` — carry it,
+> and until all three are set the collector refuses every beacon with 503, `/ready` refuses
+> the deployment and names what is missing, and `/privacy` states that nothing is being
+> recorded. The requirement "filled in before the first visitor is measured" is therefore a
+> property of the system rather than something to remember: a deployment that cannot name
+> its controller does not measure anybody. The three facts are still the operator's to
+> supply; nothing here invents them.
+
+---
+
+## 0. Where this runs, and why that is a harder question than it was
+
+The original design (D3) put everything on one server in Falkenstein, which made "where
+does the data live" a one-word answer. The Cloudflare port (D31) removes that answer and
+does not replace it with an equally simple one, so it is worth being precise rather than
+reassuring.
+
+**Processing location is not fixed.** A visitor's request is handled at whichever Cloudflare
+location is nearest to them, which can be outside the EU. That is a transfer in the sense
+Chapter V cares about, and no configuration flag makes it untrue.
+
+**What is actually transferred is the mitigation, and it is a real one.** The IP address is
+hashed inside the request that received it, with a daily-rotating salt and a pepper the
+Worker never writes down, and the original is discarded before anything reaches storage.
+There is no row, in any store, that contains an IP address. What crosses a border is the
+request itself — which is unavoidable for any website — not a record that persists there.
+
+**Where the records do live:**
+
+| Store            | What is in it                                | Location control                                             |
+| ---------------- | -------------------------------------------- | ------------------------------------------------------------ |
+| D1               | content, consent records, the adaptation log | `--jurisdiction eu` at creation. Not yet applied — see below |
+| Durable Objects  | exact per-variant counters, no identifiers   | `locationHint` at creation                                   |
+| Workers KV       | sticky assignments (anonymous id → variant)  | Global by design; not constrainable                          |
+| Analytics Engine | sampled behavioural events                   | Not constrainable                                            |
+
+**The open piece, and it has a deadline.** D1 takes `--jurisdiction eu` at creation, which
+restricts both where the data is stored and where queries run. It is a **creation-time**
+choice: there is no command that moves an existing database into a jurisdiction, so the
+only way to change it later is to create a new one and migrate. Nothing has been created
+yet, which means this is currently free and becomes a migration the moment there is a row
+of content. It therefore belongs with D4 rather than after it.
+
+Note that `--jurisdiction` and `--location` are not the same thing and the first wins:
+`--location` is a hint about the primary replica and is ignored outright when a
+jurisdiction is set. A hint is not a guarantee, and only the jurisdiction is.
+
+Durable Objects take the same constraint through `jurisdiction` when deriving an object id.
+The counters hold no identifiers at all — surface, variant, two integers — so this matters
+less there, but it costs nothing to set.
+
+KV and Analytics Engine cannot be constrained. That is defensible only because of what
+they hold: an anonymous id with no linkage to a person, and sampled events keyed on that
+same id. If either ever held something more, this paragraph stops being an explanation and
+becomes a problem.
 
 ---
 
