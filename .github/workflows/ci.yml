@@ -87,6 +87,27 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # `next build` queries D1 while collecting page data for `/t/[slug]`, and miniflare
+      # creates the local database empty — so without this the build fails with
+      # "no such table: content".
+      #
+      # Migrating rather than teaching the query to tolerate a missing table, because
+      # `db.ts` is explicit that a *bound* database which fails is an error and not a reason
+      # to serve nothing. A build that quietly produced a site with no article pages would
+      # pass here and be wrong in production.
+      #
+      # Seeding too, so the build exercises the sitemap, the feeds and `/llms.txt` against
+      # real rows. An empty array is the one input that makes every serialisation bug
+      # invisible, which is the same argument `db.ts` makes for the development fallback.
+      #
+      # Local only: no credentials, nothing touched on the account.
+      - name: Prepare the local database
+        working-directory: apps/web
+        run: |
+          pnpm exec wrangler d1 migrations apply morph --local
+          pnpm exec wrangler d1 execute morph --local --file=../../infra/d1/seed.sql
+
       - run: pnpm build
       - uses: actions/upload-artifact@v4
         with:
