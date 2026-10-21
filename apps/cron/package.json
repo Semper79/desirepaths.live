@@ -15,12 +15,12 @@
     "@morph/adaptive": "workspace:*",
     "@morph/core": "workspace:*",
     "@morph/cycle": "workspace:*",
-    "drizzle-orm": "^0.36.4"
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260917.1",
     "@types/node": "^22.9.0",
-    "vitest": "^2.1.9",
+    "vitest": "^3.2.7",
     "wrangler": "^4.133.0"
   }
 }

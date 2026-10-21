@@ -12,9 +12,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.9.0",
-    "vitest": "^2.1.9"
+    "vitest": "^3.2.7"
   }
 }

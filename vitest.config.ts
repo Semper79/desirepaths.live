@@ -25,6 +25,14 @@ export default defineConfig({
         'apps/worker/src/**/*.ts',
       ],
       exclude: [
+        // Covered by the workerd suite, which cannot report coverage (see
+        // vitest.workspace.ts). Excluding them is honest only because `pnpm verify` runs
+        // that suite: 24 cases over real SQLite, real alarms and real request
+        // serialisation, which is stronger evidence than a line count would be. If the
+        // workers run ever leaves the gate, these come back in and the threshold tells
+        // the truth again.
+        'apps/api/src/counters.ts',
+        'apps/api/src/session.ts',
         // Re-export barrels: no logic, and covering them measures nothing.
         '**/src/index.ts',
         '**/src/surfaces/index.ts',

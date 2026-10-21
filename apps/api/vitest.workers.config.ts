@@ -17,11 +17,18 @@
  * checks elsewhere: the test reads the config that production reads.
  */
 
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
 
 export default defineWorkersConfig({
   test: {
     name: 'api-workers',
+    // Anchored to this file rather than to the working directory. `include` and the
+    // wrangler path are resolved against the root vitest is launched from, so without this
+    // `vitest --config apps/api/vitest.workers.config.ts` from the repository root finds
+    // no test files and exits 1 — a green-looking "0 passed" if anyone ignored the code.
+    root: dirname(fileURLToPath(import.meta.url)),
     include: ['test/workers/**/*.test.ts'],
     poolOptions: {
       // `wrangler` alone, with no `miniflare.durableObjects` override. The first version of

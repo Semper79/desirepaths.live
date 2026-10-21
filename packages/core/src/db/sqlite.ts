@@ -55,6 +55,10 @@
  * realistic end. The port did not cause that — it exposed it.
  */
 
+// The third argument to `sqliteTable` is an array. It was an object under drizzle 0.36,
+// which is what the first version of this file used; 0.45 deprecated that form in favour of
+// the array, which is what the file was originally written with. Worth a line because the
+// history looks like churn otherwise — it is the library that changed its mind, twice.
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -130,14 +134,11 @@ export const consentRecord = sqliteTable(
     policyVersion: text('policy_version').notNull(),
     recordedAt: integer('recorded_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowDefault),
   },
-  (t) => ({
-    userIdx: index('consent_user_idx').on(t.userId, t.recordedAt),
-    anonIdx: index('consent_anon_idx').on(t.anonIdHash, t.recordedAt),
-    subjectPresent: check(
-      'consent_subject_present',
-      sql`${t.userId} IS NOT NULL OR ${t.anonIdHash} IS NOT NULL`,
-    ),
-  }),
+  (t) => [
+    index('consent_user_idx').on(t.userId, t.recordedAt),
+    index('consent_anon_idx').on(t.anonIdHash, t.recordedAt),
+    check('consent_subject_present', sql`${t.userId} IS NOT NULL OR ${t.anonIdHash} IS NOT NULL`),
+  ],
 );
 
 /**
@@ -161,10 +162,10 @@ export const dataSubjectRequest = sqliteTable(
     result: text('result', { mode: 'json' }).$type<Record<string, number>>(),
     error: text('error'),
   },
-  (t) => ({
-    pendingIdx: index('dsr_pending_idx').on(t.completedAt, t.requestedAt),
-    kindValid: check('dsr_kind_valid', sql.raw(`kind IN ('export', 'erasure')`)),
-  }),
+  (t) => [
+    index('dsr_pending_idx').on(t.completedAt, t.requestedAt),
+    check('dsr_kind_valid', sql.raw(`kind IN ('export', 'erasure')`)),
+  ],
 );
 
 // -----------------------------------------------------------------------------
@@ -216,14 +217,14 @@ export const variant = sqliteTable(
     quarantinedAt: integer('quarantined_at', { mode: 'timestamp_ms' }),
     quarantineReason: text('quarantine_reason'),
   },
-  (t) => ({
-    surfaceStatusIdx: index('variant_surface_status_idx').on(t.surfaceId, t.status),
-    generationIdx: index('variant_generation_idx').on(t.generationId),
-    statusValid: check('variant_status_valid', sql.raw(`status IN (${inList(VARIANT_STATUS)})`)),
-    originValid: check('variant_origin_valid', sql.raw(`origin IN (${inList(VARIANT_ORIGIN)})`)),
-    priorPositive: check('variant_prior_positive', sql`${t.priorAlpha} > 0 AND ${t.priorBeta} > 0`),
-    countsSane: check('variant_counts_sane', sql`${t.conversions} <= ${t.impressions}`),
-  }),
+  (t) => [
+    index('variant_surface_status_idx').on(t.surfaceId, t.status),
+    index('variant_generation_idx').on(t.generationId),
+    check('variant_status_valid', sql.raw(`status IN (${inList(VARIANT_STATUS)})`)),
+    check('variant_origin_valid', sql.raw(`origin IN (${inList(VARIANT_ORIGIN)})`)),
+    check('variant_prior_positive', sql`${t.priorAlpha} > 0 AND ${t.priorBeta} > 0`),
+    check('variant_counts_sane', sql`${t.conversions} <= ${t.impressions}`),
+  ],
 );
 
 /**
@@ -285,15 +286,12 @@ export const adaptationLog = sqliteTable(
     /** Telegram user id when actor = operator. */
     actorRef: text('actor_ref'),
   },
-  (t) => ({
-    timeIdx: index('adaptation_log_time_idx').on(t.occurredAt),
-    surfaceIdx: index('adaptation_log_surface_idx').on(t.surfaceId, t.occurredAt),
-    actionIdx: index('adaptation_log_action_idx').on(t.action, t.occurredAt),
-    actionValid: check(
-      'adaptation_action_valid',
-      sql.raw(`action IN (${inList(ADAPTATION_ACTION)})`),
-    ),
-  }),
+  (t) => [
+    index('adaptation_log_time_idx').on(t.occurredAt),
+    index('adaptation_log_surface_idx').on(t.surfaceId, t.occurredAt),
+    index('adaptation_log_action_idx').on(t.action, t.occurredAt),
+    check('adaptation_action_valid', sql.raw(`action IN (${inList(ADAPTATION_ACTION)})`)),
+  ],
 );
 
 /** Single-row table holding the live engine configuration. */
@@ -326,12 +324,10 @@ export const posteriorSnapshot = sqliteTable(
     impressions: integer('impressions').notNull(),
     rewardSum: real('reward_sum').notNull(),
   },
-  (t) => ({
-    pk: primaryKey({
-      columns: [t.takenAt, t.surfaceId, t.variantId, t.contextBucket, t.isHoldout],
-    }),
-    surfaceIdx: index('posterior_surface_idx').on(t.surfaceId, t.takenAt),
-  }),
+  (t) => [
+    primaryKey({ columns: [t.takenAt, t.surfaceId, t.variantId, t.contextBucket, t.isHoldout] }),
+    index('posterior_surface_idx').on(t.surfaceId, t.takenAt),
+  ],
 );
 
 // -----------------------------------------------------------------------------
@@ -374,20 +370,20 @@ export const content = sqliteTable(
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowDefault),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowDefault),
   },
-  (t) => ({
-    slugUnique: uniqueIndex('content_slug_unique').on(t.slug),
-    statusIdx: index('content_status_idx').on(t.status, t.publishedAt),
-    trendIdx: index('content_trend_idx').on(t.trendSignalId),
-    statusValid: check('content_status_valid', sql.raw(`status IN (${inList(CONTENT_STATUS)})`)),
+  (t) => [
+    uniqueIndex('content_slug_unique').on(t.slug),
+    index('content_status_idx').on(t.status, t.publishedAt),
+    index('content_trend_idx').on(t.trendSignalId),
+    check('content_status_valid', sql.raw(`status IN (${inList(CONTENT_STATUS)})`)),
     // `json_array_length` is SQLite's JSON1 equivalent of `jsonb_array_length`: same
     // invariant, same failure. A published row with an empty `sources` array is rejected.
-    publishedNeedsSources: check(
+    check(
       'content_published_needs_sources',
       sql`${t.status} <> 'published' OR json_array_length(${t.sources}) > 0`,
     ),
-    generatedNeedsReview: check(
+    check(
       'content_generated_needs_review',
       sql`${t.status} <> 'published' OR ${t.generatedBy} IS NULL OR ${t.reviewedAt} IS NOT NULL`,
     ),
-  }),
+  ],
 );

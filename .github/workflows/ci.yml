@@ -99,42 +99,24 @@ jobs:
   # ---------------------------------------------------------------------------
   # Integration. Needs the data plane, so it is slower and runs after the fast jobs.
   # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # Integration, against the stores that actually ship.
+  #
+  # This job used to stand up Postgres, ClickHouse and Redis and run
+  # `pnpm test:integration` — a script that does not exist, against an architecture the
+  # Cloudflare port removed. It had never run: the repository had no remote, so nothing
+  # in this file had ever been executed. A gate that cannot run is worse than no gate,
+  # because the badge is green for the wrong reason.
+  #
+  # What replaced it tests the real thing: Durable Objects in workerd, with real SQLite,
+  # real alarm scheduling and the real single-threaded request serialisation that the
+  # counters' correctness argument depends on. No services, because there are none left.
+  # ---------------------------------------------------------------------------
   integration:
     name: integration
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     needs: [test]
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: morph
-          POSTGRES_PASSWORD: morph
-          POSTGRES_DB: morph
-        options: >-
-          --health-cmd "pg_isready -U morph"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-        ports: ['5432:5432']
-      clickhouse:
-        image: clickhouse/clickhouse-server:24.8-alpine
-        env:
-          CLICKHOUSE_DB: morph
-          CLICKHOUSE_USER: morph
-          CLICKHOUSE_PASSWORD: morph
-        ports: ['8123:8123']
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 3s --health-retries 10
-        ports: ['6379:6379']
-    env:
-      DATABASE_URL: postgres://morph:morph@localhost:5432/morph
-      CLICKHOUSE_URL: http://localhost:8123
-      CLICKHOUSE_USER: morph
-      CLICKHOUSE_PASSWORD: morph
-      REDIS_URL: redis://localhost:6379
-      ANON_ID_PEPPER: ci-only-pepper-not-a-secret
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -143,15 +125,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Apply schemas
-        run: |
-          pnpm --filter @morph/core run db:migrate
-          for f in infra/clickhouse/init/*.sql; do
-            curl -sSf --data-binary "@$f" \
-              "http://localhost:8123/?user=morph&password=morph&allow_experimental_refreshable_materialized_view=1" \
-              || { echo "Failed applying $f"; exit 1; }
-          done
-      - run: pnpm test:integration
+      - run: pnpm test:workers
 
   # ---------------------------------------------------------------------------
   # Experience gates. These run against the ADAPTED pages, not the baseline -
@@ -239,8 +213,18 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Audit dependencies
-        run: pnpm audit --audit-level=high
+      # `--prod`, deliberately.
+      #
+      # The full tree is mostly test tooling — vitest, its pool, playwright, wrangler —
+      # and an advisory in a dev dependency cannot reach a deployed Worker. Failing the
+      # build on those means the gate cries wolf until somebody disables it, which is how
+      # a real advisory gets missed.
+      #
+      # This is only defensible because the production findings are fixed rather than
+      # scoped away: drizzle-orm's SQL injection advisory and Next's were both upgraded
+      # when this flag was added, not hidden behind it.
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level=high
 
       # A secret in the repository is a rotation emergency, not a review comment.
       - name: Scan for committed secrets

@@ -14,20 +14,22 @@ const here = fileURLToPath(new URL('.', import.meta.url));
  */
 export default defineWorkspace([
   /**
-   * `SurfaceCounters`, run inside workerd rather than on Node.
+   * The workerd project is NOT here, and that is not an oversight.
    *
-   * Referenced as a path because it needs a different pool, and a pool is per-project. Its
-   * own file explains why mocking the runtime would have tested the mock: the correctness
-   * argument for coalescing counts in memory rests on alarm replacement and on a flush
-   * landing before a read, and neither is observable without the real scheduler.
+   * `@cloudflare/vitest-pool-workers` cannot run under `@vitest/coverage-v8`: the coverage
+   * provider imports `node:inspector`, which workerd has no module for. The symptom is
+   * ugly and misleading — the pool crashes, the run reports a fraction of the tests as
+   * though that were all of them, and the coverage threshold fails on code that is in
+   * fact covered.
    *
-   * Two things to know about it. The bundled workerd lags the compatibility date
-   * `wrangler.jsonc` pins, so these tests run on a slightly older runtime than production —
-   * which is how `getByName` turned out to be unavailable. And the pool's miniflare does
-   * not recognise the `ratelimits` field, which it warns about and ignores; nothing in this
-   * project uses the limiter.
+   * It is a documented limitation of the pool, not something to work around:
+   * developers.cloudflare.com/workers/testing/vitest-integration/known-issues/
+   *
+   * So `apps/api/vitest.workers.config.ts` runs on its own, through `pnpm test:workers`,
+   * and `pnpm verify` runs both. This cost a CI run to discover, because `vitest run`
+   * without coverage is fine and that is the command I kept using — the gate is
+   * `test:coverage`, and verifying with anything else proves less than it looks.
    */
-  './apps/api/vitest.workers.config.ts',
   {
     test: {
       name: 'core',

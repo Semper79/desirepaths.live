@@ -327,3 +327,15 @@ inside budget, the spike losing no events, and results committed to `docs/BENCHM
 - Personalised adaptation keyed to an individual's history — needs a DPIA first, see
   `docs/PRIVACY.md`
 - Anything on the forbidden list in `CLAUDE.md`
+
+---
+
+## Known, unfixed
+
+**`fast-xml-parser` 4.5.7 — XML comment and CDATA injection (MODERATE).** In
+`packages/crawler`, which parses RSS and Atom from the open web, so it is the one place in
+this repository where an XML parser advisory has untrusted input to work on. It sits below
+the `--audit-level=high` gate and the fix is a major version bump (5.x), and `apps/worker`
+— its only consumer — has not been ported to Cloudflare yet. So it waits for that port
+rather than being bumped on its own, and it is written here so it does not simply go
+unnoticed between two audits.
