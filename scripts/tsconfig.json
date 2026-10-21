@@ -1,0 +1,16 @@
+{
+  // `scripts/` had no owning project because every other script here is `.mjs`.
+  // `projectService` in the ESLint config needs one per directory it lints, so a single
+  // TypeScript script is enough to require this file.
+  //
+  // `rootDir` reaches the repository root because `seed-d1.ts` imports the seed fixtures
+  // from `apps/web` — the one place a script legitimately reads an app's source, since it
+  // generates a file from it rather than depending on it at runtime.
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["*.ts"]
+}

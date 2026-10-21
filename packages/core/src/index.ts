@@ -13,6 +13,7 @@ export * from './consent.js';
 export * from './controller.js';
 export * from './db/retention.js';
 export * from './session-fold.js';
+export * from './db/seed.js';
 export * from './safety.js';
 export * from './content.js';
 export * from './context.js';

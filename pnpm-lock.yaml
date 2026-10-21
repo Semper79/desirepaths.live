@@ -11,6 +11,9 @@ importers:
       '@eslint/js':
         specifier: ^9.15.0
         version: 9.39.5
+      '@morph/core':
+        specifier: workspace:^
+        version: link:packages/core
       '@types/node':
         specifier: ^22.9.0
         version: 22.20.1

@@ -32,10 +32,12 @@
     "build:direct": "node scripts/run-all.mjs build",
     "verify:direct": "pnpm typecheck:direct && pnpm lint && pnpm guardrails && pnpm test:coverage && pnpm build:direct",
     "lint:fix": "eslint . --fix",
-    "guardrails": "node scripts/check-guardrails.mjs"
+    "guardrails": "node scripts/check-guardrails.mjs",
+    "seed:generate": "tsx scripts/seed-d1.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
+    "@morph/core": "workspace:^",
     "@types/node": "^22.9.0",
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.15.0",

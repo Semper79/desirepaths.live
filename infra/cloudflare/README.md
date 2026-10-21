@@ -59,6 +59,30 @@ pnpm exec wrangler d1 migrations apply morph --local
 
 ---
 
+## 1b. Seed it, or nothing adapts
+
+```bash
+cd apps/web
+pnpm exec wrangler d1 execute morph --local  --file=../../infra/d1/seed.sql
+pnpm exec wrangler d1 execute morph --remote --file=../../infra/d1/seed.sql
+```
+
+49 variants from the surface registry, the hand-written articles, and the engine
+configuration. **Without this the site looks new rather than broken**, which is the reason
+it has its own step: `activeVariants()` returns nothing, the adapt cycle reports
+`no_variants`, no snapshot is ever published, and every surface resolves to its baseline
+for ever. The thinking bar says "cold start" — exactly what a genuinely new site says — so
+the gap is invisible until somebody wonders why nothing has changed in a fortnight.
+
+Every statement is `INSERT OR IGNORE`, so re-applying is harmless and applying to a
+partially seeded database fills only the gaps. It is deliberately **not** part of the
+deploy: a deploy that re-seeded would overwrite your edits to the variant pool.
+
+`infra/d1/seed.sql` is committed and generated — `pnpm seed:generate` rebuilds it after a
+change to the registry, and a test fails if the two drift.
+
+---
+
 ## 2. The two KV namespaces
 
 ```bash
