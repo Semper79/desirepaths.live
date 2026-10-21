@@ -35,7 +35,16 @@
    * from and are not.
    */
   "durable_objects": {
-    "bindings": [{ "name": "COUNTERS", "class_name": "SurfaceCounters" }],
+    "bindings": [
+      { "name": "COUNTERS", "class_name": "SurfaceCounters" },
+      /**
+       * One object per session, which folds it and hands the components to COUNTERS when
+       * it closes (D36). Bound to the collector so a beacon can reach it, and the only
+       * holder of a COUNTERS binding in its own right — the collector deliberately has
+       * none, so the posteriors' source is reachable from exactly one place.
+       */
+      { "name": "SESSIONS", "class_name": "SessionAggregate" },
+    ],
   },
 
   /**
@@ -49,7 +58,10 @@
    * runtime replays the list to decide what has already been applied, so rewriting history
    * here is how an object loses its storage.
    */
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SurfaceCounters"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["SurfaceCounters"] },
+    { "tag": "v2", "new_sqlite_classes": ["SessionAggregate"] },
+  ],
 
   "analytics_engine_datasets": [
     /**

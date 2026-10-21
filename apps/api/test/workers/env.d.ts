@@ -9,9 +9,11 @@
  */
 
 import type { SurfaceCounters } from '../../src/counters.js';
+import type { SessionAggregate } from '../../src/session.js';
 
 declare module 'cloudflare:test' {
   interface ProvidedEnv {
     readonly COUNTERS: DurableObjectNamespace<SurfaceCounters>;
+    readonly SESSIONS: DurableObjectNamespace<SessionAggregate>;
   }
 }

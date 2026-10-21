@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetMetricSink } from '@morph/metrics';
 import worker from '../src/worker.js';
-import type { SurfaceCounters } from '../src/counters.js';
 import { consentMaskFromCookie } from '../src/lib/consent-cookie.js';
-import { VisitorIdentity } from '@morph/core';
+import { VisitorIdentity, type FoldableEvent } from '@morph/core';
 import { enrich, hourOfWeek } from '../src/lib/enrich.js';
 
 const PEPPER = 'p'.repeat(64);
@@ -228,25 +227,37 @@ function capturingDataset() {
 }
 
 /**
- * A counters namespace whose every method throws.
+ * A SESSIONS namespace that records what the collector handed it.
  *
- * The ingest path does not touch the counters yet — folding a session is a separate piece
- * of work — so a stub that returns something would quietly accept a call that should not
- * be happening. Every member is implemented rather than asserted away, so if a beacon ever
- * starts writing to the posteriors' source a test says so by name.
+ * Deliberately a capture rather than a throw, unlike the counters: the ingest path is
+ * supposed to reach this, and what it sends — grouped by session, folded per event — is a
+ * contract worth asserting. The counters stay unreachable, which is now a stronger
+ * statement than it was: only the session object may write to the posteriors' source.
  */
-function unreachableCounters(): DurableObjectNamespace<SurfaceCounters> {
-  const refuse = (): never => {
-    throw new Error('ingest must not reach the counters before sessions are folded');
-  };
+function recordingSessions() {
+  const calls: { sessionId: string; events: FoldableEvent[] }[] = [];
 
   return {
-    newUniqueId: refuse,
-    idFromName: refuse,
-    idFromString: refuse,
-    get: refuse,
-    getByName: refuse,
-    jurisdiction: refuse,
+    calls,
+    idFromName(name: string): DurableObjectId {
+      // `DurableObjectId` is three members, so this is the real interface rather than a
+      // cast past it. The id only has to round-trip back to the name for these assertions;
+      // nothing here exercises Cloudflare's hashing.
+      return {
+        name,
+        toString: () => name,
+        equals: (other: DurableObjectId) => other.toString() === name,
+      };
+    },
+    get(id: DurableObjectId) {
+      const sessionId = String(id);
+      return {
+        record(events: FoldableEvent[]) {
+          calls.push({ sessionId, events });
+          return Promise.resolve();
+        },
+      };
+    },
   };
 }
 
@@ -276,7 +287,7 @@ function buildEnv(over: Record<string, unknown> = {}) {
     MORPH_CONTROLLER_NAME: 'Example Operator Srl',
     MORPH_CONTROLLER_ADDRESS: 'Via Esempio 1, 24100 Bergamo, Italy',
     MORPH_CONTROLLER_EMAIL: 'privacy@morph.example',
-    COUNTERS: unreachableCounters(),
+    SESSIONS: recordingSessions(),
     ...over,
   };
 }
@@ -305,9 +316,22 @@ function beacon(
  * assertion would have destroyed: if this Worker ever starts using `tracing` or `abort`,
  * the test says so rather than silently handing it `undefined`.
  */
+/**
+ * Deferred work, collected so a case can wait for it.
+ *
+ * The collector hands the session fold to `waitUntil` on purpose — the beacon cannot act
+ * on whether it succeeded. A test that ignored it would assert against a fan-out that had
+ * not happened yet and pass or fail on timing.
+ */
+const deferred: Promise<unknown>[] = [];
+
+async function settleDeferred(): Promise<void> {
+  await Promise.all(deferred.splice(0, deferred.length));
+}
+
 const ctx: ExecutionContext = {
-  waitUntil() {
-    /* nothing is deferred on these paths */
+  waitUntil(promise: Promise<unknown>) {
+    deferred.push(promise);
   },
   passThroughOnException() {
     // The handler catches its own errors on purpose (D31). If this fires, an exception
@@ -347,6 +371,7 @@ describe('POST /i', () => {
 
   beforeEach(() => {
     env = buildEnv();
+    deferred.length = 0;
     // Back to the null sink between cases, so an observation from one cannot be counted
     // by the next. The Worker installs the real one itself on every request.
     resetMetricSink();
@@ -497,6 +522,53 @@ describe('POST /i', () => {
       .map((p) => p.blobs?.[2]);
 
     expect(outcomes).toEqual(['accepted', 'rejected']);
+  });
+
+  it('hands the session its events, keyed on the session id', async () => {
+    await send();
+    await settleDeferred();
+
+    expect(env.SESSIONS.calls).toHaveLength(1);
+    expect(env.SESSIONS.calls[0]?.sessionId).toBe('018f1f8c-2f3a-7c2a-9e2b-3d5a6f7b8c9e');
+    expect(env.SESSIONS.calls[0]?.events).toHaveLength(1);
+  });
+
+  it('derives the context bucket rather than passing the raw context through', async () => {
+    // Bucketing is a decision about the covariate space and `packages/core` owns it. The
+    // fold groups by what it is handed, so if this arrived un-bucketed every session would
+    // land in its own posterior cell and Thompson sampling would never have enough data.
+    await send();
+    await settleDeferred();
+
+    const folded = env.SESSIONS.calls[0]?.events[0];
+    expect(folded?.contextBucket).toMatch(/^phone\|/);
+  });
+
+  it('groups a replayed batch by session rather than merging it', async () => {
+    // A beacon is normally one session's flush, but an offline queue can replay two. Sending
+    // them as one would merge a visitor's morning into their afternoon.
+    await send({
+      events: [clientEvent(), clientEvent({ sessionId: '018f1f8c-2f3a-7c2a-9e2b-3d5a6f7b8c9f' })],
+    });
+    await settleDeferred();
+
+    expect(env.SESSIONS.calls).toHaveLength(2);
+    expect(new Set(env.SESSIONS.calls.map((c) => c.sessionId)).size).toBe(2);
+  });
+
+  it('sends one call per session, not one per event', async () => {
+    await send({ events: [clientEvent(), clientEvent(), clientEvent()] });
+    await settleDeferred();
+
+    expect(env.SESSIONS.calls).toHaveLength(1);
+    expect(env.SESSIONS.calls[0]?.events).toHaveLength(3);
+  });
+
+  it('folds nothing when the batch was wholly rejected', async () => {
+    await send({ events: [clientEvent({ type: 'scroll_depth', value: 900 })] });
+    await settleDeferred();
+
+    expect(env.SESSIONS.calls).toHaveLength(0);
   });
 
   it('refuses every beacon when no data controller is configured', async () => {

@@ -1079,3 +1079,99 @@ sits inside the free allowance. At 5M events/day the folding and counting is on 
 of $100 a month. That is the price of evidence the engine is allowed to reason from, and
 the alternative was not cheaper so much as different: a server big enough to do ClickHouse
 merges cost the same order of money, as a fixed fee rather than per event.
+
+---
+
+### D36 — One Durable Object per session, which closes itself — **Taken**
+
+The counters (D33, D35) had no producer. This is it: the piece that decides a session is
+over and hands on what it earned.
+
+**Why a session needs an object at all.** The reward is session-scoped — a sign-up belongs
+to the whole experience the visitor was shown, not to the click that preceded it — so
+nothing can be attributed until the session has ended. Something has to know that it has,
+and a session spans requests, so a Worker cannot hold it.
+
+ClickHouse never needed a completion signal: `surface_rewards_hourly` was a _refreshable_
+materialized view over a two-hour trailing window, idempotent because `SummingMergeTree`
+absorbs a re-run. The counters cannot be recomputed that way — they accumulate — so the
+signal has to be explicit.
+
+**Why not the two cheaper options.** Folding from Analytics Engine would work and its SQL
+API can group by session id, but it samples, and D33 forbids an estimate from entering a
+Beta. Folding inside each surface object would mean eleven copies of the same bookkeeping,
+because every session sees every surface — eleven times the writes, and a surface object
+single-threaded behind traffic it has no reason to see.
+
+**What makes it affordable.** Every aggregation the ClickHouse fold used is `min`, `max`,
+`sum` or `any`, all commutative and associative. So the fold is incremental: a session costs
+a fixed handful of scalars rather than a list of its events, and the order they arrive in
+does not matter. `session-fold.test.ts` asserts that order-independence directly, because if
+it ever stops holding then one object per session stops being enough.
+
+The collector sends one call per session per beacon rather than one per event, which at the
+design target is the difference between roughly a million object requests a day and five
+million.
+
+---
+
+**Where this diverges from `mv_sessions`, and why that is a fix rather than a drift.**
+
+The ClickHouse fold took `anyState(surfaces)` and `anyState(variants)` — one assignment per
+session, picked arbitrarily. But `events.ts` sends the assignment on _every_ event and
+explains why in its own comment: a session can span an assignment change, and "attributing
+later events to the earlier assignment would silently corrupt the reward attribution."
+
+Those two statements contradict each other. The schema went out of its way to preserve a
+distinction the fold then discarded, so a session that saw variant A for two pageviews and B
+for three had its entire reward credited to whichever `any` happened to return.
+
+This resolves it the other way: **a session whose assignment changed contributes nothing.**
+It is un-attributable by construction — there is no honest answer to which variant earned a
+sign-up that happened after the variant changed — and mid-session reassignment is rare,
+because it takes a quarantine or an operator pin. The same judgement `parseAssignment`
+already makes about a partial vector: discarding costs one session, repairing corrupts a
+posterior.
+
+---
+
+**The session timeout is thirty minutes, and it constrains the adapt cycle.**
+
+Nothing in this repository had previously chosen one. Thirty minutes is the web analytics
+convention, and worth following for more than familiarity: the number trades attributing a
+returning visitor's second visit to the same session against splitting one reading session
+in two, and the industry settled it with far more measurement than this project can bring.
+
+The consequence is not optional. Components are filed under the hour the session _started_
+in — an hour's traffic is the sessions that began in it, and a session's hour must not move
+as it continues, or a long one would leave a window the cycle had already read. But a
+session that began at 10:59 can still be open at 11:28, so **an hour is not final until a
+session timeout after it ends.** A cycle reading the previous hour immediately would
+systematically miss the sessions that straddle the boundary — and straddling sessions are
+the long ones, which are also the engaged ones, so the bias would run against exactly the
+evidence that matters most.
+
+The adapt cycle therefore reads hours older than `SESSION_TIMEOUT_MS`, and that is a
+requirement on the cron rather than a preference.
+
+---
+
+**One failure this design cannot prevent, named rather than hidden.**
+
+`alarm` folds, fans out to the surface objects, then clears its storage. If the fan-out
+throws partway, the state remains and the alarm is re-armed, so the next attempt has the
+same events — but `SurfaceCounters.record` is additive, so the surfaces that already landed
+would be counted twice.
+
+The alternative orderings are worse. Clearing first means a failed fan-out loses the session
+entirely. Making the fan-out idempotent means giving each session an id the counters
+remember, which is a row per session in every surface object — the per-surface bookkeeping
+this design exists to avoid.
+
+So the exposure is: a partial fan-out failure over-counts the surfaces it reached. It takes
+an error between two object calls inside one alarm, the over-count is one session, and the
+direction is a slightly narrower posterior rather than a wrong leader. That is acceptable
+and it is written down so it is not re-discovered as a mystery.
+
+**What it costs.** At launch traffic, nothing. At 5M events/day the folding and counting
+together are on the order of $100 a month, which D35 already accounts for.

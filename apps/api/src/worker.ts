@@ -28,8 +28,10 @@
 
 import {
   VisitorIdentity,
+  bucketOf,
   controllerFrom,
   missingControllerFields,
+  type FoldableEvent,
   type IngestEvent,
 } from '@morph/core';
 import {
@@ -42,7 +44,7 @@ import {
   type AnalyticsEngineLike,
 } from '@morph/metrics';
 import { enrich, type RequestMeta } from './lib/enrich.js';
-import type { SurfaceCounters } from './counters.js';
+
 import { consentMaskFromCookie } from './lib/consent-cookie.js';
 import {
   analyticsEventPublisher,
@@ -103,7 +105,33 @@ interface Env {
    * Object class lives in exactly one script and this is the one that writes to it on
    * every beacon. The cron binds to the same namespace with `script_name`.
    */
-  readonly COUNTERS: DurableObjectNamespace<SurfaceCounters>;
+  /**
+   * One object per session, which folds it and closes itself (D36).
+   *
+   * The collector hands a beacon's events here and does not wait for a verdict: whether a
+   * session converted is not knowable until it ends, and the beacon has already been
+   * discarded by the browser.
+   */
+  readonly SESSIONS: SessionWriter;
+}
+
+/**
+ * The only thing the collector may do to a session: address one and hand it events.
+ *
+ * Narrower than `DurableObjectNamespace<SessionAggregate>` on purpose. The full namespace
+ * type would also expose `alarm()` and `state()`, and the collector has no business
+ * closing a session or reading one back — closing is the alarm's decision and reading is
+ * the operator's. A real namespace satisfies this structurally, so nothing is lost by
+ * asking for less.
+ *
+ * The collector also has no `COUNTERS` binding at all, which is the same idea taken
+ * further: the posteriors' source is reachable only from the session object, and the way to
+ * guarantee that is to leave the capability out of this type rather than to remember not to
+ * use it.
+ */
+interface SessionWriter {
+  idFromName(name: string): DurableObjectId;
+  get(id: DurableObjectId): { record(events: readonly FoldableEvent[]): Promise<void> };
 }
 
 /** A beacon's response is discarded; only the status and `retry-after` are ever read. */
@@ -173,6 +201,7 @@ function mayMeasure(env: Env): boolean {
 async function handleIngest(
   request: Request,
   env: Env,
+  ctx: ExecutionContext,
   publisher: EventPublisher,
 ): Promise<Response> {
   if (!mayMeasure(env)) {
@@ -255,9 +284,60 @@ async function handleIngest(
   publisher.publish(result.events);
   recordLag(result.events);
 
+  // Deferred rather than awaited. The beacon cannot act on whether the fold succeeded and
+  // the browser has already discarded the response, so making page unload wait on a chain
+  // of object calls would buy the visitor nothing. `waitUntil` is what keeps the work
+  // guaranteed to run without keeping the response waiting for it — and `ctx` is passed
+  // whole rather than destructured, because a detached `waitUntil` loses its `this`.
+  ctx.waitUntil(foldSessions(env, result.events));
+
   ingestRequests.inc({ outcome: 'accepted' });
   ingestEvents.inc(result.events.length);
   return empty(202);
+}
+
+/**
+ * Hand each session's events to its own object, so they can be folded when it ends.
+ *
+ * Grouped by session first: a beacon is normally one session's flush, but a batch replayed
+ * from an offline queue can carry two, and sending them as one would merge a visitor's
+ * morning into their afternoon.
+ *
+ * One call per session per beacon rather than one per event. At the design target that is
+ * the difference between roughly a million object requests a day and five million, and the
+ * fold is order-independent so there is nothing to gain by sending them separately.
+ */
+function foldSessions(env: Env, events: readonly IngestEvent[]): Promise<void> {
+  const bySession = new Map<string, FoldableEvent[]>();
+
+  for (const event of events) {
+    const foldable: FoldableEvent = {
+      type: event.type,
+      ts: Date.parse(event.ts),
+      value: event.value,
+      surfaces: event.surfaces,
+      variants: event.variants,
+      assignmentHash: event.assignmentHash,
+      holdout: event.holdout,
+      botScore: event.botScore,
+      // Derived here rather than in the fold, because bucketing is a decision about the
+      // covariate space and `packages/core` owns it. The fold only groups by what it is
+      // handed.
+      contextBucket: bucketOf(event.ctx),
+      isReturning: event.ctx.returning,
+    };
+
+    const batch = bySession.get(event.sessionId) ?? [];
+    batch.push(foldable);
+    bySession.set(event.sessionId, batch);
+  }
+
+  return Promise.all(
+    [...bySession].map(async ([sessionId, batch]) => {
+      const stub = env.SESSIONS.get(env.SESSIONS.idFromName(sessionId));
+      await stub.record(batch);
+    }),
+  ).then(() => undefined);
 }
 
 /**
@@ -284,6 +364,7 @@ function recordLag(events: readonly IngestEvent[]): void {
  * fails at runtime with a class it cannot find.
  */
 export { SurfaceCounters } from './counters.js';
+export { SessionAggregate } from './session.js';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -298,7 +379,7 @@ export default {
       if (request.method !== 'POST') return empty(405, { allow: 'POST' });
 
       try {
-        return await handleIngest(request, env, analyticsEventPublisher(env.EVENTS));
+        return await handleIngest(request, env, ctx, analyticsEventPublisher(env.EVENTS));
       } catch (error) {
         // Explicit, rather than `passThroughOnException`: the collector should fail
         // visibly and return a status the client's retry queue understands. 503 and not
@@ -342,7 +423,6 @@ export default {
 
     // Everything else is closed. There is no public API here, and an open 404 surface is
     // one more thing to reason about.
-    void ctx;
     return empty(404);
   },
 } satisfies ExportedHandler<Env>;
