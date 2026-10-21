@@ -18,8 +18,8 @@ import {
   decideAdaptations,
   explorationRateOf,
   targetHour,
-} from '../src/lib/adapt-derive.js';
-import { runAdapt } from '../src/jobs/adapt.js';
+} from '../src/derive.js';
+import { runAdapt } from '../src/adapt.js';
 import type {
   ActiveVariant,
   AdaptRepository,

@@ -45,6 +45,26 @@ export const ENGAGED_PAGEVIEWS = 2;
 export const BOUNCE_MS = 5_000;
 
 /**
+ * How long a session may be idle before it is considered over.
+ *
+ * Thirty minutes, the web analytics convention — a trade between attributing a returning
+ * visitor's second visit to the same session and splitting one reading session in two, which
+ * the industry settled with far more measurement than this project can bring.
+ *
+ * It lives here rather than beside the Durable Object that enforces it because two unrelated
+ * places need the same number. The object uses it as an inactivity deadline. The adaptive
+ * cycle uses it to decide which hours are *settled*: a session beginning at 10:59 can still
+ * be open at 11:28, so hour 10 is not final until half an hour after it ends. A cycle reading
+ * the previous hour immediately would miss every session that straddles the boundary — and
+ * straddling sessions are the long ones, which are the engaged ones, so the bias would run
+ * against exactly the evidence that matters most.
+ *
+ * Changing it therefore moves both the deadline and the cycle's lag, together, which is the
+ * only way they can stay consistent. See D36.
+ */
+export const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+/**
  * The subset of an event this fold reads.
  *
  * Declared structurally rather than taking `IngestEvent`, so the fold can be driven from a

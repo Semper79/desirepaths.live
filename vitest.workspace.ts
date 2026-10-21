@@ -38,6 +38,14 @@ export default defineWorkspace([
   },
   {
     test: {
+      name: 'cycle',
+      root: './packages/cycle',
+      environment: 'node',
+      include: ['test/**/*.test.ts'],
+    },
+  },
+  {
+    test: {
       name: 'adaptive',
       root: './packages/adaptive',
       environment: 'node',

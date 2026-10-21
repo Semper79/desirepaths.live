@@ -42,15 +42,26 @@ import {
   explorationRateOf,
   targetHour,
   type CycleConfig,
-} from '../lib/adapt-derive.js';
+} from './derive.js';
 import type {
   AdaptRepository,
   Clock,
   Logger,
   RewardRepository,
   SnapshotPublisher,
-} from '../ports.js';
-import type { AdaptJob } from '../queues.js';
+} from './ports.js';
+
+/**
+ * What a cycle is asked to do.
+ *
+ * Was `AdaptRequest` from `queues.ts`, which tied the cycle to BullMQ for the sake of one
+ * optional field. A Cron Trigger has no payload, so the shape it actually needed is this:
+ * an optional hour to target, for a replay.
+ */
+export interface AdaptRequest {
+  /** Epoch milliseconds inside the hour to fold. Defaults to the most recent settled one. */
+  readonly hourStart?: number | undefined;
+}
 
 export interface AdaptDeps {
   readonly rewards: RewardRepository;
@@ -82,7 +93,7 @@ export type AdaptOutcome =
   | { readonly kind: 'already_applied'; readonly hour: number }
   | { readonly kind: 'no_variants' };
 
-export async function runAdapt(deps: AdaptDeps, job: AdaptJob): Promise<AdaptOutcome> {
+export async function runAdapt(deps: AdaptDeps, job: AdaptRequest): Promise<AdaptOutcome> {
   const hour = job.hourStart ?? targetHour(deps.now());
 
   const variants = await deps.store.activeVariants();

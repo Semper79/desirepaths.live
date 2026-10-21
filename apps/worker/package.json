@@ -12,17 +12,18 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
     "@morph/adaptive": "workspace:*",
     "@morph/core": "workspace:*",
-    "@morph/metrics": "workspace:*",
     "@morph/crawler": "workspace:*",
+    "@morph/cycle": "workspace:^",
+    "@morph/metrics": "workspace:*",
+    "@morph/telegram": "workspace:*",
     "bullmq": "^5.34.0",
     "drizzle-orm": "^0.36.4",
     "ioredis": "^5.4.1",
     "postgres": "^3.4.5",
-    "zod": "^3.23.8",
-    "@anthropic-ai/sdk": "^0.122.0",
-    "@morph/telegram": "workspace:*"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

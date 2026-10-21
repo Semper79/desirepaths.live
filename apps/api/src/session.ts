@@ -25,6 +25,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import {
+  SESSION_TIMEOUT_MS,
   componentsFor,
   emptySession,
   foldEvent,
@@ -35,21 +36,14 @@ import type { HourlyFold, SurfaceCounters } from './counters.js';
 import { hourStartOf } from './counters.js';
 
 /**
- * How long a session may be idle before it is considered over.
+ * Re-exported, not redeclared.
  *
- * Thirty minutes, which nothing in this repository had previously decided. It is the web
- * analytics convention, and the convention is worth following here for a reason beyond
- * familiarity: the number is a trade between attributing a returning visitor's second visit
- * to the same session (too long) and splitting one reading session across two (too short),
- * and thirty minutes is where the industry settled after measuring that far more than this
- * project can.
- *
- * It has a consequence the adapt cycle has to respect, recorded in D36: an hour is not
- * final until this long after it ends, because a session that began at 10:59 can still be
- * open at 11:28. A cycle that reads the previous hour immediately would systematically miss
- * the sessions that straddle the boundary.
+ * The number lives in `@morph/core` because the adaptive cycle needs the same one — it
+ * decides which hours are settled, and an hour is not final until a session timeout after it
+ * ends (D36). Two copies would drift, and the symptom would be a cycle reading an hour whose
+ * sessions were still open: a silent under-count of the longest, most engaged ones.
  */
-export const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+export { SESSION_TIMEOUT_MS } from '@morph/core';
 
 interface Env {
   readonly COUNTERS: DurableObjectNamespace<SurfaceCounters>;
