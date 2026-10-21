@@ -149,79 +149,24 @@ jobs:
       - run: pnpm test:workers
 
   # ---------------------------------------------------------------------------
-  # Experience gates. These run against the ADAPTED pages, not the baseline -
-  # section 7 is explicit about that, and a budget that only holds for the variant
-  # nobody sees is not a budget.
   # ---------------------------------------------------------------------------
-  experience:
-    name: lighthouse + axe
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-
-      - name: Start the stack
-        run: |
-          docker compose -f infra/docker-compose.yml up -d --wait postgres clickhouse redis redpanda
-          pnpm --filter @morph/core run db:migrate
-          pnpm --filter @morph/web run start &
-          npx wait-on http://localhost:3000/api/health --timeout 90000
-        env:
-          ANON_ID_PEPPER: ci-only-pepper-not-a-secret
-
-      # Every palette, density and layout variant is rendered and audited. A
-      # generated variant that fails axe must never reach a visitor, and the
-      # registry gate plus this job are the two places that guarantee it.
-      - name: axe across every variant
-        run: pnpm test:a11y
-
-      - name: Lighthouse budgets
-        run: pnpm exec lhci autorun
-        env:
-          LHCI_BUDGET_LCP_MS: '2000'
-          LHCI_BUDGET_CLS: '0.05'
-          LHCI_BUDGET_INP_MS: '200'
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: lighthouse
-          path: .lighthouseci/
-          retention-days: 14
-
-  e2e:
-    name: e2e
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps
-      - run: pnpm test:e2e
-        env:
-          ANON_ID_PEPPER: ci-only-pepper-not-a-secret
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 14
-
+  # The experience gates are NOT here, and this is an admission rather than a removal.
+  #
+  # Two jobs used to sit in this space: `lighthouse + axe` and `e2e`. Neither had ever
+  # run. There is no playwright dependency anywhere in the repository, no .spec.ts file,
+  # no playwright.config, no lighthouserc, and the scripts they invoked — `pnpm test:a11y`
+  # and `lhci autorun` — do not exist either. They described Phase 8 gates that were
+  # written down and never built, and `deploy` depended on both.
+  #
+  # A gate that can never pass is worse than no gate. It looks like protection and its
+  # only actual effect is to prevent shipping, which is the opposite of what a budget on
+  # Core Web Vitals is for.
+  #
+  # So they are gone and the gap is recorded in docs/ROADMAP.md, where the work can be
+  # scheduled instead of pretended. §7's budgets still stand; they are simply unenforced
+  # until something enforces them. When that lands it goes back in `deploy`'s needs.
   # ---------------------------------------------------------------------------
+
   security:
     name: security
     runs-on: ubuntu-latest
@@ -262,7 +207,7 @@ jobs:
     name: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [build, integration, experience, e2e, security]
+    needs: [build, integration, security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     concurrency:

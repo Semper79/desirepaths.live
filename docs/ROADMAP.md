@@ -339,3 +339,21 @@ the `--audit-level=high` gate and the fix is a major version bump (5.x), and `ap
 — its only consumer — has not been ported to Cloudflare yet. So it waits for that port
 rather than being bumped on its own, and it is written here so it does not simply go
 unnoticed between two audits.
+
+**The experience gates are unenforced.** §7 budgets Core Web Vitals and accessibility, and
+`docs/BENCHMARKS.md` states the numbers, but nothing checks them. Two CI jobs described
+them — `lighthouse + axe` and `e2e` — and neither had ever run: there is no playwright
+dependency in the repository, no `.spec.ts` file, no `playwright.config`, no `lighthouserc`,
+and the scripts they invoked (`pnpm test:a11y`, `lhci autorun`) do not exist. They have been
+removed from the workflow rather than left failing, because a gate that can never pass only
+prevents shipping.
+
+What this costs: the adaptive engine can quarantine a variant on a Core Web Vitals breach
+at runtime (`evaluateHealth`), so a bad variant is caught _after_ it has been served to
+somebody. What is missing is the check that stops it being written in the first place — and
+§7 is explicit that the budgets apply to the adapted pages rather than the baseline, so the
+suite has to drive real assignments rather than load the home page once.
+
+Implementing it is Phase 8 work: `@playwright/test`, a handful of journeys against a
+preview deployment, `axe-core` on each, and Lighthouse with the budgets from
+`docs/BENCHMARKS.md`. When it lands it goes back into `deploy`'s `needs`.
