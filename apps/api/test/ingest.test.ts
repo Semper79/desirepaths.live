@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetMetricSink } from '@morph/metrics';
 import worker from '../src/worker.js';
+import type { SurfaceCounters } from '../src/counters.js';
 import { consentMaskFromCookie } from '../src/lib/consent-cookie.js';
 import { VisitorIdentity } from '@morph/core';
 import { enrich, hourOfWeek } from '../src/lib/enrich.js';
@@ -226,6 +227,29 @@ function capturingDataset() {
   };
 }
 
+/**
+ * A counters namespace whose every method throws.
+ *
+ * The ingest path does not touch the counters yet — folding a session is a separate piece
+ * of work — so a stub that returns something would quietly accept a call that should not
+ * be happening. Every member is implemented rather than asserted away, so if a beacon ever
+ * starts writing to the posteriors' source a test says so by name.
+ */
+function unreachableCounters(): DurableObjectNamespace<SurfaceCounters> {
+  const refuse = (): never => {
+    throw new Error('ingest must not reach the counters before sessions are folded');
+  };
+
+  return {
+    newUniqueId: refuse,
+    idFromName: refuse,
+    idFromString: refuse,
+    get: refuse,
+    getByName: refuse,
+    jurisdiction: refuse,
+  };
+}
+
 /** A limiter that permits everything until a case says otherwise. */
 function fakeLimiter() {
   return {
@@ -252,6 +276,7 @@ function buildEnv(over: Record<string, unknown> = {}) {
     MORPH_CONTROLLER_NAME: 'Example Operator Srl',
     MORPH_CONTROLLER_ADDRESS: 'Via Esempio 1, 24100 Bergamo, Italy',
     MORPH_CONTROLLER_EMAIL: 'privacy@morph.example',
+    COUNTERS: unreachableCounters(),
     ...over,
   };
 }

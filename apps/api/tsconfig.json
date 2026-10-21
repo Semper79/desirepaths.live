@@ -10,11 +10,10 @@
     // For that same file. k6 does not run TypeScript, so the builder cannot be `.ts`.
     "allowJs": true,
     "noEmit": true,
-    // `node` for the tests, which run under Vitest on Node; `@cloudflare/workers-types` for
-    // `Request.cf`, `ExecutionContext` and `ExportedHandler`, which the Worker entry needs.
-    // Both, rather than one: the test files are compiled by this same project and would lose
-    // every Node global if the Workers types replaced them.
-    "types": ["node", "@cloudflare/workers-types"]
+    // `node` for the Node-pool tests, `@cloudflare/workers-types` for the Worker entry's
+    // `Request.cf` and handler types, and the pool's own types for `cloudflare:test` —
+    // which is a virtual module and has no other way to resolve.
+    "types": ["node", "@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "test/**/*.d.ts", "vitest.workers.config.ts"]
 }

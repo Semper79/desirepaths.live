@@ -27,6 +27,30 @@
    */
   "observability": { "enabled": true, "head_sampling_rate": 1 },
 
+  /**
+   * The exact per-variant counters (D33). One object per surface, addressed by name.
+   *
+   * This is the half of the measurement that sampling may never touch: Analytics Engine
+   * holds the event stream and is sampled, these hold the numbers the posteriors are built
+   * from and are not.
+   */
+  "durable_objects": {
+    "bindings": [{ "name": "COUNTERS", "class_name": "SurfaceCounters" }],
+  },
+
+  /**
+   * `new_sqlite_classes`, not `new_classes`.
+   *
+   * SQLite-backed storage is the only kind the free plan can create, and it is the right
+   * one regardless: the counters are read back as an hour range across several variants,
+   * which is a query rather than a key lookup.
+   *
+   * Migration tags are append-only. A tag is never edited or removed once deployed — the
+   * runtime replays the list to decide what has already been applied, so rewriting history
+   * here is how an object loses its storage.
+   */
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SurfaceCounters"] }],
+
   "analytics_engine_datasets": [
     /**
      * The behavioural event stream. Sampled by the platform, and therefore never an input

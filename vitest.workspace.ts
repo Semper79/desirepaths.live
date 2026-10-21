@@ -1,4 +1,8 @@
+import { fileURLToPath } from 'node:url';
 import { defineWorkspace } from 'vitest/config';
+
+/** Vitest rejects a relative alias and says so; these have to be absolute. */
+const here = fileURLToPath(new URL('.', import.meta.url));
 
 /**
  * One Vitest workspace for the whole monorepo, so `pnpm test` at the root is the
@@ -9,6 +13,21 @@ import { defineWorkspace } from 'vitest/config';
  * the two thresholds tiers are expressed as path globs.
  */
 export default defineWorkspace([
+  /**
+   * `SurfaceCounters`, run inside workerd rather than on Node.
+   *
+   * Referenced as a path because it needs a different pool, and a pool is per-project. Its
+   * own file explains why mocking the runtime would have tested the mock: the correctness
+   * argument for coalescing counts in memory rests on alarm replacement and on a flush
+   * landing before a read, and neither is observable without the real scheduler.
+   *
+   * Two things to know about it. The bundled workerd lags the compatibility date
+   * `wrangler.jsonc` pins, so these tests run on a slightly older runtime than production —
+   * which is how `getByName` turned out to be unavailable. And the pool's miniflare does
+   * not recognise the `ratelimits` field, which it warns about and ignores; nothing in this
+   * project uses the limiter.
+   */
+  './apps/api/vitest.workers.config.ts',
   {
     test: {
       name: 'core',
@@ -39,6 +58,17 @@ export default defineWorkspace([
       root: './apps/api',
       environment: 'node',
       include: ['test/**/*.test.ts'],
+      // `test/workers` belongs to the workerd project above. Without this exclusion both
+      // projects collect it and the Node one fails on `cloudflare:test`.
+      exclude: ['test/workers/**'],
+      // `worker.ts` re-exports the Durable Object class, which drags `cloudflare:workers`
+      // into the graph of every test that imports the handler. These tests never construct
+      // a Durable Object — the env stub throws if the counters are reached — so the base
+      // class only has to resolve. `test/stubs/cloudflare-workers.ts` says why that is
+      // honest here and would not be in the other project.
+      alias: {
+        'cloudflare:workers': `${here}apps/api/test/stubs/cloudflare-workers.ts`,
+      },
     },
   },
   {

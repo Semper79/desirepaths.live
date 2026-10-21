@@ -42,6 +42,7 @@ import {
   type AnalyticsEngineLike,
 } from '@morph/metrics';
 import { enrich, type RequestMeta } from './lib/enrich.js';
+import type { SurfaceCounters } from './counters.js';
 import { consentMaskFromCookie } from './lib/consent-cookie.js';
 import {
   analyticsEventPublisher,
@@ -95,6 +96,14 @@ interface Env {
   readonly MORPH_CONTROLLER_ADDRESS?: string;
   readonly MORPH_CONTROLLER_EMAIL?: string;
   readonly MORPH_CONTROLLER_DPO_EMAIL?: string;
+  /**
+   * The exact per-variant counters (D33), one object per surface.
+   *
+   * Declared in this Worker rather than in the cron that reads them, because a Durable
+   * Object class lives in exactly one script and this is the one that writes to it on
+   * every beacon. The cron binds to the same namespace with `script_name`.
+   */
+  readonly COUNTERS: DurableObjectNamespace<SurfaceCounters>;
 }
 
 /** A beacon's response is discarded; only the status and `retry-after` are ever read. */
@@ -265,6 +274,16 @@ function recordLag(events: readonly IngestEvent[]): void {
     if (lag >= 0) ingestLagMs.observe(lag);
   }
 }
+
+/**
+ * Re-exported so the runtime can find the class.
+ *
+ * A Durable Object is addressed through a binding, but the class itself has to be an
+ * export of the Worker's entry module — `wrangler.jsonc` names it as a string and the
+ * runtime resolves it here. Without this line the binding exists and every call to it
+ * fails at runtime with a class it cannot find.
+ */
+export { SurfaceCounters } from './counters.js';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

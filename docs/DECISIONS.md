@@ -977,3 +977,55 @@ fixed window hands over a whole fresh budget at the boundary, so a client can se
 the intended rate across it. `classify.test.ts` used to have a case pinning exactly that
 property. It is gone with the implementation, and the platform's behaviour at the boundary
 is Cloudflare's to define rather than ours to test.
+
+---
+
+### D35 — How exact the exact counters actually are — **Taken: a correction to D33**
+
+D33 contrasted Durable Object counters, called exact, with Analytics Engine's sampled
+estimates. The contrast is the important part and it holds. "Exact" overstated it, and the
+overstatement is the kind that matters, because the whole decision rests on a distinction
+between two sorts of error.
+
+**Why the counters are not perfectly exact.** A write per folded session would be tens of
+millions of row writes a day at the design target — well past the free plan's 100,000 and
+into real money on the paid one. So `SurfaceCounters` coalesces counts in memory and
+flushes on a ten-second alarm. An eviction between flushes loses up to ten seconds of
+counts.
+
+Ten seconds is not an arbitrary number. The flush rate is `surfaces × 86400 / interval`
+regardless of traffic — eleven surfaces at ten seconds is roughly 95,000 row writes a day,
+just inside the free allowance. Shortening it costs money linearly. Lengthening it widens
+the loss window for nothing, since nothing reads the counters more often than hourly.
+
+**Why that is still categorically different from sampling.** The two errors point opposite
+ways, and only one of them lies.
+
+Losing a random handful of observations lowers `n` honestly. The posterior widens, the
+mSPRT crosses later, `probabilityGreater` returns something closer to a half, and the
+engine becomes slightly more cautious than the evidence warrants. The cost is a little
+statistical power.
+
+Reconstructing a count as `sum(_sample_interval)` raises `n` dishonestly. The mean is
+right and the implied certainty is inflated by the sampling factor: a variant seen 100
+times at 1-in-100 enters the posterior as 10,000 observations. The posterior narrows past
+what the evidence supports, the boundary is crossed on noise, and a good variant is retired
+with a confident reason attached to it.
+
+One failure makes the engine timid. The other makes it confidently wrong and leaves a
+plausible audit trail. D33's rule — sampled numbers may inform, rank and display, but may
+not enter a Beta — is about the second, and it is unaffected by the first.
+
+**What is genuinely exact.** Everything that reaches storage, and every read. The flush
+runs synchronously from first statement to last, Durable Objects do not interleave their
+own requests, and `countersBetween` flushes before it reads — so there is no window in
+which a reader sees half a flush, and no systematic under-count of whatever happened to be
+in flight. That last point is worth its own sentence: counts in flight belong
+disproportionately to the busiest surfaces, so dropping them would bias the evidence
+precisely where it is strongest, which is the worst shape a bias can have.
+
+**What this costs in money, since D33 only estimated it.** At launch traffic, nothing — it
+sits inside the free allowance. At 5M events/day the folding and counting is on the order
+of $100 a month. That is the price of evidence the engine is allowed to reason from, and
+the alternative was not cheaper so much as different: a server big enough to do ClickHouse
+merges cost the same order of money, as a fixed fee rather than per event.
