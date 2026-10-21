@@ -824,6 +824,56 @@ Workers at it over HTTP would preserve the aggregates exactly. It was rejected b
 reintroduces the thing the operator is trying to avoid — a server to run and pay for — and
 because a cross-network read on the adaptive path cannot meet the 5 ms budget.
 
+**Keeping Postgres, which deserved a paragraph and did not get one.**
+
+The first version of this decision argued why ClickHouse could not stay and said nothing
+about the equivalent option for Postgres, which left the relational half looking forced
+when it was chosen. It was chosen, and here is the argument that should have been here.
+
+Postgres could have stayed. **Hyperdrive** is a first-class Workers binding whose entire
+purpose is connection pooling to an external Postgres, and a serverless provider (Neon,
+Supabase) means no server to run — so the objection that killed managed ClickHouse does not
+apply. That path would have kept every single thing the port gave up: `pgvector`, declarative
+partitioning, grant-based immutability on `adaptation_log`, real enums, and no size cap.
+
+It was still the wrong choice for this data, and the deciding fact is how little of it there
+is. Measured rather than assumed:
+
+| Table            | Reality                                                       |
+| ---------------- | ------------------------------------------------------------- |
+| `content`        | dozens of rows, read through a cache on the hot path          |
+| `variant`        | dozens                                                        |
+| `adaptation_log` | thousands a month                                             |
+| `crawl_document` | an excerpt, not the fetched body; ~1 KB a row on a 30-day TTL |
+
+Nothing there comes within two orders of magnitude of D1's 10 GB, and nothing there needs a
+join across millions of rows or a second concurrent writer. Against that, Hyperdrive costs a
+second vendor, a second bill, a second failure domain, credentials to rotate, and a network
+hop off Cloudflare's network on every uncached read.
+
+The one thing Postgres was genuinely better at is vectors — and `pgvector` loses to Vectorize
+on its own merits, so the embeddings leave the relational database either way. That is what
+makes this clean rather than close: the strongest argument for keeping Postgres evaporates
+on inspection.
+
+**What it costs, in one item.** `adaptation_log`'s immutability was a Postgres grant:
+`morph_worker` had INSERT and SELECT and not UPDATE or DELETE, and the guarantee belonged to
+the platform. D1 has no role system, so it is now a property of the code — no adapter exposes
+an update path, and only the retention cron deletes, by date. That is the single loss worth
+minding and it is real.
+
+**The window for changing this closes at launch, and that is not a detail.**
+
+Reversing the choice today is nine files: the schema module, the drizzle config, the `core`
+export, the generated migration, `apps/web`'s `db.ts` and `bindings.ts`, its
+`wrangler.jsonc`, the migration test, and the CI step. Half a day.
+
+Reversing it after the first visitor is a data migration with a downtime window. This is the
+same reasoning `docs/PRIVACY.md` §0 applies to `--jurisdiction eu` — free before creation,
+expensive after — and it applies here identically. So "we could go back" is true now and
+stops being cheap the moment the site has content in it, which means it is not a reason to be
+comfortable with the decision. The decision has to stand on the table above.
+
 ---
 
 ### D32 — OpenNext, not vinext, even though Cloudflare recommends vinext — **Taken**

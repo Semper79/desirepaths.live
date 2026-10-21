@@ -43,14 +43,16 @@
  * is a real loss — a job can stop, a table definition cannot — so the retention cron
  * reports its row count into the hourly report rather than running silently.
  *
- * RETENTION / TTL — unchanged in intent, now enforced by cron
- *   adaptation_log        25 months  — a decision must stay explainable as long as the
- *                                      metrics behind it exist. Analytics Engine keeps
- *                                      three months, so the D1 rollups (D33) are what
- *                                      make the other 22 meaningful.
- *   crawl_document        30 days    — raw fetched content is a cache, not an archive.
- *   data_subject_request  permanent  — proof that an erasure was honoured must outlive
- *                                      the data it erased. It holds no personal data.
+ * RETENTION / TTL
+ * The policy is no longer a comment. It lives in `retention.ts` as data, the cron reads the
+ * cutoffs from there, and `test/retention.test.ts` reads the generated migration off disk
+ * and fails the build if a table exists with no decision. That is what replaces the
+ * enforcement partitioning used to provide.
+ *
+ * The list this header used to carry omitted `posterior_snapshot`, which had no retention
+ * rule in the Postgres original either. On Postgres that was a line on a disk bill; against
+ * D1's 10 GB cap it is a wall, since thousands of rows an hour is about 2 GB a year at the
+ * realistic end. The port did not cause that — it exposed it.
  */
 
 import { sql } from 'drizzle-orm';
