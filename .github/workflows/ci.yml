@@ -209,7 +209,16 @@ jobs:
     timeout-minutes: 30
     needs: [build, integration, security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
+    # `environment: production` was here and the job died before any step ran — no log
+    # blob, started and completed in the same second, no annotation. Every other job in the
+    # run passed, so it was not the code; the environment is the only thing in this job
+    # that the platform evaluates before dispatching it, and the environments API reports
+    # none exist on this repository.
+    #
+    # What it bought was deployment history in the GitHub UI and a place to hang required
+    # reviewers. Neither is load-bearing: the deploy is already gated on three jobs that
+    # genuinely run, and `concurrency` below is what actually prevents two deploys
+    # overlapping. Worth revisiting the day somebody wants an approval step.
     concurrency:
       group: deploy-production
       cancel-in-progress: false
