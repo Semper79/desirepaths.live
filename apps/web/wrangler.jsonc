@@ -50,7 +50,7 @@
     {
       "binding": "DB",
       "database_name": "morph",
-      "database_id": "REPLACE_ME__D1_DATABASE_ID",
+      "database_id": "4226f0ff-184f-43db-a18f-e3d472df4540",
       "migrations_dir": "../../infra/d1/migrations",
     },
   ],
@@ -59,7 +59,7 @@
     /** Sticky assignments, keyed on the rotating daily anonymous id. 30-day TTL. */
     {
       "binding": "ASSIGNMENTS",
-      "id": "REPLACE_ME__KV_ASSIGNMENTS_ID",
+      "id": "367cbe6db3b34c4f8cb458760615164b",
     },
     /**
      * The published posterior snapshot: one key, rewritten hourly by the adapt cron and
@@ -69,7 +69,7 @@
      */
     {
       "binding": "SNAPSHOT",
-      "id": "REPLACE_ME__KV_SNAPSHOT_ID",
+      "id": "248c2d1f7ba24720ab59687a1750c829",
     },
   ],
 
