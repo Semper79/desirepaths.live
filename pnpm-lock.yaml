@@ -110,6 +110,34 @@ importers:
         specifier: ^4.133.0
         version: 4.133.0(@cloudflare/workers-types@5.20260917.1)(@types/node@22.20.1)
 
+  apps/cron:
+    dependencies:
+      '@morph/adaptive':
+        specifier: workspace:*
+        version: link:../../packages/adaptive
+      '@morph/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@morph/cycle':
+        specifier: workspace:*
+        version: link:../../packages/cycle
+      drizzle-orm:
+        specifier: ^0.36.4
+        version: 0.36.4(@cloudflare/workers-types@5.20260917.1)(@opentelemetry/api@1.9.1)(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8)
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260917.1
+        version: 5.20260917.1
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.20.1
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.20.1)(terser@5.16.9)
+      wrangler:
+        specifier: ^4.133.0
+        version: 4.133.0(@cloudflare/workers-types@5.20260917.1)(@types/node@22.20.1)
+
   apps/web:
     dependencies:
       '@morph/adaptive':

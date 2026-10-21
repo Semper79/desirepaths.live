@@ -38,6 +38,14 @@ export default defineWorkspace([
   },
   {
     test: {
+      name: 'cron',
+      root: './apps/cron',
+      environment: 'node',
+      include: ['test/**/*.test.ts'],
+    },
+  },
+  {
+    test: {
       name: 'cycle',
       root: './packages/cycle',
       environment: 'node',

@@ -302,3 +302,13 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Last, and after the renderer, because this is the only script that can retire a
+      # variant. If the renderer failed to deploy, a cycle that ran anyway would publish a
+      # decision set the live site does not match.
+      - name: Deploy the scheduled Workers
+        working-directory: apps/cron
+        run: pnpm exec wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

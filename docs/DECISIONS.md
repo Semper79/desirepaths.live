@@ -1175,3 +1175,100 @@ and it is written down so it is not re-discovered as a mystery.
 
 **What it costs.** At launch traffic, nothing. At 5M events/day the folding and counting
 together are on the order of $100 a month, which D35 already accounts for.
+
+---
+
+### D37 — The scheduled Worker, and the cycle moves to a package — **Taken**
+
+The last link. Until this existed the chain stopped one step short: beacons reached
+Analytics Engine, sessions folded into the surface counters, and nothing read them — so the
+published snapshot was never written and every surface resolved to its baseline for ever.
+The engine had a producer and no consumer, which is the same shape the whole system was in
+before the adapt job was written, one layer down.
+
+**The cycle had to move first.** `adapt.ts`, `adapt-derive.ts` and their ports lived in
+`apps/worker`, which made them unreachable from the Worker that now runs them: `CLAUDE.md`
+is explicit that apps may depend on packages and never on each other. The cycle decides what
+the engine believes, so it is domain logic and belongs in `@morph/cycle` regardless.
+
+Nothing in it changed. Its twenty-five tests passed untouched, which is the
+ports-and-adapters discipline doing precisely what it was for — the implementations were
+ClickHouse and Postgres, they are now Durable Objects, Analytics Engine, D1 and KV, and the
+cycle has no opinion either way.
+
+**A separate Worker from the collector, for least privilege that is not theoretical.** The
+collector takes thousands of requests a second from the open internet. This script holds the
+D1 binding that can retire a variant and the KV key that decides what every visitor is
+shown. One script would mean an exploit in the beacon parser reaching the decision set.
+
+They share the counters namespace, which a Durable Object permits across scripts through
+`script_name`. That is the one coupling and it runs the right way round: the collector writes
+through the session object, the cron reads.
+
+---
+
+**One interface, two honesty requirements.** `RewardRepository` has two methods and they are
+backed by different stores on purpose.
+
+`rewards()` reads the Durable Objects — exact, unsampled, the only thing allowed near a Beta
+posterior. `health()` reads Analytics Engine over its SQL API — sampled, and fine for that,
+because a p75 LCP a few percent off moves nothing when the thresholds are spaced far wider
+than the error. That asymmetry is the whole point of the split and is the thing most likely
+to be undone by somebody tidying up, so it is written at both ends.
+
+Reading Analytics Engine needs an HTTPS call and a token, because there is no query binding —
+writing is a binding, reading is not. It is the only place in the port where a Worker leaves
+Cloudflare's network to talk to Cloudflare.
+
+**And the cycle refuses to run without that token.** `decideAdaptations` looks up each
+variant's health with `health.find(...)` and skips the guardrail when it finds nothing. So a
+cycle with no readable vitals would still retire variants on reward evidence while being
+unable to quarantine a harmful one — the retirement loop running with its safety off,
+reporting success.
+
+That is exactly what D30 was written about: a threshold checked against an absent measurement
+is worse than no threshold, because it looks like protection. So the absence throws. A thrown
+scheduled handler is a failed invocation in the dashboard, which is the only place a missed
+cron is visible; swallowing it would make a cycle that never ran look like a cycle with
+nothing to do.
+
+---
+
+**Two joints with no compiler behind them**, both of which fail silently and totally, and
+both now covered by tests rather than by care.
+
+The snapshot key is a string duplicated between this app and `apps/web`, because apps may
+not import each other. Diverge them and the renderer reads a key nobody writes, resolves
+every surface to its baseline, and reports a snapshot age of zero — which the thinking bar
+displays as "cold start". **A brand new site and a totally broken one look identical.** The
+test reads the renderer's source and compares the strings.
+
+The rewards adapter sums across context buckets and drops the holdout. Both are the port's
+contract, neither is expressible in its types, and getting the second wrong would fold the
+control group into the treatment's evidence — so the holdout lift, the one number that says
+whether any of this works, would sit near zero no matter what the engine did.
+
+---
+
+**Smaller decisions worth finding later.**
+
+Two minutes past the hour, not on it. `targetHour` already reads an hour that settled a
+session timeout ago, so the delay buys nothing statistically — it exists so the cycle is not
+competing with anything else on the hour for a D1 database that is single-threaded.
+
+`ADAPTATION_ENABLED="0"` pauses adaptation without a deploy, and the cycle still runs: it
+folds the evidence, writes the posteriors, and publishes a snapshot telling the renderer to
+serve baselines. Pausing by disabling the trigger would leave a gap in the posteriors that no
+later run could fill.
+
+The engine config is parsed with its zod schema rather than cast. It is written by the admin
+console, so it crosses a process boundary, and a malformed weight vector would not fail
+loudly — it would quietly change what the engine optimises for. The schema requires the
+positive weights to sum to exactly one, so a bad row falls back to the defaults with an error
+logged rather than running on arithmetic nobody chose.
+
+`SnapshotWriter` and `CounterReader` are narrowed to the one or two methods each caller
+needs, rather than the full `KVNamespace` and `DurableObjectNamespace`. The publisher has no
+reason to read the snapshot back; the cron has no reason to write a counter. A type that
+cannot do those is a stronger statement than a comment saying it does not — and it was the
+tests that pointed this out, by being awkward to write against the wide types.

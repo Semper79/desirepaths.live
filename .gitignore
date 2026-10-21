@@ -52,3 +52,6 @@ bench/results/
 
 # OpenNext build output.
 .open-next
+
+# Wrangler dry-run output.
+apps/*/.wrangler

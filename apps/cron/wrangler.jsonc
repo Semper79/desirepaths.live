@@ -1,0 +1,97 @@
+/**
+ * The scheduled Workers (D37).
+ *
+ * Separate from the collector for least privilege, and not theoretically: this script holds
+ * the D1 binding that can retire a variant and the KV key that decides what every visitor
+ * sees, while the collector takes thousands of requests a second from the open internet.
+ * One script would mean an exploit in the beacon parser reaching the decision set.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "desirepath-cron",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+
+  /**
+   * Two past the hour.
+   *
+   * Not on the hour: `targetHour` reads the most recent *settled* hour, which is already a
+   * session timeout behind, so the two minutes buy nothing statistically. They exist so a
+   * cycle and whatever else fires on the hour are not competing for the same D1 database,
+   * which is single-threaded.
+   */
+  "triggers": { "crons": ["2 * * * *"] },
+
+  /**
+   * Read-only in this script. The collector writes through the session object; this reads.
+   *
+   * `script_name` is how a Durable Object is shared across scripts — the class is defined
+   * once, in the collector, and bound here by name. Defining it twice would create two
+   * unrelated sets of objects holding half the evidence each.
+   */
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "COUNTERS",
+        "class_name": "SurfaceCounters",
+        "script_name": "desirepath-ingest",
+      },
+    ],
+  },
+
+  /** Content, the variant pool, configuration, and the immutable decision log. */
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "morph",
+      "database_id": "REPLACE_ME__D1_DATABASE_ID",
+      "migrations_dir": "../../infra/d1/migrations",
+    },
+  ],
+
+  /**
+   * The published decision set: one key, rewritten by this cycle, read by every render.
+   * The same namespace `apps/web` binds as SNAPSHOT — paste the same id into both.
+   */
+  "kv_namespaces": [
+    {
+      "binding": "SNAPSHOT",
+      "id": "REPLACE_ME__KV_SNAPSHOT_ID",
+    },
+  ],
+
+  /** `morph_*` instrument observations. Not the event stream — that is read over SQL. */
+  "analytics_engine_datasets": [{ "binding": "METRICS", "dataset": "morph_metrics" }],
+
+  "vars": {
+    /**
+     * The dataset the health query reads. A name rather than a binding because Analytics
+     * Engine has no *query* binding — writing is a binding, reading is an HTTPS call to the
+     * SQL API, which is why the token below exists.
+     */
+    "MORPH_EVENTS_DATASET": "morph_events",
+
+    /**
+     * `"0"` pauses adaptation without a deploy. The cycle still runs, still folds evidence
+     * and still records — it publishes a snapshot that tells the renderer to serve
+     * baselines. Pausing by disabling the trigger instead would leave a gap in the
+     * posteriors that no later run could fill.
+     */
+    "ADAPTATION_ENABLED": "1",
+  },
+
+  /**
+   * Two secrets, both absent here on purpose:
+   *
+   *   wrangler secret put CLOUDFLARE_ACCOUNT_ID
+   *   wrangler secret put ANALYTICS_API_TOKEN
+   *
+   * The token needs Account → Account Analytics → Read. Without either, the cycle throws
+   * rather than running: `decideAdaptations` skips the health guardrail for any variant it
+   * has no vitals for, so a cycle that cannot read them would retire variants on reward
+   * evidence while being unable to quarantine a harmful one — the retirement loop running
+   * with its safety off, reporting success. See D30 and D37.
+   */
+}
