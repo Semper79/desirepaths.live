@@ -340,6 +340,43 @@ the `--audit-level=high` gate and the fix is a major version bump (5.x), and `ap
 rather than being bumped on its own, and it is written here so it does not simply go
 unnoticed between two audits.
 
+**Nothing replaced Caddy's edge routing, so the beacon posts into a 404.** The client
+calls `navigator.sendBeacon('/i')` — same-origin and relative, which is correct and should
+stay that way. Under D3, `infra/caddy/Caddyfile` routed `/i` to `apps/api`;
+`docs/FILE-TREE.md` still calls it "the cheap ingest route". The Cloudflare port (D31)
+removed Caddy and did not replace that hop: `apps/web/wrangler.jsonc` has no `routes`, no
+`custom_domain` and no service binding to the collector, so `POST /i` is served by Next,
+which has no such route and answers 404.
+
+Verified against the deployment, not inferred: `POST /i` on the renderer returns 404 with
+Next's not-found page, while the same beacon sent straight to the collector gets past both
+gates. Both Workers report `ready: true`. So the collector is live, authorised and
+unreachable from the page it exists to serve, and every page view is measured by nobody.
+
+This is the failure mode the whole project is built to notice and it is the one shape the
+project cannot notice: nothing errors, no probe fails, no metric moves — because the metric
+that would move is the one not arriving. `morph_ingest_requests_total` flat on a site with
+traffic is the signal, and `/i` returning 404 is the check.
+
+**The fix is zone configuration, and it is blocked on the domain.** `desirepath.live` is
+registered but its nameservers are GoDaddy's (`ns29/ns30.domaincontrol.com`) and it resolves
+to a parking address, so there is no Cloudflare zone and no route can be created — adding
+one to a Wrangler config now fails the deploy with "zone not found". Neither Worker has any
+route at all, which is why both are reachable only on `workers.dev`. In order:
+
+1. Add `desirepath.live` to the Cloudflare account and move the nameservers at GoDaddy.
+2. `apps/api`: `"routes": [{ "pattern": "desirepath.live/i*", "zone_name": "desirepath.live" }]`
+3. `apps/web`: `"routes": [{ "pattern": "desirepath.live/*", "zone_name": "desirepath.live" }]`
+   Cloudflare matches the most specific route first, so `/i*` wins over `/*`.
+4. Confirm `POST /i` is no longer a 404 before setting `MORPH_INDEXABLE` to `"1"`.
+
+A service binding from the renderer to the collector would work on `workers.dev` today and
+is the wrong shape. The collector reads `request.cf.country` and `cf-connecting-ip`, and
+D34 is the record of moving the country _off_ an `x-country` header that Caddy set and onto
+`request.cf` precisely because a trusted header is a header somebody can set. Forwarding
+through a binding would push it back, to buy measurement on a hostname that is not the
+product.
+
 **The site has no social card, and no favicon.** `apps/web/src/app/icon.tsx`,
 `opengraph-image.tsx` and `proof/opengraph-image.tsx` generated both with `ImageResponse`
 from `next/og`, which does not run under OpenNext. The package resolves its fallback font

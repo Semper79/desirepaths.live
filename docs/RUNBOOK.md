@@ -319,6 +319,18 @@ migrations are expand-only — add a column now, drop it two deploys later — s
 never meets a schema it cannot read. If a schema rollback is ever needed, that migration
 was wrong.
 
+**Before trusting a deploy, check that the beacon has somewhere to go:**
+
+```bash
+curl.exe -s -o /dev/null -w "%{http_code}\n" -X POST https://desirepath.live/i -d '{}'
+```
+
+Anything but a 4xx from the _collector_ means `/i` is not routed to it. 404 with an HTML
+body is the renderer answering, which is the state the site shipped in: the client posts
+`/i` same-origin, Caddy used to route it, and nothing replaced that hop. See the entry in
+`docs/ROADMAP.md`. It is worth a command of its own because every other signal looks
+healthy — the metric that would show the problem is the one that never arrives.
+
 **After every deploy:** watch `morph_decision_duration_ms` and `morph_snapshot_age_seconds`
 for one hour. The second is the one that catches a deploy where the renderer is healthy and
 the cycle is not: the page keeps serving a decision set that stops being refreshed, which
