@@ -43,13 +43,7 @@ import {
   targetHour,
   type CycleConfig,
 } from './derive';
-import type {
-  AdaptRepository,
-  Clock,
-  Logger,
-  RewardRepository,
-  SnapshotPublisher,
-} from './ports';
+import type { AdaptRepository, Clock, Logger, RewardRepository, SnapshotPublisher } from './ports';
 
 /**
  * What a cycle is asked to do.

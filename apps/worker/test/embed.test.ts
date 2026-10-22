@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EMBED_TEXT_LIMIT, embeddingText, runEmbed } from '../src/jobs/embed';
-import {
-  deterministicEmbeddings,
-  hashingVector,
-} from '../src/adapters/deterministic-embeddings';
+import { deterministicEmbeddings, hashingVector } from '../src/adapters/deterministic-embeddings';
 import { FakeDocuments, FakeLogger } from './fakes';
 import type { EmbeddingProvider, StoredDocument } from '../src/ports';
 

@@ -70,9 +70,7 @@ export function organisation(site: SiteIdentity): Thing {
     name: site.name,
     url: `${site.origin}/`,
     description: site.description,
-    ...(site.logoUrl === undefined
-      ? {}
-      : { logo: { '@type': 'ImageObject', url: site.logoUrl } }),
+    ...(site.logoUrl === undefined ? {} : { logo: { '@type': 'ImageObject', url: site.logoUrl } }),
     ...(site.sameAs && site.sameAs.length > 0 ? { sameAs: [...site.sameAs] } : {}),
   };
 }

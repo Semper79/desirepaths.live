@@ -17,12 +17,7 @@ import { decisionDurationMs, snapshotAgeSeconds } from '@morph/metrics';
 import { currentSnapshot as readSnapshot } from './snapshot';
 import { kvAssignmentStore } from './kv-assignment-store';
 import { ensureTelemetry } from './telemetry';
-import {
-  ANON_ID_HEADER,
-  BOT_SCORE_HEADER,
-  CONTEXT_HEADER,
-  decodeContext,
-} from './request-context';
+import { ANON_ID_HEADER, BOT_SCORE_HEADER, CONTEXT_HEADER, decodeContext } from './request-context';
 
 /**
  * The posterior snapshot, re-exported so callers have one import for the whole seam.

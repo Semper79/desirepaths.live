@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SURFACES, checkContrast, tokensToStyleAttribute } from '@morph/core';
-import {
-  composeTokens,
-  checkTokenContract,
-  FALLBACK_TOKENS,
-  REQUIRED_TOKENS,
-} from '../src/tokens';
+import { composeTokens, checkTokenContract, FALLBACK_TOKENS, REQUIRED_TOKENS } from '../src/tokens';
 
 /**
  * The token contract is the seam between the optimiser and the rendering. These tests
