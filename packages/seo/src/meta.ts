@@ -131,6 +131,23 @@ export function pageMeta(input: PageMetaInput): PageMeta {
   return { title, canonical, tags };
 }
 
+/**
+ * The Twitter card type this meta set decided on.
+ *
+ * For callers that build Next's `Metadata` object instead of rendering the tag list —
+ * `/proof` and `/changes` both do, taking only the canonical out of `pageMeta` and
+ * hand-writing `openGraph` and `twitter` so the page description cannot be overridden by
+ * the layout's. Both hardcoded `summary_large_image`, and so both went on declaring a
+ * large card after the image it referred to was removed, which platforms render as an
+ * empty block. Nothing on the page changes when that happens, which is why it survived.
+ *
+ * Asking the meta set what it chose is one line and cannot drift from it.
+ */
+export function twitterCard(meta: PageMeta): 'summary' | 'summary_large_image' {
+  const declared = meta.tags.find((tag) => tag.name === 'twitter:card');
+  return declared?.content === 'summary_large_image' ? 'summary_large_image' : 'summary';
+}
+
 /** Render meta tags as HTML, for the rare place that needs a string rather than JSX. */
 export function renderMetaTags(meta: PageMeta): string {
   const lines = [`<link rel="canonical" href="${escapeHtmlAttribute(meta.canonical)}" />`];

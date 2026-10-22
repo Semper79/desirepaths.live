@@ -15,7 +15,7 @@
  */
 
 import type { Metadata } from 'next';
-import { dataset, graph, pageMeta, serialiseJsonLd } from '@morph/seo';
+import { dataset, graph, pageMeta, serialiseJsonLd, twitterCard } from '@morph/seo';
 import { currentSnapshot } from '../../lib/resolve';
 import { proofFrom, headline, measurements, format, type SettledSurface } from '../../lib/proof';
 import { siteIdentity } from '../../lib/site';
@@ -56,7 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: meta.canonical },
     openGraph: { title, description, url: meta.canonical, type: 'website' },
-    twitter: { card: 'summary_large_image', title, description },
+    twitter: { card: twitterCard(meta), title, description },
   };
 }
 

@@ -17,7 +17,7 @@ import {
 } from '../src/sitemap';
 import { renderAtom, renderRss, type FeedItem, type FeedSite } from '../src/feed';
 import { renderLlmsTxt, renderRobotsTxt, WELCOMED_AI_AGENTS } from '../src/aeo';
-import { canonicalUrl, pageMeta, renderMetaTags } from '../src/meta';
+import { canonicalUrl, pageMeta, renderMetaTags, twitterCard } from '../src/meta';
 
 const SITE: SiteIdentity = {
   origin: 'https://morph.example',
@@ -426,6 +426,25 @@ describe('canonical URLs and metadata', () => {
     // Not `summary_large_image`: declaring a large card without an image renders as an
     // empty block rather than as no card at all.
     expect(byKey.get('twitter:card')).toBe('summary');
+  });
+
+  /**
+   * `twitterCard` exists because two pages build Next's `Metadata` by hand, so the only
+   * thing stopping them re-declaring a large card with no image is that they ask.
+   */
+  it('reports the card the meta set chose, for callers that build metadata by hand', () => {
+    const base = {
+      origin: 'https://morph.example',
+      siteName: 'MORPH',
+      path: '/proof',
+      title: 'What this site has worked out about itself',
+      description: 'This site has not measured anything yet.',
+    };
+
+    expect(twitterCard(pageMeta(base))).toBe('summary');
+    expect(twitterCard(pageMeta({ ...base, imagePath: '/cards/proof.png' }))).toBe(
+      'summary_large_image',
+    );
   });
 
   it('uses the large card, and both image tags, when given an image path', () => {

@@ -12,7 +12,7 @@
  */
 
 import type { Metadata } from 'next';
-import { pageMeta } from '@morph/seo';
+import { pageMeta, twitterCard } from '@morph/seo';
 import { changesFrom, summarise, type Change } from '../../lib/changes';
 import { recentAdaptations } from '../../lib/db';
 import { siteIdentity } from '../../lib/site';
@@ -40,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
     // have made this the only page on the site where the writing feed is undiscoverable.
     alternates: { canonical: meta.canonical },
     openGraph: { title, description, url: meta.canonical, type: 'website' },
-    twitter: { card: 'summary_large_image', title, description },
+    twitter: { card: twitterCard(meta), title, description },
   };
 }
 
