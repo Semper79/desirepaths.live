@@ -86,7 +86,12 @@ interface Env {
   /** `morph_*` instrument observations. A separate dataset so the two sample apart. */
   readonly METRICS: AnalyticsEngineLike;
   readonly INGEST_LIMITER: { limit(options: { key: string }): Promise<{ success: boolean }> };
-  readonly ANON_ID_PEPPER: string;
+  /**
+   * Optional because a secret that has not been set is absent at runtime, whatever the
+   * binding's type says — and this one is read by the probe that exists to report its
+   * absence. See `usablePepper`.
+   */
+  readonly ANON_ID_PEPPER?: string;
   readonly MORPH_PUBLIC_URL: string;
   readonly MORPH_TIMEZONE: string;
   /**
@@ -198,6 +203,34 @@ function mayMeasure(env: Env): boolean {
   return controllerFrom(env) !== null;
 }
 
+/**
+ * The floor `/ready` reports on. A short pepper is not so much a weak one as a guessable
+ * one, and an anonymous id that can be re-derived from a known IP is not anonymous.
+ */
+const PEPPER_MIN_LENGTH = 32;
+
+/**
+ * The pepper, or `null` when there is not a usable one.
+ *
+ * `/ready` used to read `env.ANON_ID_PEPPER.length` directly, trusting a type that says
+ * the binding is always a string. On the one deployment that endpoint exists to describe —
+ * the one where the secret has not been set yet — the property is `undefined` and the
+ * probe answered with a Worker exception instead of the name of the missing variable. The
+ * comment on `Env` already said the interface can drift from the config and that `/ready`
+ * therefore checks at runtime; the check was the thing trusting the type.
+ *
+ * The ingest path needs it for a sharper reason. Without a pepper every visitor hashes to
+ * the same anonymous id, so the collector would accept beacons and record data that looks
+ * entirely plausible and is fiction. That is worse than refusing, so it refuses — and
+ * separately from the controller gate, because "nobody has said who is responsible" and
+ * "this deployment cannot tell two visitors apart" are different faults with different
+ * fixes, and an operator reading `morph_ingest_errors` should not have to guess which.
+ */
+function usablePepper(env: Env): string | null {
+  const pepper = env.ANON_ID_PEPPER;
+  return pepper !== undefined && pepper.length >= PEPPER_MIN_LENGTH ? pepper : null;
+}
+
 async function handleIngest(
   request: Request,
   env: Env,
@@ -207,6 +240,13 @@ async function handleIngest(
   if (!mayMeasure(env)) {
     ingestRequests.inc({ outcome: 'rejected' });
     ingestErrors.inc({ reason: 'no_controller' });
+    return empty(503, { 'retry-after': '3600' });
+  }
+
+  const pepper = usablePepper(env);
+  if (pepper === null) {
+    ingestRequests.inc({ outcome: 'rejected' });
+    ingestErrors.inc({ reason: 'no_pepper' });
     return empty(503, { 'retry-after': '3600' });
   }
 
@@ -249,7 +289,7 @@ async function handleIngest(
   const result = await enrich(parsedBody, meta, {
     // Constructed per request rather than memoised: it holds the pepper, which comes from
     // `env`, and `env` is request-scoped. The class does no I/O, so this costs nothing.
-    identity: new VisitorIdentity(env.ANON_ID_PEPPER),
+    identity: new VisitorIdentity(pepper),
     selfHost: new URL(env.MORPH_PUBLIC_URL).hostname,
     timezone: env.MORPH_TIMEZONE,
   });
@@ -411,7 +451,7 @@ export default {
       // The missing variables are named in the response: "not ready" with no reason sends
       // somebody into the source at the worst possible moment.
       const missing = [
-        ...(env.ANON_ID_PEPPER.length >= 32 ? [] : ['ANON_ID_PEPPER']),
+        ...(usablePepper(env) === null ? ['ANON_ID_PEPPER'] : []),
         ...missingControllerFields(env),
       ];
 

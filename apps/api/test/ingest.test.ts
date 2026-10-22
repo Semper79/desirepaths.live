@@ -591,6 +591,27 @@ describe('POST /i', () => {
     expect(response.headers.get('retry-after')).toBe('3600');
   });
 
+  it('refuses every beacon when the pepper is unset, separately from the controller', async () => {
+    // Separate from the controller refusal above, and separately reported, because the two
+    // faults have different fixes. Without a pepper every visitor hashes to the same
+    // anonymous id, so the collector would accept beacons and record a dataset that looks
+    // entirely plausible and is fiction — silent and retroactive, which is the kind of
+    // damage that is worth a refusal.
+    //
+    // `undefined` rather than a short string, which the readiness case below already
+    // covered. That distinction is the whole point: the binding is typed as a `string`, so
+    // a test that only ever passes a short one exercises the length check and never the
+    // absence, and absence is the state every deployment is in before the secret is set.
+    env = buildEnv({ ANON_ID_PEPPER: undefined });
+
+    const response = await send();
+
+    expect(response.status).toBe(503);
+    expect(env.EVENTS.points).toHaveLength(0);
+    expect(env.SESSIONS.calls).toHaveLength(0);
+    expect(response.headers.get('retry-after')).toBe('3600');
+  });
+
   it('refuses a partially configured controller, rather than publishing half a notice', async () => {
     // A name with no contact address satisfies nothing — Art. 13 wants both — so a
     // half-filled configuration is treated as none at all.
@@ -635,6 +656,20 @@ describe('health and readiness', () => {
     // into the source at the worst possible moment.
     const weak = buildEnv({ ANON_ID_PEPPER: 'short' });
     const ready = await worker.fetch(new Request('https://ingest.example/ready'), weak, ctx);
+
+    expect(ready.status).toBe(503);
+    expect(await ready.json()).toEqual({ ready: false, missing: ['ANON_ID_PEPPER'] });
+  });
+
+  it('names the pepper when it is absent, rather than throwing', async () => {
+    // This is the state of every deployment between `wrangler deploy` and
+    // `wrangler secret put`, and it is the one this endpoint exists to describe. It used
+    // to read `env.ANON_ID_PEPPER.length` straight off a binding typed as a `string`, so
+    // on that deployment the probe answered 1101 — a Worker exception — instead of the
+    // name of the variable to set. An operator reading an unhandled error learns that the
+    // collector is broken; what they needed was one line of configuration.
+    const unset = buildEnv({ ANON_ID_PEPPER: undefined });
+    const ready = await worker.fetch(new Request('https://ingest.example/ready'), unset, ctx);
 
     expect(ready.status).toBe(503);
     expect(await ready.json()).toEqual({ ready: false, missing: ['ANON_ID_PEPPER'] });
