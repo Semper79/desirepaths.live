@@ -255,7 +255,29 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Build and deploy the renderer
+      # `opennextjs-cloudflare deploy` deploys a *built* app and does not build one — its
+      # own help says so, and skipping the build step produced "Could not find compiled
+      # Open Next config, did you run the build command?". `build` and `deploy` are separate
+      # commands and both are needed.
+      #
+      # The local database has to exist before the build, for the same reason the `build`
+      # job needs it: `opennextjs-cloudflare build` runs `next build`, which queries D1
+      # while collecting page data for `/t/[slug]`. This job checks out fresh, so the
+      # preparation does not carry over from the earlier job.
+      #
+      # The build reads the LOCAL database; the deployed Worker reads the remote one at
+      # request time. Seeding here only decides which slugs get prerendered.
+      - name: Prepare the local database
+        working-directory: apps/web
+        run: |
+          pnpm exec wrangler d1 migrations apply morph --local
+          pnpm exec wrangler d1 execute morph --local --file=../../infra/d1/seed.sql
+
+      - name: Build the renderer
+        working-directory: apps/web
+        run: pnpm exec opennextjs-cloudflare build
+
+      - name: Deploy the renderer
         working-directory: apps/web
         run: pnpm exec opennextjs-cloudflare deploy
         env:

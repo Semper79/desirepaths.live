@@ -193,8 +193,17 @@ proved from a laptop: that OpenNext's output actually runs on Workers, that D1 a
 that the pages are the right pages.
 
 ```bash
-cd apps/web && pnpm exec opennextjs-cloudflare deploy --env staging
+cd apps/web
+pnpm exec wrangler d1 migrations apply morph --local
+pnpm exec wrangler d1 execute morph --local --file=../../infra/d1/seed.sql
+pnpm exec opennextjs-cloudflare build
+pnpm exec opennextjs-cloudflare deploy --env staging
 ```
+
+`build` and `deploy` are separate commands — `deploy` publishes an app that is already
+built and will not build one. And the build needs the _local_ database, because
+`next build` queries D1 while deciding which article slugs to prerender; the deployed
+Worker reads the remote one at request time.
 
 **Step two, once the controller is decided.** Deploy the collector, set the three
 variables, and flip `MORPH_INDEXABLE` to `"1"` on production when you actually want search
