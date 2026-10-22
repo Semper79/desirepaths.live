@@ -30,6 +30,21 @@
   "main": ".open-next/worker.js",
 
   /**
+   * The renderer IS the origin for this hostname, so it is a Custom Domain (D2, D31).
+   *
+   * Cloudflare's own guidance: routes are for a hostname that already has an application
+   * server behind it, Custom Domains for a hostname the Worker itself serves. Nothing is
+   * behind this one — there is no origin to fall through to — so a route plus a
+   * placeholder DNS record would be describing a topology that does not exist. The Custom
+   * Domain also creates the DNS record and the certificate, which is the half of the old
+   * Caddy setup nobody thinks about until the certificate expires.
+   *
+   * The apex only. `www` is not redirected here because a redirect belongs in a rule
+   * rather than in a Worker that would have to boot to issue it.
+   */
+  "routes": [{ "pattern": "desirepath.live", "custom_domain": true }],
+
+  /**
    * Pinned, not floating. The compatibility date decides runtime semantics, and a Worker
    * whose behaviour changes because time passed is the kind of outage nobody can bisect.
    * Moving it is a deliberate edit with the changelog read first.

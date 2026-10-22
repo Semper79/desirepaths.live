@@ -25,6 +25,28 @@
   "account_id": "689efbf4a87359404ef6aca3dfdd85e0",
   "main": "src/worker.ts",
 
+  /**
+   * `/i` on the public hostname, which is what the beacon has always posted to.
+   *
+   * This is the hop that the Cloudflare port dropped. The client calls
+   * `navigator.sendBeacon('/i')` — same-origin and relative, which is the right thing for
+   * it to do: a cross-origin beacon needs CORS, earns a preflight on every page view, and
+   * reads to a privacy blocker like third-party telemetry. Under D3 the Caddyfile routed
+   * `/i` here and nothing replaced it, so every beacon landed on the renderer, which has
+   * no such route and answered 404. The site looked healthy and measured nobody.
+   *
+   * A route rather than a service binding from the renderer, deliberately. The collector
+   * derives the anonymous id from `cf-connecting-ip` and reads `request.cf.country`, and
+   * D34 is the record of moving the country *off* a header Caddy set and onto
+   * `request.cf` because a trusted header is a header somebody can set. A forwarded
+   * subrequest would put that back. A route keeps this a genuine edge request.
+   *
+   * It coexists with the renderer's Custom Domain on the same hostname: Cloudflare matches
+   * the most specific pattern first, so `/i*` wins over the apex and everything else
+   * reaches the renderer.
+   */
+  "routes": [{ "pattern": "desirepath.live/i*", "zone_name": "desirepath.live" }],
+
   /** Pinned. A Worker whose semantics change because time passed is an outage nobody can bisect. */
   "compatibility_date": "2026-09-01",
 
