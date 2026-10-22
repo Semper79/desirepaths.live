@@ -101,33 +101,29 @@
     "MORPH_TIMEZONE": "Europe/Rome",
 
     /**
-     * The data controller (D4). GDPR Art. 13 requires a visitor to be told who is
-     * responsible and how to reach them before any processing happens.
-     *
-     * These are deliberately EMPTY in version control. There is no placeholder and no
-     * example value, because a plausible-looking controller in a privacy notice is a false
-     * legal record — worse than a missing one, since it reads as finished.
-     *
-     * Until all three are set:
-     *   - the collector refuses every beacon with 503,
-     *   - `/ready` refuses the deployment and names the missing variables,
-     *   - `/privacy` says so in those words rather than rendering a gap.
-     *
-     * Set them with `wrangler secret put` if you would rather the address not sit in the
-     * repository — they are not secrets in the cryptographic sense, but a private
-     * individual's residence is personal data and belongs wherever the operator wants it.
-     *
-     * MORPH_CONTROLLER_DPO_EMAIL is optional and only applies if an Art. 37 data protection
-     * officer has been appointed.
+     * The data controller (D4) is NOT here. See the note below `vars`.
      */
-    "MORPH_CONTROLLER_NAME": "",
-    "MORPH_CONTROLLER_ADDRESS": "",
-    "MORPH_CONTROLLER_EMAIL": "",
   },
 
   /**
    * ANON_ID_PEPPER is a secret and is absent on purpose:
    * `wrangler secret put ANON_ID_PEPPER`. It is the input to the visitor hash, and the
    * collector refuses readiness without it rather than hashing every visitor to one id.
+   * It must be the same value as apps/web's, or the renderer and the collector derive
+   * different ids for the same visitor and nothing joins up.
+   */
+
+  /**
+   * THE DATA CONTROLLER IS SET WITH `wrangler secret put`, NOT HERE (D4)
+   *
+   *   wrangler secret put MORPH_CONTROLLER_NAME
+   *   wrangler secret put MORPH_CONTROLLER_ADDRESS
+   *   wrangler secret put MORPH_CONTROLLER_EMAIL
+   *
+   * and the same three on apps/web, which renders the Art. 13 notice from them.
+   *
+   * See apps/web/wrangler.jsonc for why these are not `vars`: in short, an empty `vars`
+   * entry and a secret of the same name are one binding, and the empty string is what a
+   * deploy would send — silently un-setting the controller and stopping ingest.
    */
 }

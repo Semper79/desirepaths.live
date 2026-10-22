@@ -9,6 +9,18 @@ working; it just stops learning. That buys time and costs almost nothing. Use it
 
 ---
 
+> **Sections 1, 2, 8 and 11 still describe the pre-Cloudflare stack.** Their
+> `docker compose`, Redpanda, Redis and `pg_dump` commands were written for D3 — one
+> server running Postgres, Redis and Redpanda in containers — and the Cloudflare port (D31)
+> removed all of it. There is no container to exec into and no Postgres to dump. They are
+> left in place rather than deleted because the _reasoning_ in them is still the reasoning,
+> and rewriting them properly needs the observability surface they refer to: that is Phase 8
+> work, tracked in `docs/ROADMAP.md`. Section 12 below is current and was verified against
+> the live deployment.
+>
+> Running one of those commands during an incident wastes the worst minutes to waste it in,
+> which is why this warning is at the top rather than in each section.
+
 ## 0. Emergency controls
 
 | Command                    | Effect                                                                         | Reversible            |
@@ -255,18 +267,59 @@ will make decisions from empty posteriors.
 
 ## 12. Deploy
 
+A push to `main` is the deploy. `.github/workflows/ci.yml` gates it on `build`,
+`integration` and `security`, and only then runs, in this order: D1 migrations, the
+collector, the renderer, the scheduled Workers. The order is load-bearing and the file says
+why at each step — the short version is that the database must be able to read the new
+schema before anything reads the database, and the cron must not publish a decision set for
+a renderer that failed to deploy.
+
+Locally, before pushing:
+
 ```bash
-pnpm verify                       # nothing ships red
-docker compose -f infra/docker-compose.yml build
-docker compose -f infra/docker-compose.yml up -d --wait
+pnpm verify        # typecheck, lint, guardrails, coverage, workerd tests, build
+pnpm format:check  # a separate CI job, and NOT part of pnpm verify
 ```
 
-Migrations run before the new containers take traffic. They are expand-only: add a column
-now, drop it two deploys later, so a rollback never meets a schema it cannot read.
+`format:check` is the one that gets forgotten, because `verify` reads like the whole gate
+and is not. A mechanical change across many files is exactly what trips it.
 
-**Rollback:** redeploy the previous image tag. Because migrations are expand-only, no
-schema rollback is needed. If one ever is, that migration was wrong.
+### One-time configuration
 
-**After every deploy:** watch `morph_decision_duration_ms` and the Core Web Vitals for
-one hour. A regression there is the fastest signal that something in the adaptive path
-got slower.
+Deploying is not the same as being ready. `/api/ready` on the renderer and `/ready` on the
+collector both return 503 and name what is missing until these are set; the collector also
+refuses every beacon, so nothing is measured in the meantime. That is the designed state,
+not a fault.
+
+```bash
+# The visitor hash input. The SAME value in both, or the renderer and the collector
+# derive different ids for one visitor and nothing joins up. 32 bytes minimum —
+# /ready enforces the floor.
+cd apps/web && pnpm exec wrangler secret put ANON_ID_PEPPER
+cd apps/api && pnpm exec wrangler secret put ANON_ID_PEPPER
+
+# The data controller (D4). The same three values in both apps. Secrets rather than
+# `vars` because the repository is public; see apps/web/wrangler.jsonc.
+pnpm exec wrangler secret put MORPH_CONTROLLER_NAME
+pnpm exec wrangler secret put MORPH_CONTROLLER_ADDRESS
+pnpm exec wrangler secret put MORPH_CONTROLLER_EMAIL
+
+# The cron reads Analytics Engine over the SQL API, which has no binding.
+# The token needs Account Analytics · Read and nothing else.
+cd apps/cron && pnpm exec wrangler secret put CLOUDFLARE_ACCOUNT_ID
+cd apps/cron && pnpm exec wrangler secret put ANALYTICS_API_TOKEN
+```
+
+`MORPH_INDEXABLE` stays `"0"` until the site should appear in search results. While it is
+`"0"`, `/robots.txt` is `Disallow: /` — which is why a deployment that looks finished is
+not yet indexed, and is deliberate rather than an oversight.
+
+**Rollback:** `wrangler rollback` per Worker, or revert the commit and let CI redeploy. D1
+migrations are expand-only — add a column now, drop it two deploys later — so a rollback
+never meets a schema it cannot read. If a schema rollback is ever needed, that migration
+was wrong.
+
+**After every deploy:** watch `morph_decision_duration_ms` and `morph_snapshot_age_seconds`
+for one hour. The second is the one that catches a deploy where the renderer is healthy and
+the cycle is not: the page keeps serving a decision set that stops being refreshed, which
+looks entirely normal from the outside.

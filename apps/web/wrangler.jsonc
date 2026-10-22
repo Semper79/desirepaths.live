@@ -100,34 +100,46 @@
     "MORPH_ENVIRONMENT_NAME": "production",
 
     /**
-     * The data controller (D4). GDPR Art. 13 requires a visitor to be told who is
-     * responsible and how to reach them before any processing happens.
-     *
-     * These are deliberately EMPTY in version control. There is no placeholder and no
-     * example value, because a plausible-looking controller in a privacy notice is a false
-     * legal record — worse than a missing one, since it reads as finished.
-     *
-     * Until all three are set:
-     *   - the collector refuses every beacon with 503,
-     *   - `/ready` refuses the deployment and names the missing variables,
-     *   - `/privacy` says so in those words rather than rendering a gap.
-     *
-     * Set them with `wrangler secret put` if you would rather the address not sit in the
-     * repository — they are not secrets in the cryptographic sense, but a private
-     * individual's residence is personal data and belongs wherever the operator wants it.
-     *
-     * MORPH_CONTROLLER_DPO_EMAIL is optional and only applies if an Art. 37 data protection
-     * officer has been appointed.
+     * The data controller (D4) is NOT here. See the note below `vars`.
      */
-    "MORPH_CONTROLLER_NAME": "",
-    "MORPH_CONTROLLER_ADDRESS": "",
-    "MORPH_CONTROLLER_EMAIL": "",
   },
 
   /**
    * ANON_ID_PEPPER is a secret and is deliberately absent from this file.
    * `wrangler secret put ANON_ID_PEPPER` — it is the input to the visitor hash, and a
-   * pepper in version control is a pepper that is no longer a pepper.
+   * pepper in version control is a pepper that is no longer a pepper. The same value has
+   * to be set on apps/api, or the two sides derive different ids for the same visitor.
+   */
+
+  /**
+   * THE DATA CONTROLLER IS SET WITH `wrangler secret put`, NOT HERE (D4)
+   *
+   *   wrangler secret put MORPH_CONTROLLER_NAME
+   *   wrangler secret put MORPH_CONTROLLER_ADDRESS
+   *   wrangler secret put MORPH_CONTROLLER_EMAIL
+   *
+   * and the same three on apps/api, which gates every beacon on them.
+   *
+   * These three used to sit in `vars` above as empty strings, with a note offering
+   * `wrangler secret put` as an alternative. The two cannot coexist: a `vars` entry and a
+   * secret of the same name are one binding, the config's plain-text value is what a
+   * deploy sends, and an empty string is what the deployment would then have. The failure
+   * is quiet and total — the collector stops accepting beacons and `/privacy` reverts to
+   * saying the controller is unconfigured, hours after a deploy that changed nothing else.
+   *
+   * So the entries are gone rather than empty. There is still no placeholder and no
+   * example value, for the original reason: a plausible-looking controller in a privacy
+   * notice is a false legal record, and worse than a missing one because it reads as
+   * finished. Until all three are set the collector refuses every beacon with 503,
+   * `/ready` names what is missing, and `/privacy` says so in those words.
+   *
+   * Secrets rather than `vars` for a second reason specific to this deployment: the
+   * repository is public, and an operator who is a private individual has a residence for
+   * an address. Art. 13 puts it on the privacy page either way — that is the point of it —
+   * but a rendered page is not a mirrored, permanent, scrapeable git history.
+   *
+   * MORPH_CONTROLLER_DPO_EMAIL is optional and only applies if an Art. 37 data protection
+   * officer has been appointed.
    */
 
   "env": {
