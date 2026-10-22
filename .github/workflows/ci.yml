@@ -172,7 +172,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # Full history, for the secret scan below.
+      #
+      # gitleaks scans the range the push covers, `<first pushed commit>^..<last>`, so it
+      # needs the commit *before* the first one in the push. The default shallow checkout
+      # has only the tip, which happens to be enough when a push carries a single commit
+      # and is not enough the moment it carries two: the scan then dies on
+      # "unknown revision", reports 0 bytes scanned, and fails the job. That is the right
+      # failure — a secret scanner that cannot see the commits must not report success —
+      # but it was passing by accident rather than by construction, and the accident held
+      # only because every push until now happened to be one commit.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
