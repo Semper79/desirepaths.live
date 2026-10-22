@@ -22,7 +22,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { seedSql, type SeedArticle } from '@morph/core';
-import { SEED_CONTENT } from '../apps/web/src/lib/content.js';
+import { SEED_CONTENT } from '../apps/web/src/lib/content';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 

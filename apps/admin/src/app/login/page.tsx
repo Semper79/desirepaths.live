@@ -5,7 +5,7 @@
  * access to the console should work in whatever a browser can do without help.
  */
 
-import { siteName } from '../../lib/branding.js';
+import { siteName } from '../../lib/branding';
 
 export const dynamic = 'force-dynamic';
 

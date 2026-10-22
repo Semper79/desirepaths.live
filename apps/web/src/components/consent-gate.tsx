@@ -22,7 +22,7 @@
  */
 
 import { headers } from 'next/headers';
-import { hasChosen } from '../lib/consent.js';
+import { hasChosen } from '../lib/consent';
 
 export async function ConsentGate(): Promise<React.JSX.Element | null> {
   if (hasChosen((await headers()).get('cookie'))) return null;

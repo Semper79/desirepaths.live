@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { SURFACE_LIST } from '../src/surfaces/registry.js';
+import { SURFACE_LIST } from '../src/surfaces/registry';
 import {
   contentSeedStatements,
   engineConfigSeedStatement,
@@ -22,7 +22,7 @@ import {
   sqlString,
   variantSeedStatements,
   type SeedArticle,
-} from '../src/db/seed.js';
+} from '../src/db/seed';
 
 const nodeRequire = createRequire(import.meta.url);
 const SEED_FILE = join(import.meta.dirname, '..', '..', '..', 'infra', 'd1', 'seed.sql');

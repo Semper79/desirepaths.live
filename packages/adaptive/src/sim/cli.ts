@@ -6,7 +6,7 @@
  * output is the fastest way to see how.
  */
 
-import { simulate, STANDARD_WORLD } from './index.js';
+import { simulate, STANDARD_WORLD } from './index';
 
 const pct = (x: number): string => `${(x * 100).toFixed(1)}%`;
 

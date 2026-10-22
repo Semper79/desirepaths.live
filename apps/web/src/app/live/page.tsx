@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { SURFACES, SURFACE_KEYS } from '@morph/core';
 import { pageMeta } from '@morph/seo';
-import { assignmentForRequest } from '../../lib/resolve.js';
-import { siteIdentity } from '../../lib/site.js';
+import { assignmentForRequest } from '../../lib/resolve';
+import { siteIdentity } from '../../lib/site';
 
 /**
  * The transparency page: exactly what this visitor was served, and why.

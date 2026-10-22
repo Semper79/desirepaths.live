@@ -16,7 +16,7 @@
 import { env, runInDurableObject } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import type { FoldableEvent } from '@morph/core';
-import { SESSION_TIMEOUT_MS } from '../../src/session.js';
+import { SESSION_TIMEOUT_MS } from '../../src/session';
 
 const T0 = Date.UTC(2026, 9, 21, 10, 30, 0);
 

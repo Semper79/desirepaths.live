@@ -31,8 +31,8 @@ import {
   clientIp,
   uuid,
 } from '../../../bench/payload.js';
-import { consentMaskFromCookie } from '../src/lib/consent-cookie.js';
-import { isBotUserAgent } from '../src/lib/classify.js';
+import { consentMaskFromCookie } from '../src/lib/consent-cookie';
+import { isBotUserAgent } from '../src/lib/classify';
 
 const here = dirname(fileURLToPath(import.meta.url));
 

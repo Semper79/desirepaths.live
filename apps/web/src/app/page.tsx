@@ -10,12 +10,12 @@
 import { SURFACES, type FullAssignment } from '@morph/core';
 import { faq, graph, serialiseJsonLd } from '@morph/seo';
 import { headers } from 'next/headers';
-import { ThinkingBar } from '../components/thinking-bar.js';
-import { assignmentForRequest, currentSnapshot } from '../lib/resolve.js';
-import { siteSophistication } from '../lib/sophistication.js';
-import { motionAllowed, payloadOf, sectionOrder } from '../lib/render.js';
-import { publishedContent } from '../lib/site.js';
-import { FAQ_ITEMS } from '../lib/faq.js';
+import { ThinkingBar } from '../components/thinking-bar';
+import { assignmentForRequest, currentSnapshot } from '../lib/resolve';
+import { siteSophistication } from '../lib/sophistication';
+import { motionAllowed, payloadOf, sectionOrder } from '../lib/render';
+import { publishedContent } from '../lib/site';
+import { FAQ_ITEMS } from '../lib/faq';
 
 export default async function HomePage(): Promise<React.JSX.Element> {
   const resolved = await assignmentForRequest(await headers());

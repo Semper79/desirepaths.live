@@ -8,7 +8,7 @@ import {
   maskFromCookieHeader,
   POLICY_VERSION,
   setCookieValue,
-} from '../src/lib/consent.js';
+} from '../src/lib/consent';
 
 /**
  * Consent is the one place where the safe failure direction is always the same: read

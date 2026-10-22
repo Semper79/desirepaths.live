@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDate, parseFeed, toPlainText, usableItems } from '../src/feed.js';
+import { parseDate, parseFeed, toPlainText, usableItems } from '../src/feed';
 
 const ok = (xml: string) => {
   const result = parseFeed(xml);

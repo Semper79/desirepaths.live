@@ -13,11 +13,11 @@
  * this comment.
  */
 
-import { probabilityWorseThan } from './beta.js';
-import { boundedVariance, msprt, type MsprtResult } from './msprt.js';
-import type { Rng } from './rng.js';
-import { unitHash } from './rng.js';
-import type { Arm } from './thompson.js';
+import { probabilityWorseThan } from './beta';
+import { boundedVariance, msprt, type MsprtResult } from './msprt';
+import type { Rng } from './rng';
+import { unitHash } from './rng';
+import type { Arm } from './thompson';
 
 // -----------------------------------------------------------------------------
 // Holdout

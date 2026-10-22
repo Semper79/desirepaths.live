@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { faq, graph, pageMeta, serialiseJsonLd } from '@morph/seo';
-import { FAQ_ITEMS } from '../../lib/faq.js';
-import { siteIdentity } from '../../lib/site.js';
+import { FAQ_ITEMS } from '../../lib/faq';
+import { siteIdentity } from '../../lib/site';
 
 /**
  * The explanation page.

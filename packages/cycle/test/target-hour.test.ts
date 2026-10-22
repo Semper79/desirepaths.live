@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { SESSION_TIMEOUT_MS } from '@morph/core';
-import { targetHour } from '../src/derive.js';
+import { targetHour } from '../src/derive';
 
 const HOUR = 3_600_000;
 

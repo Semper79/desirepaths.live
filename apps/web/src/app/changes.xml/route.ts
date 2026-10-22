@@ -11,9 +11,9 @@
  */
 
 import { renderRss, type FeedItem } from '@morph/seo';
-import { changesFrom } from '../../lib/changes.js';
-import { recentAdaptations } from '../../lib/db.js';
-import { origin, siteIdentity } from '../../lib/site.js';
+import { changesFrom } from '../../lib/changes';
+import { recentAdaptations } from '../../lib/db';
+import { origin, siteIdentity } from '../../lib/site';
 
 /** Same reasoning as `/feed.xml`: the origin is environmental, so this cannot be static. */
 export const dynamic = 'force-dynamic';

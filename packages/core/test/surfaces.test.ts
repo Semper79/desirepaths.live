@@ -10,8 +10,8 @@ import {
   SURFACES,
   validateSurface,
   type AnySurface,
-} from '../src/surfaces/index.js';
-import { checkContrast } from '../src/color.js';
+} from '../src/surfaces/index';
+import { checkContrast } from '../src/color';
 
 describe('the shipped registry', () => {
   it('loads without a single error', () => {

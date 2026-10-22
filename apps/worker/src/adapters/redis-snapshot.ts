@@ -20,7 +20,7 @@
  */
 
 import type Redis from 'ioredis';
-import type { PublishedSnapshot, SnapshotPublisher } from '../ports.js';
+import type { PublishedSnapshot, SnapshotPublisher } from '../ports';
 
 /** Shared with `apps/web`. Changing it on one side only makes the site stop adapting. */
 export const SNAPSHOT_KEY = 'morph:snapshot:current';

@@ -15,7 +15,7 @@ import {
   isOperator,
   issueToken,
   verifyToken,
-} from '../src/lib/session.js';
+} from '../src/lib/session';
 
 const SECRET = 'a'.repeat(48);
 const OTHER = 'b'.repeat(48);

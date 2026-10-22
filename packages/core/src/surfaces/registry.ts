@@ -15,10 +15,10 @@
  */
 
 import { z } from 'zod';
-import type { VariantId } from '../brand.js';
-import { assertRegistryValid, defineSurface } from './define.js';
-import { TokenMap } from './tokens.js';
-import type { AnySurface, RegistryOf } from './types.js';
+import type { VariantId } from '../brand';
+import { assertRegistryValid, defineSurface } from './define';
+import { TokenMap } from './tokens';
+import type { AnySurface, RegistryOf } from './types';
 
 // -----------------------------------------------------------------------------
 // Shared payload fragments

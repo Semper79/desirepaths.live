@@ -17,7 +17,7 @@
  * be the same field.
  */
 
-import { escapeJsonLd } from './embed.js';
+import { escapeJsonLd } from './embed';
 
 export interface Thing {
   readonly '@type': string;
@@ -41,8 +41,17 @@ export interface SiteIdentity {
   readonly origin: string;
   readonly name: string;
   readonly description: string;
-  /** Absolute URL of a square logo, at least 112x112. */
-  readonly logoUrl: string;
+  /**
+   * Absolute URL of a square logo, at least 112x112. Optional, and omitted rather than
+   * guessed at.
+   *
+   * It was required, and `apps/web` satisfied it with a generated `/icon` route — which
+   * went when Next's `ImageResponse` turned out to be unusable (see docs/ROADMAP.md). A
+   * required field with nothing behind it would have emitted a `logo` pointing at a 404,
+   * and structured data is the worst place for that: nothing renders it, so nobody notices,
+   * and a crawler reads a broken image as a fact about the organisation.
+   */
+  readonly logoUrl?: string | undefined;
   /** Profiles the operator actually controls. Never a page they merely appear on. */
   readonly sameAs?: readonly string[];
 }
@@ -61,7 +70,9 @@ export function organisation(site: SiteIdentity): Thing {
     name: site.name,
     url: `${site.origin}/`,
     description: site.description,
-    logo: { '@type': 'ImageObject', url: site.logoUrl },
+    ...(site.logoUrl === undefined
+      ? {}
+      : { logo: { '@type': 'ImageObject', url: site.logoUrl } }),
     ...(site.sameAs && site.sameAs.length > 0 ? { sameAs: [...site.sameAs] } : {}),
   };
 }

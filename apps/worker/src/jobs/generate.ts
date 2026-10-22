@@ -27,7 +27,7 @@
  */
 
 import { assessSafety, combine, PUBLISH_THRESHOLD } from '@morph/crawler';
-import { slugify } from '../lib/label.js';
+import { slugify } from '../lib/label';
 import type {
   Clock,
   ContentDraft,
@@ -39,8 +39,8 @@ import type {
   StoredDocument,
   TrendRepository,
   TrendSignalRecord,
-} from '../ports.js';
-import type { GenerateJob } from '../queues.js';
+} from '../ports';
+import type { GenerateJob } from '../queues';
 
 export interface GenerateDeps {
   readonly trends: TrendRepository;

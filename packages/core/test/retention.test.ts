@@ -18,7 +18,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { RETENTION_COLUMN, RETENTION_DAYS, retentionTasks } from '../src/db/retention.js';
+import { RETENTION_COLUMN, RETENTION_DAYS, retentionTasks } from '../src/db/retention';
 
 const MIGRATIONS_DIR = join(import.meta.dirname, '..', '..', '..', 'infra', 'd1', 'migrations');
 

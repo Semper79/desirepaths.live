@@ -16,7 +16,7 @@
 import { SURFACE_KEYS } from '@morph/core';
 import type { RewardRepository, VariantHealth, VariantReward } from '@morph/cycle';
 import type { RewardComponents } from '@morph/adaptive';
-import { analyticsQuery, sqlNumber, type AnalyticsQueryConfig } from '../analytics.js';
+import { analyticsQuery, sqlNumber, type AnalyticsQueryConfig } from '../analytics';
 
 /** The slice of `SurfaceCounters` this needs. Narrower than the namespace on purpose. */
 export interface CounterReader {

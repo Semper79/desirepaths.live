@@ -37,7 +37,7 @@ import {
   installMetricSink,
   resetMetricSink,
   webVitalP75,
-} from '../src/index.js';
+} from '../src/index';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rulesPath = join(here, '..', '..', '..', 'infra', 'prometheus', 'rules', 'morph.yml');

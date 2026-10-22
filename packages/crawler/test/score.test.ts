@@ -13,7 +13,7 @@ import {
   scoreTopic,
   velocity,
   type TopicHistory,
-} from '../src/score.js';
+} from '../src/score';
 
 const HOUR = 3_600_000;
 const NOW = 1_700_000_000_000;

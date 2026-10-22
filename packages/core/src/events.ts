@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { VisitorContextSchema } from './context.js';
+import { VisitorContextSchema } from './context';
 
 export const EVENT_TYPES = [
   /** First response of a session. */

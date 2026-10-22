@@ -23,7 +23,7 @@ import {
   type VisitorContext,
   type VisitorIdentity,
 } from '@morph/core';
-import { botScore, classifyReferrer, deviceClass, viewportBucket } from './classify.js';
+import { botScore, classifyReferrer, deviceClass, viewportBucket } from './classify';
 
 export interface RequestMeta {
   /** Used to derive the anonymous id, then discarded. Never stored, never logged. */

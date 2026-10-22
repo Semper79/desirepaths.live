@@ -7,7 +7,7 @@
  */
 
 import { renderRobotsTxt } from '@morph/seo';
-import { isIndexable, origin } from '../../lib/site.js';
+import { isIndexable, origin } from '../../lib/site';
 
 /**
  * Dynamic, cached at the edge rather than at build time.

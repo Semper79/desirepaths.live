@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/rng.js';
-import { leaderOf, sampleArm, summarise, type Arm } from '../src/thompson.js';
+import { createRng } from '../src/rng';
+import { leaderOf, sampleArm, summarise, type Arm } from '../src/thompson';
 
 const arm = (variantId: string, alpha: number, beta: number, impressions = 0): Arm => ({
   variantId,

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { article, breadcrumbs, graph, pageMeta, serialiseJsonLd } from '@morph/seo';
 import type { ContentBlock } from '@morph/core';
-import { publishedContent, siteIdentity } from '../../../lib/site.js';
+import { publishedContent, siteIdentity } from '../../../lib/site';
 
 /**
  * An article.

@@ -7,8 +7,8 @@
  * catch an escaping bug before it becomes a 400 at 03:00.
  */
 
-import { composeReport } from './compose.js';
-import { SAMPLE_QUIET_INPUT, SAMPLE_REPORT_INPUT } from './sample.js';
+import { composeReport } from './compose';
+import { SAMPLE_QUIET_INPUT, SAMPLE_REPORT_INPUT } from './sample';
 
 /** Strip MarkdownV2 backslash escapes for human reading. Never used to send. */
 const unescape = (s: string): string => s.replace(/\\(.)/g, '$1');

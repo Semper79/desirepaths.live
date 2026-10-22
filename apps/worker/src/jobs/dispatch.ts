@@ -31,8 +31,8 @@ import {
   type Intent,
   type QueueAction,
   type QueueMessage,
-} from '../lib/telegram.js';
-import type { Clock, ContentRepository, Logger } from '../ports.js';
+} from '../lib/telegram';
+import type { Clock, ContentRepository, Logger } from '../ports';
 
 /**
  * What the dispatcher wants to happen, rather than what it does.

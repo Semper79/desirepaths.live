@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { SURFACES } from '../src/surfaces/registry.js';
-import { validateSurface } from '../src/surfaces/define.js';
-import { oklchToRgb, rgbToHex } from '../src/color.js';
-import { syllablesIn } from '../src/text.js';
-import { tokensToStyleAttribute } from '../src/surfaces/tokens.js';
-import { variantId } from '../src/brand.js';
-import type { AnySurface } from '../src/surfaces/types.js';
+import { SURFACES } from '../src/surfaces/registry';
+import { validateSurface } from '../src/surfaces/define';
+import { oklchToRgb, rgbToHex } from '../src/color';
+import { syllablesIn } from '../src/text';
+import { tokensToStyleAttribute } from '../src/surfaces/tokens';
+import { variantId } from '../src/brand';
+import type { AnySurface } from '../src/surfaces/types';
 
 /**
  * Each surface's `invariants` function encodes a product rule that the zod schema

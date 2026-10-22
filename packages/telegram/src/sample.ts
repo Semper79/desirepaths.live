@@ -9,7 +9,7 @@
  * reader to stop trusting the report.
  */
 
-import type { ReportInput } from './types.js';
+import type { ReportInput } from './types';
 
 export const SAMPLE_REPORT_INPUT: ReportInput = {
   hourStart: '2026-08-24T14:00:00',

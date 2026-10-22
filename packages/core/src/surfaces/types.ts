@@ -25,7 +25,7 @@
  */
 
 import type { z } from 'zod';
-import type { VariantId } from '../brand.js';
+import type { VariantId } from '../brand';
 
 // -----------------------------------------------------------------------------
 // Objectives

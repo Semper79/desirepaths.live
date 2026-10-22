@@ -7,8 +7,8 @@ import {
   scoreArm,
   serialiseArm,
   updateArm,
-} from '../src/linucb.js';
-import { createRng } from '../src/rng.js';
+} from '../src/linucb';
+import { createRng } from '../src/rng';
 
 describe('createArm', () => {
   it('starts with A = lambda * I, so A^-1 = I / lambda', () => {

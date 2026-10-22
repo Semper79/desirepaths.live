@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { runPrune } from '../src/jobs/prune.js';
-import { labelFor, MAX_LABEL_LENGTH, slugify, tokenise } from '../src/lib/label.js';
-import { parseJob, POLICY, QUEUE } from '../src/queues.js';
-import { EnvSchema, loadEnv, refineEnv, type Env } from '../src/env.js';
-import { FakeDocuments, FakeLogger } from './fakes.js';
+import { runPrune } from '../src/jobs/prune';
+import { labelFor, MAX_LABEL_LENGTH, slugify, tokenise } from '../src/lib/label';
+import { parseJob, POLICY, QUEUE } from '../src/queues';
+import { EnvSchema, loadEnv, refineEnv, type Env } from '../src/env';
+import { FakeDocuments, FakeLogger } from './fakes';
 
 const NOW = 1_700_000_000_000;
 const DAY = 24 * 60 * 60 * 1000;

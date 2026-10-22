@@ -10,7 +10,7 @@ import {
   NOVELTY_FLOOR,
   type RewardComponents,
   type RewardWeights,
-} from '../src/reward.js';
+} from '../src/reward';
 
 const WEIGHTS: RewardWeights = {
   signup: 0.4,

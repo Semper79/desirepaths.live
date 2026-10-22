@@ -33,7 +33,7 @@
  * thing worth acting on".
  */
 
-import { clamp01 } from './math.js';
+import { clamp01 } from './math';
 
 export interface ArmSummary {
   /** Number of impressions. */

@@ -12,7 +12,7 @@
  * backfill, and historical component data stays comparable forever.
  */
 
-import { clamp01 } from './math.js';
+import { clamp01 } from './math';
 
 /** Sufficient statistics for one (surface, variant, bucket) cell over some window. */
 export interface RewardComponents {

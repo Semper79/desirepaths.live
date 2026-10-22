@@ -20,9 +20,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SURFACE_KEYS } from '@morph/core';
-import { SNAPSHOT_KEY, kvSnapshotPublisher } from '../src/adapters/snapshot.js';
-import { cloudflareRewards, type CounterReader } from '../src/adapters/rewards.js';
-import { sqlNumber } from '../src/analytics.js';
+import { SNAPSHOT_KEY, kvSnapshotPublisher } from '../src/adapters/snapshot';
+import { cloudflareRewards, type CounterReader } from '../src/adapters/rewards';
+import { sqlNumber } from '../src/analytics';
 
 const WEB_SNAPSHOT = join(import.meta.dirname, '..', '..', 'web', 'src', 'lib', 'snapshot.ts');
 

@@ -6,7 +6,7 @@ import {
   deviceClass,
   isBotUserAgent,
   viewportBucket,
-} from '../src/lib/classify.js';
+} from '../src/lib/classify';
 
 describe('deviceClass', () => {
   it('prefers client hints over the user agent', () => {

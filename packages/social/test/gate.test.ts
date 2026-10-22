@@ -29,7 +29,7 @@ import {
   verifiedPlatforms,
   type Platform,
   type PlatformState,
-} from '../src/index.js';
+} from '../src/index';
 
 const TZ = 'Europe/Rome';
 const NOON = Date.parse('2026-08-30T12:00:00Z');

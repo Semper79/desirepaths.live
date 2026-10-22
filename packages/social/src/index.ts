@@ -35,7 +35,7 @@ export {
   verifiedPlatforms,
   type Platform,
   type PlatformLimit,
-} from './limits.js';
+} from './limits';
 
 export {
   breakerCooldownMs,
@@ -52,4 +52,4 @@ export {
   type FailureInput,
   type PlatformState,
   type Refusal,
-} from './gate.js';
+} from './gate';

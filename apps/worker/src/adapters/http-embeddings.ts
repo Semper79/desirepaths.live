@@ -19,7 +19,7 @@
  */
 
 import { z } from 'zod';
-import type { EmbeddingProvider } from '../ports.js';
+import type { EmbeddingProvider } from '../ports';
 
 const VoyageResponse = z.object({
   data: z.array(z.object({ index: z.number().int().min(0), embedding: z.array(z.number()) })),

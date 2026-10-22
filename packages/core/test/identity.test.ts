@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { anonId, dailySalt, idsEqual, utcDay, VisitorIdentity } from '../src/identity.js';
+import { anonId, dailySalt, idsEqual, utcDay, VisitorIdentity } from '../src/identity';
 
 /**
  * The properties tested here are the privacy design, not implementation details.

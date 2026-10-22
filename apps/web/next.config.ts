@@ -7,6 +7,20 @@ import type { NextConfig } from 'next';
  * workspace packages export TypeScript rather than build output, and Next compiles
  * them as part of the app. It removes an entire class of build-ordering problem from
  * a monorepo that never publishes to npm.
+ *
+ * WHY THERE IS NO WEBPACK HOOK HERE ANY MORE (D38)
+ * Next 16 builds with Turbopack, and Turbopack ignored the `webpack()` hook this file used
+ * to carry — including the `extensionAlias` that mapped `./thing.js` onto `./thing.ts`.
+ * The symptom was a wall of "Export renderRss doesn't exist in target module" against
+ * packages whose exports plainly do exist and which typecheck fine: Turbopack resolved
+ * `./feed.js` literally, found nothing, and reported a missing file as a missing export.
+ *
+ * The build was pinned to `--webpack` to get the alias honoured. That bought a working
+ * build and nothing else, against a bundler Next is in the process of removing. The
+ * extensions are gone from the packages' own sources instead, which is what `CLAUDE.md`
+ * said the real fix was: they were there to keep the packages runnable under plain Node,
+ * and after the Cloudflare port nothing runs them that way — every consumer is a bundler
+ * or tsx. `resolveExtensions` below is what resolves them now.
  */
 const config: NextConfig = {
   reactStrictMode: true,
@@ -18,24 +32,6 @@ const config: NextConfig = {
     '@morph/ui',
     '@morph/metrics',
   ],
-
-  /**
-   * Resolve `./thing.js` to `./thing.ts`.
-   *
-   * The workspace packages write ESM-correct relative imports with a `.js` extension,
-   * which is what Node requires and what makes them consumable outside a bundler.
-   * Webpack does not make that substitution on its own, so it has to be told — the
-   * alternative is stripping the extensions from the source, which would trade a
-   * three-line config for a package that no longer runs under plain Node.
-   */
-  webpack(config: { resolve?: { extensionAlias?: Record<string, string[]> } }) {
-    config.resolve ??= {};
-    config.resolve.extensionAlias = {
-      ...config.resolve.extensionAlias,
-      '.js': ['.ts', '.tsx', '.js'],
-    };
-    return config;
-  },
 
   turbopack: {
     resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.json'],
@@ -84,8 +80,39 @@ const config: NextConfig = {
     ];
   },
 
-  // A generated image is a cache entry, not a build artefact.
-  images: { formats: ['image/avif', 'image/webp'] },
+  /**
+   * Image optimisation off, because nothing uses it and it costs a native module.
+   *
+   * This used to configure `formats: ['image/avif', 'image/webp']`, which enables Next's
+   * optimiser — and on Next 16 that pulls `sharp` into the bundle. `sharp` ships `.node`
+   * binaries, esbuild has no loader for those, and the Worker build failed on a win32
+   * binary that could never have run on Workers anyway.
+   *
+   * There is no `next/image` anywhere in this app, and no `ImageResponse` route either —
+   * `icon` and `opengraph-image` were removed because `next/og` resolves its fallback
+   * font at module scope and the file it looks for is not in the package (docs/ROADMAP.md).
+   * So the optimiser was configured and never used. Turning it off removes a native
+   * dependency from a runtime that cannot execute one. If this site ever does need an
+   * image resized, that is Cloudflare Images, not a module compiled for the build machine.
+   */
+  images: { unoptimized: true },
+
+  /**
+   * Keeps `sharp` out of Next's own server bundle — and is NOT what keeps it out of the
+   * Worker.
+   *
+   * Worth stating plainly, because this line reads like the fix and was tried as one. The
+   * Worker bundle is produced by OpenNext's own esbuild pass, which does not consult a
+   * Next setting: it resolved `sharp` out of `next/dist/server/image-optimizer` and died
+   * on the `.node` binary with this exactly as it stands.
+   *
+   * What works is upstream of the build. `ignoredOptionalDependencies` in the root
+   * manifest stops sharp being installed for Next at all, and the `hoist-pattern`
+   * exclusions in `.npmrc` stop miniflare's own copy — a regular dependency, so not
+   * ignorable — being hoisted into the virtual store's shared directory, which sits on
+   * Next's resolution path. Remove either and this line will not save the deploy.
+   */
+  serverExternalPackages: ['sharp'],
 
   poweredByHeader: false,
 };

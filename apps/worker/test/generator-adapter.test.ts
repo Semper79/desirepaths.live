@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DRAFT_JSON_SCHEMA, promptFor } from '../src/adapters/anthropic-generator.js';
-import type { GenerationBrief } from '../src/ports.js';
+import { DRAFT_JSON_SCHEMA, promptFor } from '../src/adapters/anthropic-generator';
+import type { GenerationBrief } from '../src/ports';
 
 const BRIEF: GenerationBrief = {
   label: 'Incremental clustering',

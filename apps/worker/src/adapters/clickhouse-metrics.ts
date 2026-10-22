@@ -23,7 +23,7 @@ import type {
   ProviderFacts,
   RewardFacts,
   TrafficFacts,
-} from '../ports.js';
+} from '../ports';
 
 export interface ClickHouseQuery {
   /** Runs a query and returns the JSONEachRow body, unparsed. */

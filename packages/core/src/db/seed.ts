@@ -29,8 +29,8 @@
  * headline containing an apostrophe is not hypothetical.
  */
 
-import { DEFAULT_ENGINE_CONFIG } from '../config.js';
-import { SURFACE_LIST } from '../surfaces/registry.js';
+import { DEFAULT_ENGINE_CONFIG } from '../config';
+import { SURFACE_LIST } from '../surfaces/registry';
 
 /** A single-quoted SQL literal, with embedded quotes doubled. */
 export function sqlString(value: string): string {

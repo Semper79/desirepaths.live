@@ -7,7 +7,7 @@ import {
   JOIN_THRESHOLD,
   recentroid,
   type Cluster,
-} from '../src/cluster.js';
+} from '../src/cluster';
 
 /** A unit vector at `angle` radians, so similarity is controllable rather than guessed. */
 const at = (angle: number): readonly number[] => [Math.cos(angle), Math.sin(angle)];

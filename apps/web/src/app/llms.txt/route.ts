@@ -14,7 +14,7 @@
  */
 
 import { renderLlmsTxt } from '@morph/seo';
-import { origin, publishedContent, siteIdentity } from '../../lib/site.js';
+import { origin, publishedContent, siteIdentity } from '../../lib/site';
 
 /**
  * Dynamic, cached at the edge rather than at build time.

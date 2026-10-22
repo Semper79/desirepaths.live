@@ -43,14 +43,14 @@ import {
   installMetricSink,
   type AnalyticsEngineLike,
 } from '@morph/metrics';
-import { enrich, type RequestMeta } from './lib/enrich.js';
+import { enrich, type RequestMeta } from './lib/enrich';
 
-import { consentMaskFromCookie } from './lib/consent-cookie.js';
+import { consentMaskFromCookie } from './lib/consent-cookie';
 import {
   analyticsEventPublisher,
   type EventDataset,
   type EventPublisher,
-} from './lib/analytics-events.js';
+} from './lib/analytics-events';
 
 /**
  * The largest body this will read.
@@ -363,8 +363,8 @@ function recordLag(events: readonly IngestEvent[]): void {
  * runtime resolves it here. Without this line the binding exists and every call to it
  * fails at runtime with a class it cannot find.
  */
-export { SurfaceCounters } from './counters.js';
-export { SessionAggregate } from './session.js';
+export { SurfaceCounters } from './counters';
+export { SessionAggregate } from './session';
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

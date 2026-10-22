@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countWords, extract, MINIMUM_WORDS, normaliseWhitespace } from '../src/extract.js';
+import { countWords, extract, MINIMUM_WORDS, normaliseWhitespace } from '../src/extract';
 
 const SOURCE = 'https://example.com/articles/one';
 

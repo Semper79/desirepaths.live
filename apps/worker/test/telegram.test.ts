@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dispatch, QUEUE_PAGE_SIZE } from '../src/jobs/dispatch.js';
+import { dispatch, QUEUE_PAGE_SIZE } from '../src/jobs/dispatch';
 import {
   CALLBACK_DATA_LIMIT,
   decodeCallback,
@@ -7,11 +7,11 @@ import {
   intentOf,
   renderDecided,
   renderDraft,
-} from '../src/lib/telegram.js';
-import { telegramClient, MAX_RATE_LIMIT_RETRIES } from '../src/adapters/telegram-api.js';
-import { promptFor } from '../src/adapters/anthropic-prose.js';
+} from '../src/lib/telegram';
+import { telegramClient, MAX_RATE_LIMIT_RETRIES } from '../src/adapters/telegram-api';
+import { promptFor } from '../src/adapters/anthropic-prose';
 import { SAMPLE_REPORT_INPUT } from '@morph/telegram';
-import { FakeContent, FakeLogger } from './fakes.js';
+import { FakeContent, FakeLogger } from './fakes';
 
 const NOW = 1_700_000_000_000;
 const CHAT = '-1001234567890';

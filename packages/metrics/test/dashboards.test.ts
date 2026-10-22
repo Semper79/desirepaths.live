@@ -15,7 +15,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { declaredMetricNames } from '../src/index.js';
+import { declaredMetricNames } from '../src/index';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dashboardDir = join(

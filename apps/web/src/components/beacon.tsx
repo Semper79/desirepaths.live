@@ -20,8 +20,8 @@
 
 import { useEffect } from 'react';
 import type { ClientEvent } from '@morph/core';
-import { BeaconQueue, chunkForBeacon, type QueueStorage } from '../lib/beacon-queue.js';
-import { allowsAnalytics, maskFromCookieHeader } from '../lib/consent.js';
+import { BeaconQueue, chunkForBeacon, type QueueStorage } from '../lib/beacon-queue';
+import { allowsAnalytics, maskFromCookieHeader } from '../lib/consent';
 
 interface PageAssignment {
   readonly surfaces: readonly string[];

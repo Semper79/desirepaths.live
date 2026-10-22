@@ -5,7 +5,7 @@ import {
   checkTokenContract,
   FALLBACK_TOKENS,
   REQUIRED_TOKENS,
-} from '../src/tokens.js';
+} from '../src/tokens';
 
 /**
  * The token contract is the seam between the optimiser and the rendering. These tests

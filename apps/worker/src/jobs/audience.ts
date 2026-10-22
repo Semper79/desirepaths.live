@@ -38,8 +38,8 @@ import type {
   PageEngagement,
   PublishedContent,
   TrendRepository,
-} from '../ports.js';
-import type { AudienceJob } from '../queues.js';
+} from '../ports';
+import type { AudienceJob } from '../queues';
 
 export interface AudienceDeps {
   readonly engagement: EngagementRepository;

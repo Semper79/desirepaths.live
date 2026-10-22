@@ -32,9 +32,9 @@
 import { DEFAULT_ENGINE_CONFIG, EngineConfigSchema } from '@morph/core';
 import { cycleConfigFrom, runAdapt, type Logger } from '@morph/cycle';
 import type { AnalyticsEngineDataset, D1Database, KVNamespace } from '@cloudflare/workers-types';
-import { cloudflareRewards, type CounterReader } from './adapters/rewards.js';
-import { d1AdaptStore } from './adapters/adapt-store.js';
-import { kvSnapshotPublisher } from './adapters/snapshot.js';
+import { cloudflareRewards, type CounterReader } from './adapters/rewards';
+import { d1AdaptStore } from './adapters/adapt-store';
+import { kvSnapshotPublisher } from './adapters/snapshot';
 
 interface Env {
   /** Read-only here. The collector writes through the session object; this reads. */

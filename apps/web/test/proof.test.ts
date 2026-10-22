@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { SURFACES, SURFACE_KEYS } from '@morph/core';
 import type { Arm } from '@morph/adaptive';
-import { format, headline, measurements, proofFrom } from '../src/lib/proof.js';
+import { format, headline, measurements, proofFrom } from '../src/lib/proof';
 
 const found = SURFACE_KEYS.find((key) => SURFACES[key].variants.length > 1);
 if (found === undefined) throw new Error('no surface has more than one variant');

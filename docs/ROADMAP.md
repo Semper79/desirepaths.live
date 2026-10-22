@@ -340,6 +340,27 @@ the `--audit-level=high` gate and the fix is a major version bump (5.x), and `ap
 rather than being bumped on its own, and it is written here so it does not simply go
 unnoticed between two audits.
 
+**The site has no social card, and no favicon.** `apps/web/src/app/icon.tsx`,
+`opengraph-image.tsx` and `proof/opengraph-image.tsx` generated both with `ImageResponse`
+from `next/og`, which does not run under OpenNext. The package resolves its fallback font
+at module scope — `var fallbackFont = getFallbackFont()` runs on import — so supplying
+explicit fonts cannot route around it, and the file it reaches for is not the file the
+package ships: the node entry point looks for `Geist-Regular.ttf` while only
+`Geist-Regular.ttf.bin` exists. Both 16.3.8 and 16.4.2 are the same in this respect, so
+it is not a version to wait out.
+
+The three routes were deleted rather than left to throw at request time. `pageMeta` now
+omits `og:image` and `twitter:image` when there is no image and downgrades the card to
+`summary`, and the Organization JSON-LD omits `logo`, so nothing advertises an image that
+would 404 — which is what a fallback to the removed route had been doing on every page.
+
+What it costs: a link to this site shared anywhere renders as a text-only preview, which
+for a site whose argument is visual is a real loss rather than a cosmetic one. The fix does
+not need `next/og`. A static card committed under `public/` and passed as `imagePath` is
+enough, and `pageMeta` already takes it — the two branches are tested. Cloudflare's own
+Browser Rendering or Images would generate per-article cards later if that is ever worth
+the binding.
+
 **The experience gates are unenforced.** §7 budgets Core Web Vitals and accessibility, and
 `docs/BENCHMARKS.md` states the numbers, but nothing checks them. Two CI jobs described
 them — `lighthouse + axe` and `e2e` — and neither had ever run: there is no playwright

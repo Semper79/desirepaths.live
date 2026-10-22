@@ -8,7 +8,7 @@ import {
   policyFrom,
   ROBOTS_ERROR_TTL_MS,
   ROBOTS_TTL_MS,
-} from '../src/robots.js';
+} from '../src/robots';
 
 /**
  * These tests are the compliance position in `docs/COMPLIANCE.md`. If one of them fails,

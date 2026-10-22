@@ -19,8 +19,8 @@
  * keeps its history — it simply stops accumulating new evidence.
  */
 
-import type { Clock, DocumentRepository, Logger } from '../ports.js';
-import type { PruneJob } from '../queues.js';
+import type { Clock, DocumentRepository, Logger } from '../ports';
+import type { PruneJob } from '../queues';
 
 export interface PruneDeps {
   readonly documents: DocumentRepository;

@@ -17,7 +17,7 @@
  * its low bits would bias Thompson sampling in a way that looks like a real effect.
  */
 
-import { outsideUnitDisc } from './math.js';
+import { outsideUnitDisc } from './math';
 
 export interface Rng {
   /** Uniform in [0, 1). */

@@ -17,8 +17,8 @@
  * to a variant forever. That is what `guardrails.ts` is for.
  */
 
-import type { Rng } from './rng.js';
-import { betaCredibleInterval, betaMean, probabilityGreater } from './beta.js';
+import type { Rng } from './rng';
+import { betaCredibleInterval, betaMean, probabilityGreater } from './beta';
 
 export interface Arm {
   readonly variantId: string;

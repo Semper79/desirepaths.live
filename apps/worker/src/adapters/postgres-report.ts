@@ -26,8 +26,8 @@ import type {
   ReportRun,
   ReportRunRepository,
   TrendSignalRecord,
-} from '../ports.js';
-import type { Database } from './postgres.js';
+} from '../ports';
+import type { Database } from './postgres';
 
 const toDate = (ms: number): Date => new Date(ms);
 

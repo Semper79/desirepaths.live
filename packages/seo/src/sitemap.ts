@@ -19,7 +19,7 @@
  * causes trouble.
  */
 
-import { absoluteUrl, isoDate, xmlText } from './xml.js';
+import { absoluteUrl, isoDate, xmlText } from './xml';
 
 export type ChangeFrequency =
   'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';

@@ -32,7 +32,7 @@ import type {
   StoredDocument,
   TrendRepository,
   TrendSignalRecord,
-} from '../src/ports.js';
+} from '../src/ports';
 
 export class FakeLogger implements Logger {
   readonly entries: { level: string; event: string; fields: Record<string, unknown> }[] = [];

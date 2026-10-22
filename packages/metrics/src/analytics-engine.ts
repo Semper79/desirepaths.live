@@ -29,7 +29,7 @@
  * remember at 3am.
  */
 
-import type { MetricObservation, MetricSink } from './sink.js';
+import type { MetricObservation, MetricSink } from './sink';
 
 /**
  * A blob or index cell. Cloudflare accepts binary as well as text; this package only ever

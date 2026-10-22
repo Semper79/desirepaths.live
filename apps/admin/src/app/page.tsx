@@ -10,9 +10,9 @@
  * console that fails in exactly the conditions it is opened for.
  */
 
-import { surfaceRows } from '../lib/surfaces.js';
-import { readSnapshot } from '../lib/snapshot.js';
-import { siteName } from '../lib/branding.js';
+import { surfaceRows } from '../lib/surfaces';
+import { readSnapshot } from '../lib/snapshot';
+import { siteName } from '../lib/branding';
 
 export const dynamic = 'force-dynamic';
 

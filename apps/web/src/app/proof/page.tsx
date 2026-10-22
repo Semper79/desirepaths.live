@@ -16,9 +16,9 @@
 
 import type { Metadata } from 'next';
 import { dataset, graph, pageMeta, serialiseJsonLd } from '@morph/seo';
-import { currentSnapshot } from '../../lib/resolve.js';
-import { proofFrom, headline, measurements, format, type SettledSurface } from '../../lib/proof.js';
-import { siteIdentity } from '../../lib/site.js';
+import { currentSnapshot } from '../../lib/resolve';
+import { proofFrom, headline, measurements, format, type SettledSurface } from '../../lib/proof';
+import { siteIdentity } from '../../lib/site';
 
 export const dynamic = 'force-dynamic';
 

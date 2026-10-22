@@ -5,8 +5,8 @@ import {
   retryAfterMs,
   type FetchDeps,
   type FetcherConfig,
-} from '../src/fetch.js';
-import { DEFAULT_POLITENESS } from '../src/politeness.js';
+} from '../src/fetch';
+import { DEFAULT_POLITENESS } from '../src/politeness';
 
 /**
  * No network, no clock, no sleeping. Time is advanced by the fake `sleep`, so "waits 1.1

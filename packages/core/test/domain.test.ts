@@ -8,18 +8,18 @@ import {
   surfaceId,
   unitInterval,
   variantId,
-} from '../src/brand.js';
-import { readability, syllablesIn } from '../src/text.js';
+} from '../src/brand';
+import { readability, syllablesIn } from '../src/text';
 import {
   bucketOf,
   featureVector,
   FEATURE_DIM,
   VisitorContextSchema,
   type VisitorContext,
-} from '../src/context.js';
-import { categoriesOf, CONSENT_BIT, hasConsent, maskOf, mayAdapt } from '../src/consent.js';
-import { IngestEventSchema, validateEvent, type IngestEvent } from '../src/events.js';
-import { DEFAULT_ENGINE_CONFIG, EngineConfigSchema, RewardWeightsSchema } from '../src/config.js';
+} from '../src/context';
+import { categoriesOf, CONSENT_BIT, hasConsent, maskOf, mayAdapt } from '../src/consent';
+import { IngestEventSchema, validateEvent, type IngestEvent } from '../src/events';
+import { DEFAULT_ENGINE_CONFIG, EngineConfigSchema, RewardWeightsSchema } from '../src/config';
 
 // -----------------------------------------------------------------------------
 // Branded primitives

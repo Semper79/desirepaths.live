@@ -16,7 +16,7 @@ import {
   type SurfaceEvidence,
   labelFor,
   sophistication,
-} from '../src/index.js';
+} from '../src/index';
 
 /**
  * Posterior mass, held apart from the impression count on purpose.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { simulate, STANDARD_WORLD } from '../src/sim/index.js';
+import { simulate, STANDARD_WORLD } from '../src/sim/index';
 
 /**
  * THE CONVERGENCE PROOF (section 7).

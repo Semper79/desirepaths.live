@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { factNumbers, MAX_LEAD_LENGTH, proseNumbers, verifyLead, withLead } from '../src/prose.js';
-import { SAMPLE_REPORT_INPUT } from '../src/sample.js';
+import { factNumbers, MAX_LEAD_LENGTH, proseNumbers, verifyLead, withLead } from '../src/prose';
+import { SAMPLE_REPORT_INPUT } from '../src/sample';
 
 /**
  * These tests are the reason the prose pass is allowed to exist. A prompt cannot enforce

@@ -14,7 +14,7 @@
  */
 
 import { z } from 'zod';
-import type { EngagementRepository, PageEngagement } from '../ports.js';
+import type { EngagementRepository, PageEngagement } from '../ports';
 
 /**
  * UInt64 arrives as a string in JSON, because it does not fit a double.

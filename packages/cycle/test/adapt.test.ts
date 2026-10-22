@@ -18,8 +18,8 @@ import {
   decideAdaptations,
   explorationRateOf,
   targetHour,
-} from '../src/derive.js';
-import { runAdapt } from '../src/adapt.js';
+} from '../src/derive';
+import { runAdapt } from '../src/adapt';
 import type {
   ActiveVariant,
   AdaptRepository,
@@ -30,7 +30,7 @@ import type {
   StoredPosterior,
   VariantHealth,
   VariantReward,
-} from '../src/ports.js';
+} from '../src/ports';
 
 const CONFIG = cycleConfigFrom(DEFAULT_ENGINE_CONFIG);
 const HOUR = 3_600_000;

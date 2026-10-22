@@ -11,8 +11,8 @@
  * operator's judgement at 04:00.
  */
 
-import { bold, code, compact, delta, escape, italic, packSections, percent } from './markdown.js';
-import type { Alert, ReportInput, ServiceHealth } from './types.js';
+import { bold, code, compact, delta, escape, italic, packSections, percent } from './markdown';
+import type { Alert, ReportInput, ServiceHealth } from './types';
 
 const STATUS_ICON: Record<ServiceHealth['status'], string> = {
   up: '🟢',

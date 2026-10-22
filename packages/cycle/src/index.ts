@@ -8,6 +8,6 @@
  * storage change underneath it (D31) without the cycle changing at all.
  */
 
-export * from './ports.js';
-export * from './derive.js';
-export * from './adapt.js';
+export * from './ports';
+export * from './derive';
+export * from './adapt';

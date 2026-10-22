@@ -7,9 +7,9 @@ import {
   rngFor,
   type AssignmentConfig,
   type AssignmentInput,
-} from '../src/assign.js';
-import { createArm, updateArm, type LinUcbArmState } from '../src/linucb.js';
-import type { Arm } from '../src/thompson.js';
+} from '../src/assign';
+import { createArm, updateArm, type LinUcbArmState } from '../src/linucb';
+import type { Arm } from '../src/thompson';
 
 const arms: Arm[] = [
   { variantId: 's#a', alpha: 10, beta: 90, impressions: 100 },

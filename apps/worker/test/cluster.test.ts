@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { MOMENTUM_WINDOW_HOURS, runCluster } from '../src/jobs/cluster.js';
-import { FakeDocuments, FakeLogger, FakeTrends } from './fakes.js';
-import type { ClusterJob } from '../src/queues.js';
+import { MOMENTUM_WINDOW_HOURS, runCluster } from '../src/jobs/cluster';
+import { FakeDocuments, FakeLogger, FakeTrends } from './fakes';
+import type { ClusterJob } from '../src/queues';
 
 const NOW = 1_700_000_000_000;
 const JOB: ClusterJob = { batchSize: 100, windowHours: 72 };

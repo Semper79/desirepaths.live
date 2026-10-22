@@ -17,14 +17,14 @@
  * docs/BENCHMARKS.md testable rather than asserted.
  */
 
-export * from './rng.js';
-export * from './beta.js';
-export * from './reward.js';
-export * from './msprt.js';
-export * from './thompson.js';
-export * from './linucb.js';
-export * from './guardrails.js';
-export * from './assign.js';
-export * from './sophistication.js';
-export { simulate, STANDARD_WORLD } from './sim/index.js';
-export type { SimulationResult, SimulationSpec, VariantTruth } from './sim/index.js';
+export * from './rng';
+export * from './beta';
+export * from './reward';
+export * from './msprt';
+export * from './thompson';
+export * from './linucb';
+export * from './guardrails';
+export * from './assign';
+export * from './sophistication';
+export { simulate, STANDARD_WORLD } from './sim/index';
+export type { SimulationResult, SimulationSpec, VariantTruth } from './sim/index';

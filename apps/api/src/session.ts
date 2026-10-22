@@ -32,8 +32,8 @@ import {
   type FoldableEvent,
   type SessionState,
 } from '@morph/core';
-import type { HourlyFold, SurfaceCounters } from './counters.js';
-import { hourStartOf } from './counters.js';
+import type { HourlyFold, SurfaceCounters } from './counters';
+import { hourStartOf } from './counters';
 
 /**
  * Re-exported, not redeclared.

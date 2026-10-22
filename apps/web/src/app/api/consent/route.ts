@@ -10,8 +10,8 @@
  * banner and the privacy page.
  */
 
-import { maskForChoice, setCookieValue } from '../../../lib/consent.js';
-import { origin } from '../../../lib/site.js';
+import { maskForChoice, setCookieValue } from '../../../lib/consent';
+import { origin } from '../../../lib/site';
 
 export const dynamic = 'force-dynamic';
 

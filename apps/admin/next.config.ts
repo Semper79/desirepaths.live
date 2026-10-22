@@ -4,22 +4,14 @@ import type { NextConfig } from 'next';
  * The console's Next configuration.
  *
  * Mirrors `apps/web`'s handling of workspace packages — they export TypeScript rather than
- * build output, so Next compiles them, and webpack has to be told that a `./thing.js`
- * import resolves to `./thing.ts`.
+ * build output, so Next compiles them, and the bundler has to resolve an extensionless
+ * relative import to a `.ts` file. See that file's D38 note for why the `webpack()` hook
+ * both configs used to carry is gone, and why `resolveExtensions` replaces it.
  */
 const config: NextConfig = {
   reactStrictMode: true,
 
   transpilePackages: ['@morph/core', '@morph/adaptive', '@morph/ui'],
-
-  webpack(config: { resolve?: { extensionAlias?: Record<string, string[]> } }) {
-    config.resolve ??= {};
-    config.resolve.extensionAlias = {
-      ...config.resolve.extensionAlias,
-      '.js': ['.ts', '.tsx', '.js'],
-    };
-    return config;
-  },
 
   turbopack: {
     resolveExtensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.json'],

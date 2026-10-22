@@ -12,7 +12,7 @@
  * would be incoherent to ask for it and not offer it.
  */
 
-import { absoluteUrl, cdata, isoDate, rfc822, xmlText } from './xml.js';
+import { absoluteUrl, cdata, isoDate, rfc822, xmlText } from './xml';
 
 export interface FeedSite {
   readonly origin: string;

@@ -10,8 +10,8 @@
 import { describe, expect, it } from 'vitest';
 import { SURFACES, SURFACE_KEYS } from '@morph/core';
 import type { Arm } from '@morph/adaptive';
-import { surfaceRows } from '../src/lib/surfaces.js';
-import { EMPTY, parseSnapshot } from '../src/lib/snapshot.js';
+import { surfaceRows } from '../src/lib/surfaces';
+import { EMPTY, parseSnapshot } from '../src/lib/snapshot';
 
 /**
  * A surface with something to choose between, and its real variant ids.
@@ -101,7 +101,7 @@ describe('the snapshot reader', () => {
   it('uses the same key the worker publishes to', async () => {
     // Three copies of this string now exist — worker, web, admin — and they must agree or
     // the site silently stops adapting. Asserted here rather than trusted.
-    const { SNAPSHOT_KEY } = await import('../src/lib/snapshot.js');
+    const { SNAPSHOT_KEY } = await import('../src/lib/snapshot');
     expect(SNAPSHOT_KEY).toBe('morph:snapshot:current');
   });
 

@@ -26,7 +26,7 @@
  */
 
 import { VisitorContextSchema, type VisitorContext, type VisitorIdentity } from '@morph/core';
-import { maskFromCookieHeader } from './consent.js';
+import { maskFromCookieHeader } from './consent';
 
 /** Headers middleware writes and the layout reads. Prefixed so they cannot collide. */
 export const CONTEXT_HEADER = 'x-morph-context';

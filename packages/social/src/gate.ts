@@ -30,7 +30,7 @@
  * that wants to act sooner has exactly one option, which is to wait.
  */
 
-import { PLATFORM_LIMITS, type Platform, type PlatformLimit } from './limits.js';
+import { PLATFORM_LIMITS, type Platform, type PlatformLimit } from './limits';
 
 export interface BreakerState {
   /** Consecutive failures since the last success. */

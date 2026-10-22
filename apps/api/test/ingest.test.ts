@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { resetMetricSink } from '@morph/metrics';
-import worker from '../src/worker.js';
-import { consentMaskFromCookie } from '../src/lib/consent-cookie.js';
+import worker from '../src/worker';
+import { consentMaskFromCookie } from '../src/lib/consent-cookie';
 import { VisitorIdentity, type FoldableEvent } from '@morph/core';
-import { enrich, hourOfWeek } from '../src/lib/enrich.js';
+import { enrich, hourOfWeek } from '../src/lib/enrich';
 
 const PEPPER = 'p'.repeat(64);
 const NOW = new Date('2026-08-24T14:30:00.000Z'); // a Monday

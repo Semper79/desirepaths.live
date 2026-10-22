@@ -26,7 +26,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { jsonSchemaOutputFormat } from '@anthropic-ai/sdk/helpers/json-schema';
 import { z } from 'zod';
 import { ContentBlockSchema } from '@morph/core';
-import type { ContentGenerator, GeneratedContent, GenerationBrief } from '../ports.js';
+import type { ContentGenerator, GeneratedContent, GenerationBrief } from '../ports';
 
 /**
  * The shape a draft comes back in.

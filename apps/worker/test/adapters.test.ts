@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createLogger, formatLine } from '../src/adapters/logger.js';
-import { httpEmbeddings } from '../src/adapters/http-embeddings.js';
+import { createLogger, formatLine } from '../src/adapters/logger';
+import { httpEmbeddings } from '../src/adapters/http-embeddings';
 
 const AT = new Date('2026-06-03T09:00:00.000Z');
 

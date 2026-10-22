@@ -29,9 +29,9 @@
 import { and, desc, eq, gte, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { adaptationLog, content } from '@morph/core/db/sqlite';
-import { SEED_CONTENT, toArticle, type PublishedArticle } from './content.js';
-import { d1 } from './bindings.js';
-import type { AdaptationRow } from './changes.js';
+import { SEED_CONTENT, toArticle, type PublishedArticle } from './content';
+import { d1 } from './bindings';
+import type { AdaptationRow } from './changes';
 
 /** `null` when there is no D1 binding, which is a supported state, not a broken one. */
 async function database(): Promise<ReturnType<typeof drizzle> | null> {

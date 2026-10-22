@@ -4,15 +4,15 @@ import {
   escalationDecisions,
   formatDuration,
   type AlertState,
-} from '../src/lib/escalation.js';
+} from '../src/lib/escalation';
 import {
   FAILED_JOB_THRESHOLD,
   renderAlert,
   renderRecovery,
   runEscalate,
   type EscalateDeps,
-} from '../src/jobs/escalate.js';
-import { FakeLogger } from './fakes.js';
+} from '../src/jobs/escalate';
+import { FakeLogger } from './fakes';
 import type { Alert } from '@morph/telegram';
 import type {
   AnomalyFacts,
@@ -20,7 +20,7 @@ import type {
   MetricsRepository,
   RewardFacts,
   TrafficFacts,
-} from '../src/ports.js';
+} from '../src/ports';
 
 const NOW = 1_700_000_000_000;
 const MINUTE = 60_000;

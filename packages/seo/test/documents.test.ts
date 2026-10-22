@@ -8,16 +8,16 @@ import {
   serialiseJsonLd,
   website,
   type SiteIdentity,
-} from '../src/jsonld.js';
+} from '../src/jsonld';
 import {
   chunkEntries,
   MAX_URLS_PER_SITEMAP,
   renderSitemap,
   renderSitemapIndex,
-} from '../src/sitemap.js';
-import { renderAtom, renderRss, type FeedItem, type FeedSite } from '../src/feed.js';
-import { renderLlmsTxt, renderRobotsTxt, WELCOMED_AI_AGENTS } from '../src/aeo.js';
-import { canonicalUrl, pageMeta, renderMetaTags } from '../src/meta.js';
+} from '../src/sitemap';
+import { renderAtom, renderRss, type FeedItem, type FeedSite } from '../src/feed';
+import { renderLlmsTxt, renderRobotsTxt, WELCOMED_AI_AGENTS } from '../src/aeo';
+import { canonicalUrl, pageMeta, renderMetaTags } from '../src/meta';
 
 const SITE: SiteIdentity = {
   origin: 'https://morph.example',
@@ -396,10 +396,52 @@ describe('canonical URLs and metadata', () => {
     const byKey = new Map(meta.tags.map((t) => [t.property ?? t.name, t.content]));
     expect(meta.canonical).toBe('https://morph.example/t/ambient-computing');
     expect(byKey.get('og:type')).toBe('article');
-    expect(byKey.get('twitter:card')).toBe('summary_large_image');
     expect(byKey.get('article:published_time')).toBe('2026-08-24T14:00:00.000Z');
     expect(byKey.get('robots')).toContain('max-snippet:-1');
     expect(byKey.get('robots')).toContain('max-image-preview:large');
+  });
+
+  /**
+   * The two image branches, because the wrong one is invisible from the page.
+   *
+   * `og:image` used to default to `/opengraph-image`, a route that no longer exists, so
+   * every page advertised a card that resolved to a 404. Nothing on the page changes when
+   * that happens and nothing fails — the preview is just broken everywhere the site is
+   * shared, which is the one place it is least likely to be noticed.
+   */
+  it('omits the image tags, and the large card, when there is no image to point at', () => {
+    const meta = pageMeta({
+      origin: 'https://morph.example',
+      siteName: 'MORPH',
+      path: '/how-it-works',
+      title: 'How it works',
+      description: 'What the site measures, and what it changes in response.',
+    });
+
+    const keys = meta.tags.map((t) => t.property ?? t.name);
+    expect(keys).not.toContain('og:image');
+    expect(keys).not.toContain('twitter:image');
+
+    const byKey = new Map(meta.tags.map((t) => [t.property ?? t.name, t.content]));
+    // Not `summary_large_image`: declaring a large card without an image renders as an
+    // empty block rather than as no card at all.
+    expect(byKey.get('twitter:card')).toBe('summary');
+  });
+
+  it('uses the large card, and both image tags, when given an image path', () => {
+    const meta = pageMeta({
+      origin: 'https://morph.example',
+      siteName: 'MORPH',
+      path: '/how-it-works',
+      title: 'How it works',
+      description: 'What the site measures, and what it changes in response.',
+      imagePath: '/cards/how-it-works.png',
+    });
+
+    const byKey = new Map(meta.tags.map((t) => [t.property ?? t.name, t.content]));
+    expect(byKey.get('og:image')).toBe('https://morph.example/cards/how-it-works.png');
+    expect(byKey.get('twitter:image')).toBe('https://morph.example/cards/how-it-works.png');
+    expect(byKey.get('twitter:card')).toBe('summary_large_image');
   });
 
   it('honours noindex for pages that exist but should not rank', () => {

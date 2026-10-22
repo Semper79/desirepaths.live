@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { PUBLISH_THRESHOLD } from '@morph/crawler';
-import { publisherFrom, runGenerate } from '../src/jobs/generate.js';
-import { FakeContent, FakeDocuments, FakeGenerator, FakeLogger, FakeTrends } from './fakes.js';
-import type { GeneratedContent, GenerationBrief, TrendSignalRecord } from '../src/ports.js';
+import { publisherFrom, runGenerate } from '../src/jobs/generate';
+import { FakeContent, FakeDocuments, FakeGenerator, FakeLogger, FakeTrends } from './fakes';
+import type { GeneratedContent, GenerationBrief, TrendSignalRecord } from '../src/ports';
 
 const NOW = 1_700_000_000_000;
 

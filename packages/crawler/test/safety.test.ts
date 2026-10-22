@@ -4,7 +4,7 @@ import {
   containsTerm,
   mayGenerateAutomatically,
   SAFETY_CATEGORIES,
-} from '../src/safety.js';
+} from '../src/safety';
 
 /**
  * This is the gate between "a topic is trending" and "a page goes live with nobody having

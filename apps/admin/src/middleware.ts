@@ -9,7 +9,7 @@
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { SESSION_COOKIE, verifyToken } from './lib/session.js';
+import { SESSION_COOKIE, verifyToken } from './lib/session';
 
 /** The only paths reachable without a session. Deliberately two. */
 const PUBLIC_PATHS = new Set(['/login', '/api/login']);

@@ -25,7 +25,7 @@
 
 import { z } from 'zod';
 import { splitMessage } from '@morph/telegram';
-import type { InlineKeyboard } from '../lib/telegram.js';
+import type { InlineKeyboard } from '../lib/telegram';
 
 const ApiResponse = z.object({
   ok: z.boolean(),

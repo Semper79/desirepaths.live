@@ -9,7 +9,7 @@
 
 import { sophistication, type Sophistication, type SurfaceEvidence } from '@morph/adaptive';
 import { SURFACE_KEYS } from '@morph/core';
-import type { PosteriorSnapshot } from './assignment.js';
+import type { PosteriorSnapshot } from './assignment';
 
 /**
  * Every registered surface, including the ones the snapshot has nothing for.

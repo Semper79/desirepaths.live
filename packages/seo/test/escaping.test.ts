@@ -7,8 +7,8 @@ import {
   rfc822,
   stripInvalidXmlChars,
   xmlText,
-} from '../src/xml.js';
-import { escapeHtmlAttribute, escapeJsonLd, singleLine } from '../src/embed.js';
+} from '../src/xml';
+import { escapeHtmlAttribute, escapeJsonLd, singleLine } from '../src/embed';
 
 /**
  * MORPH generates its own titles and excerpts with a language model, so hostile-shaped

@@ -12,17 +12,17 @@ import {
   resolveAssignment,
   type AssignmentStore,
   type ResolvedAssignment,
-} from './assignment.js';
+} from './assignment';
 import { decisionDurationMs, snapshotAgeSeconds } from '@morph/metrics';
-import { currentSnapshot as readSnapshot } from './snapshot.js';
-import { kvAssignmentStore } from './kv-assignment-store.js';
-import { ensureTelemetry } from './telemetry.js';
+import { currentSnapshot as readSnapshot } from './snapshot';
+import { kvAssignmentStore } from './kv-assignment-store';
+import { ensureTelemetry } from './telemetry';
 import {
   ANON_ID_HEADER,
   BOT_SCORE_HEADER,
   CONTEXT_HEADER,
   decodeContext,
-} from './request-context.js';
+} from './request-context';
 
 /**
  * The posterior snapshot, re-exported so callers have one import for the whole seam.
@@ -31,7 +31,7 @@ import {
  * first cycle — or with no KV binding — it answers with the cold snapshot, which resolves
  * every surface to its baseline: a correct page, never a slow one and never an error.
  */
-export { currentSnapshot } from './snapshot.js';
+export { currentSnapshot } from './snapshot';
 
 /**
  * Sticky assignments, in Workers KV (D31).

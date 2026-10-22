@@ -6,7 +6,7 @@ import {
   DEFAULT_QUEUE_CONFIG,
   SEND_BEACON_LIMIT_BYTES,
   type QueueStorage,
-} from '../src/lib/beacon-queue.js';
+} from '../src/lib/beacon-queue';
 
 /** An in-memory `QueueStorage`, and one that fails the way a private window does. */
 const memoryStorage = (): QueueStorage & { value: string | null } => ({

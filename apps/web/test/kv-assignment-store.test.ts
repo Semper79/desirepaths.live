@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { BASELINE_ASSIGNMENT, SURFACE_KEYS } from '@morph/core';
 
-import { parseAssignment } from '../src/lib/kv-assignment-store.js';
+import { parseAssignment } from '../src/lib/kv-assignment-store';
 
 const stored = JSON.stringify(BASELINE_ASSIGNMENT);
 

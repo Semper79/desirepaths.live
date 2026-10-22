@@ -37,14 +37,14 @@ export {
   type RobotsDecision,
   type RobotsFetchOutcome,
   type RobotsPolicy,
-} from './robots.js';
+} from './robots';
 
 export {
   PolitenessScheduler,
   DEFAULT_POLITENESS,
   type PolitenessConfig,
   type Verdict,
-} from './politeness.js';
+} from './politeness';
 
 export {
   PoliteFetcher,
@@ -54,7 +54,7 @@ export {
   type FetchOutcome,
   type ConditionalHeaders,
   retryAfterMs,
-} from './fetch.js';
+} from './fetch';
 
 export {
   parseFeed,
@@ -64,7 +64,7 @@ export {
   type FeedItem,
   type ParsedFeed,
   type FeedParseResult,
-} from './feed.js';
+} from './feed';
 
 export {
   extract,
@@ -74,7 +74,7 @@ export {
   MINIMUM_WORDS,
   type ExtractedDocument,
   type ExtractResult,
-} from './extract.js';
+} from './extract';
 
 export {
   simhash,
@@ -87,7 +87,7 @@ export {
   fromStorage,
   NEAR_DUPLICATE_DISTANCE,
   type Deduplicated,
-} from './simhash.js';
+} from './simhash';
 
 export {
   cosineSimilarity,
@@ -99,7 +99,7 @@ export {
   type Cluster,
   type ClusterMember,
   type AssignResult,
-} from './cluster.js';
+} from './cluster';
 
 export {
   scoreTopic,
@@ -121,7 +121,7 @@ export {
   type ScoreComponents,
   type ScoreWeights,
   type RankedTopic,
-} from './score.js';
+} from './score';
 
 export {
   assessSafety,
@@ -131,4 +131,4 @@ export {
   type SafetyVerdict,
   type SafetyCategory,
   type SafetyAssessment,
-} from './safety.js';
+} from './safety';

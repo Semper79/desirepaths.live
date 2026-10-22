@@ -6,7 +6,7 @@ import {
   MUTATING_COMMANDS,
   parseCommand,
   type AccessPolicy,
-} from '../src/commands.js';
+} from '../src/commands';
 
 const POLICY: AccessPolicy = { allowedChatId: '-100123', adminUserIds: ['777'] };
 

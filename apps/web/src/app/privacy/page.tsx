@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { categoriesOf, controllerFrom } from '@morph/core';
 import { pageMeta } from '@morph/seo';
-import { maskFromCookieHeader } from '../../lib/consent.js';
-import { siteIdentity } from '../../lib/site.js';
+import { maskFromCookieHeader } from '../../lib/consent';
+import { siteIdentity } from '../../lib/site';
 
 /**
  * The privacy page, and the place a choice can be changed.

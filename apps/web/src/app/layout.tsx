@@ -20,11 +20,11 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { tokensToStyleAttribute } from '@morph/core';
 import { graph, organisation, pageMeta, serialiseJsonLd, website } from '@morph/seo';
-import { assignmentForRequest } from '../lib/resolve.js';
-import { tokensFor } from '../lib/render.js';
-import { isIndexable, siteIdentity } from '../lib/site.js';
-import { Beacon } from '../components/beacon.js';
-import { ConsentGate } from '../components/consent-gate.js';
+import { assignmentForRequest } from '../lib/resolve';
+import { tokensFor } from '../lib/render';
+import { isIndexable, siteIdentity } from '../lib/site';
+import { Beacon } from '../components/beacon';
+import { ConsentGate } from '../components/consent-gate';
 import './globals.css';
 
 export function generateMetadata(): Metadata {

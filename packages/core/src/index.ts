@@ -5,18 +5,18 @@
  * package performs I/O, reads the environment, or imports another workspace package.
  */
 
-export * from './brand.js';
-export * from './color.js';
-export * from './text.js';
-export * from './identity.js';
-export * from './consent.js';
-export * from './controller.js';
-export * from './db/retention.js';
-export * from './session-fold.js';
-export * from './db/seed.js';
-export * from './safety.js';
-export * from './content.js';
-export * from './context.js';
-export * from './events.js';
-export * from './config.js';
-export * from './surfaces/index.js';
+export * from './brand';
+export * from './color';
+export * from './text';
+export * from './identity';
+export * from './consent';
+export * from './controller';
+export * from './db/retention';
+export * from './session-fold';
+export * from './db/seed';
+export * from './safety';
+export * from './content';
+export * from './context';
+export * from './events';
+export * from './config';
+export * from './surfaces/index';

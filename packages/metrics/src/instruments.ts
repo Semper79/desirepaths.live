@@ -18,7 +18,7 @@
  * `/api/ready` is where the count is meant to surface.
  */
 
-import { currentSink, type MetricDeclaration } from './sink.js';
+import { currentSink, type MetricDeclaration } from './sink';
 
 /** Labels supplied at a call site, keyed by the names the declaration lists. */
 type Labels<L extends string> = Readonly<Record<L, string>>;

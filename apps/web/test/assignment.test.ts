@@ -15,7 +15,7 @@ import {
   resolveAssignment,
   toWire,
   type PosteriorSnapshot,
-} from '../src/lib/assignment.js';
+} from '../src/lib/assignment';
 
 /**
  * The assignment layer is where an adaptive site either stays indexable or quietly

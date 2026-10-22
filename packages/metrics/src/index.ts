@@ -26,8 +26,8 @@
  * that travels with the number.
  */
 
-import { Counter, Gauge, Histogram } from './instruments.js';
-import type { MetricDeclaration } from './sink.js';
+import { Counter, Gauge, Histogram } from './instruments';
+import type { MetricDeclaration } from './sink';
 
 export {
   installMetricSink,
@@ -39,13 +39,13 @@ export {
   type MetricKind,
   type MetricObservation,
   type MetricSink,
-} from './sink.js';
+} from './sink';
 export {
   analyticsEngineSink,
   type AnalyticsEngineDataPointLike,
   type AnalyticsEngineLike,
-} from './analytics-engine.js';
-export { Counter, Gauge, Histogram } from './instruments.js';
+} from './analytics-engine';
+export { Counter, Gauge, Histogram } from './instruments';
 
 /**
  * Every declaration, in one array.

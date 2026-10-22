@@ -9,7 +9,7 @@
 
 import type { ReactNode } from 'react';
 import { FALLBACK_TOKENS } from '@morph/ui';
-import { siteName } from '../lib/branding.js';
+import { siteName } from '../lib/branding';
 
 export const metadata = {
   title: `${siteName()} — operator console`,

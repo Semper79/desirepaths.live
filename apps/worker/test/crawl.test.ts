@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_FETCHER_CONFIG, DEFAULT_POLITENESS, PoliteFetcher } from '@morph/crawler';
-import { DEDUPE_WINDOW_MS, MAX_ITEMS_PER_FEED, runCrawl } from '../src/jobs/crawl.js';
-import { FakeDocuments, FakeLogger, FakeSources } from './fakes.js';
+import { DEDUPE_WINDOW_MS, MAX_ITEMS_PER_FEED, runCrawl } from '../src/jobs/crawl';
+import { FakeDocuments, FakeLogger, FakeSources } from './fakes';
 
 /**
  * The crawl job with a real `PoliteFetcher` over a fake network, so the compliance

@@ -22,8 +22,8 @@ import type {
   AdaptationRecord,
   PosteriorState,
   StoredPosterior,
-} from '../ports.js';
-import type { Database } from './postgres.js';
+} from '../ports';
+import type { Database } from './postgres';
 
 /**
  * Which variant is the baseline for a surface, from the registry rather than from a

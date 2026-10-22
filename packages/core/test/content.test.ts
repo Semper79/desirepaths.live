@@ -4,7 +4,7 @@ import {
   ContentBodySchema,
   parseContentBody,
   type ContentBody,
-} from '../src/content.js';
+} from '../src/content';
 
 const BODY: ContentBody = {
   blocks: [

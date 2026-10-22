@@ -8,10 +8,10 @@ import {
   runAudience,
   slugFromPath,
   weightedCentroid,
-} from '../src/jobs/audience.js';
-import { clickhouseEngagement, parseRows } from '../src/adapters/clickhouse.js';
-import { FakeAudience, FakeContent, FakeEngagement, FakeLogger, FakeTrends } from './fakes.js';
-import type { EmbeddingProvider, PageEngagement } from '../src/ports.js';
+} from '../src/jobs/audience';
+import { clickhouseEngagement, parseRows } from '../src/adapters/clickhouse';
+import { FakeAudience, FakeContent, FakeEngagement, FakeLogger, FakeTrends } from './fakes';
+import type { EmbeddingProvider, PageEngagement } from '../src/ports';
 
 const NOW = 1_700_000_000_000;
 const JOB = { windowDays: 30 };

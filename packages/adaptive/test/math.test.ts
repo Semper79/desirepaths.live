@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clamp01, outsideUnitDisc } from '../src/math.js';
+import { clamp01, outsideUnitDisc } from '../src/math';
 
 describe('clamp01', () => {
   it('passes through values already in range', () => {

@@ -9,7 +9,7 @@ import {
   shingles,
   simhash,
   toStorage,
-} from '../src/simhash.js';
+} from '../src/simhash';
 
 const ARTICLE =
   'The regulator published new guidance on automated decision systems this morning, ' +

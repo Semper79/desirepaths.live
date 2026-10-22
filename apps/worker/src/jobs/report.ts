@@ -34,7 +34,7 @@ import {
   rate,
   sameHourLastWeek,
   topRows,
-} from '../lib/report-derive.js';
+} from '../lib/report-derive';
 import type {
   Clock,
   ContentRepository,
@@ -42,8 +42,8 @@ import type {
   MetricsRepository,
   ReportRepository,
   ReportRunRepository,
-} from '../ports.js';
-import type { ReportJob } from '../queues.js';
+} from '../ports';
+import type { ReportJob } from '../queues';
 
 export interface ReportSender {
   send(text: string): Promise<readonly number[]>;

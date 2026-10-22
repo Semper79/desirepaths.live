@@ -26,8 +26,8 @@ import type {
   EmbeddingProvider,
   Logger,
   StoredDocument,
-} from '../ports.js';
-import type { EmbedJob } from '../queues.js';
+} from '../ports';
+import type { EmbedJob } from '../queues';
 
 export interface EmbedDeps {
   readonly documents: DocumentRepository;

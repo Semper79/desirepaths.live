@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { changesFrom, summarise, type AdaptationRow } from '../src/lib/changes.js';
+import { changesFrom, summarise, type AdaptationRow } from '../src/lib/changes';
 
 const NOW = Date.parse('2026-08-30T12:00:00Z');
 const HOUR = 3_600_000;

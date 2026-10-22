@@ -13,9 +13,9 @@
 
 import type { Metadata } from 'next';
 import { pageMeta } from '@morph/seo';
-import { changesFrom, summarise, type Change } from '../../lib/changes.js';
-import { recentAdaptations } from '../../lib/db.js';
-import { siteIdentity } from '../../lib/site.js';
+import { changesFrom, summarise, type Change } from '../../lib/changes';
+import { recentAdaptations } from '../../lib/db';
+import { siteIdentity } from '../../lib/site';
 
 export const dynamic = 'force-dynamic';
 

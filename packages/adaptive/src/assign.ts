@@ -19,11 +19,11 @@
  * line is allowed to ignore everything below it.
  */
 
-import { createRng, hashString, type Rng } from './rng.js';
-import { leaderOf, type Arm } from './thompson.js';
-import { scoreArm, type LinUcbArmState } from './linucb.js';
-import { isHoldout, shouldForceExplore, uniformChoice } from './guardrails.js';
-import { clamp01 } from './math.js';
+import { createRng, hashString, type Rng } from './rng';
+import { leaderOf, type Arm } from './thompson';
+import { scoreArm, type LinUcbArmState } from './linucb';
+import { isHoldout, shouldForceExplore, uniformChoice } from './guardrails';
+import { clamp01 } from './math';
 
 export type DecisionReason =
   | 'pinned'

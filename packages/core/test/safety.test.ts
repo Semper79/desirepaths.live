@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safetyVerdictEnum } from '../src/db/schema.js';
+import { safetyVerdictEnum } from '../src/db/schema';
 import {
   fromStoredVerdict,
   permitsAutomation,
@@ -7,7 +7,7 @@ import {
   worstVerdict,
   type SafetyVerdict,
   type StoredSafetyVerdict,
-} from '../src/safety.js';
+} from '../src/safety';
 
 const CLASSIFIER: readonly SafetyVerdict[] = ['allow', 'review', 'block'];
 

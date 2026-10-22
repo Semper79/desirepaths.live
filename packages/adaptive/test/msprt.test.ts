@@ -6,8 +6,8 @@ import {
   msprt,
   updateSequential,
   type ArmSummary,
-} from '../src/msprt.js';
-import { createRng } from '../src/rng.js';
+} from '../src/msprt';
+import { createRng } from '../src/rng';
 
 const arm = (n: number, mean: number): ArmSummary => ({
   n,

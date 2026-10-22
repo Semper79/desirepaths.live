@@ -7,7 +7,7 @@
   "scripts": {
     "build": "next build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "dev": "next dev --port 3002",
+    "dev": "next dev",
     "start": "next start --port 3002",
     "test": "vitest run"
   },
@@ -16,7 +16,7 @@
     "@morph/core": "workspace:*",
     "@morph/ui": "workspace:*",
     "ioredis": "^5.4.1",
-    "next": "^15.5.27",
+    "next": "^16.3.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

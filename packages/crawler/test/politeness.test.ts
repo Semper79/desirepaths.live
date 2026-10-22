@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_POLITENESS, PolitenessScheduler } from '../src/politeness.js';
+import { DEFAULT_POLITENESS, PolitenessScheduler } from '../src/politeness';
 
 /**
  * Every constraint here protects somebody other than us. These tests are the reason

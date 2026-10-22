@@ -36,8 +36,8 @@
  * Staleness now multiplies what is known, so it can only take away.
  */
 
-import { betaMean, probabilityGreater } from './beta.js';
-import type { Arm } from './thompson.js';
+import { betaMean, probabilityGreater } from './beta';
+import type { Arm } from './thompson';
 
 /** One surface's arms, as the snapshot holds them. */
 export interface SurfaceEvidence {

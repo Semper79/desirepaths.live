@@ -17,7 +17,7 @@
 
 import { env, runInDurableObject } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { HourlyFold } from '../../src/counters.js';
+import type { HourlyFold } from '../../src/counters';
 
 const HOUR = 1_780_000_000_000 - (1_780_000_000_000 % 3_600_000);
 

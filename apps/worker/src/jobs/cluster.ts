@@ -30,7 +30,7 @@ import {
   type Cluster,
   type TopicHistory,
 } from '@morph/crawler';
-import { labelFor } from '../lib/label.js';
+import { labelFor } from '../lib/label';
 import type {
   Clock,
   DocumentRepository,
@@ -39,8 +39,8 @@ import type {
   StoredCluster,
   TrendRepository,
   TrendSignalRecord,
-} from '../ports.js';
-import type { ClusterJob } from '../queues.js';
+} from '../ports';
+import type { ClusterJob } from '../queues';
 
 export interface ClusterDeps {
   readonly documents: DocumentRepository;

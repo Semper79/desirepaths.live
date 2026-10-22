@@ -20,7 +20,7 @@
  */
 
 import { hash64, shingles } from '@morph/crawler';
-import type { EmbeddingProvider } from '../ports.js';
+import type { EmbeddingProvider } from '../ports';
 
 export const DETERMINISTIC_PROVIDER_NAME = 'deterministic-hashing (development only)';
 

@@ -20,7 +20,7 @@
  */
 
 import { analyticsEngineSink, installMetricSink } from '@morph/metrics';
-import { metricsDataset } from './bindings.js';
+import { metricsDataset } from './bindings';
 
 let installed = false;
 

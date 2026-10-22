@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRng, hashString, ratioOrHalf, unitHash } from '../src/rng.js';
+import { createRng, hashString, ratioOrHalf, unitHash } from '../src/rng';
 
 /**
  * The properties tested here are the ones the engine actually depends on.

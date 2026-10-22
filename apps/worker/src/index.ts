@@ -24,14 +24,14 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { DEFAULT_FETCHER_CONFIG, DEFAULT_POLITENESS, PoliteFetcher } from '@morph/crawler';
 import { DEFAULT_ENGINE_CONFIG } from '@morph/core';
-import { loadEnv, type Env } from './env.js';
-import { POLICY, QUEUE, parseJob, type QueueName } from './queues.js';
-import { createLogger } from './adapters/logger.js';
-import { deterministicEmbeddings } from './adapters/deterministic-embeddings.js';
-import { httpEmbeddings } from './adapters/http-embeddings.js';
-import { anthropicGenerator } from './adapters/anthropic-generator.js';
-import { anthropicProse } from './adapters/anthropic-prose.js';
-import { clickhouseEngagement, clickhouseQuery } from './adapters/clickhouse.js';
+import { loadEnv, type Env } from './env';
+import { POLICY, QUEUE, parseJob, type QueueName } from './queues';
+import { createLogger } from './adapters/logger';
+import { deterministicEmbeddings } from './adapters/deterministic-embeddings';
+import { httpEmbeddings } from './adapters/http-embeddings';
+import { anthropicGenerator } from './adapters/anthropic-generator';
+import { anthropicProse } from './adapters/anthropic-prose';
+import { clickhouseEngagement, clickhouseQuery } from './adapters/clickhouse';
 import {
   adaptCycleHour,
   explorationRate,
@@ -40,11 +40,11 @@ import {
   variantsQuarantined,
   variantsRetired,
 } from '@morph/metrics';
-import { clickhouseMetrics } from './adapters/clickhouse-metrics.js';
-import { clickhouseRewards } from './adapters/clickhouse-rewards.js';
-import { postgresAdapt } from './adapters/postgres-adapt.js';
-import { redisSnapshotPublisher } from './adapters/redis-snapshot.js';
-import { reportRepository, reportRunRepository } from './adapters/postgres-report.js';
+import { clickhouseMetrics } from './adapters/clickhouse-metrics';
+import { clickhouseRewards } from './adapters/clickhouse-rewards';
+import { postgresAdapt } from './adapters/postgres-adapt';
+import { redisSnapshotPublisher } from './adapters/redis-snapshot';
+import { reportRepository, reportRunRepository } from './adapters/postgres-report';
 import {
   audienceRepository,
   contentRepository,
@@ -52,21 +52,21 @@ import {
   sourceRepository,
   trendRepository,
   type Database,
-} from './adapters/postgres.js';
-import { runCrawl } from './jobs/crawl.js';
-import { runEmbed } from './jobs/embed.js';
-import { runCluster } from './jobs/cluster.js';
+} from './adapters/postgres';
+import { runCrawl } from './jobs/crawl';
+import { runEmbed } from './jobs/embed';
+import { runCluster } from './jobs/cluster';
 import { runAdapt } from '@morph/cycle';
 import { cycleConfigFrom } from '@morph/cycle';
-import { runAudience } from './jobs/audience.js';
-import { runGenerate } from './jobs/generate.js';
-import { runPrune } from './jobs/prune.js';
-import { dispatch } from './jobs/dispatch.js';
-import { runReport } from './jobs/report.js';
-import { runEscalate } from './jobs/escalate.js';
-import type { AlertState } from './lib/escalation.js';
-import { telegramClient, type TelegramClient } from './adapters/telegram-api.js';
-import type { EmbeddingProvider, Logger } from './ports.js';
+import { runAudience } from './jobs/audience';
+import { runGenerate } from './jobs/generate';
+import { runPrune } from './jobs/prune';
+import { dispatch } from './jobs/dispatch';
+import { runReport } from './jobs/report';
+import { runEscalate } from './jobs/escalate';
+import type { AlertState } from './lib/escalation';
+import { telegramClient, type TelegramClient } from './adapters/telegram-api';
+import type { EmbeddingProvider, Logger } from './ports';
 
 const env: Env = loadEnv(process.env);
 const log = createLogger({ service: 'worker' });

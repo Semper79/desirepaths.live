@@ -14,9 +14,9 @@ import {
   sameHourLastWeek,
   topRows,
   TRAFFIC_Z_THRESHOLD,
-} from '../src/lib/report-derive.js';
-import { betaInterval, runReport, STALE_DRAFT_MS, TOP_N } from '../src/jobs/report.js';
-import { FakeContent, FakeLogger } from './fakes.js';
+} from '../src/lib/report-derive';
+import { betaInterval, runReport, STALE_DRAFT_MS, TOP_N } from '../src/jobs/report';
+import { FakeContent, FakeLogger } from './fakes';
 import type {
   AdaptationFacts,
   AnomalyFacts,
@@ -29,7 +29,7 @@ import type {
   RewardFacts,
   TrafficFacts,
   TrendSignalRecord,
-} from '../src/ports.js';
+} from '../src/ports';
 
 const HOUR = 3_600_000;
 const NOW = Date.UTC(2026, 7, 24, 14, 37);

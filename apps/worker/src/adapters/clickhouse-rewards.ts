@@ -19,8 +19,8 @@
  */
 
 import { z } from 'zod';
-import type { RewardRepository, VariantHealth, VariantReward } from '../ports.js';
-import type { ClickHouseQuery } from './clickhouse-metrics.js';
+import type { RewardRepository, VariantHealth, VariantReward } from '../ports';
+import type { ClickHouseQuery } from './clickhouse-metrics';
 
 const num = z.coerce.number();
 

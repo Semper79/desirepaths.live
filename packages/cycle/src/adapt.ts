@@ -42,14 +42,14 @@ import {
   explorationRateOf,
   targetHour,
   type CycleConfig,
-} from './derive.js';
+} from './derive';
 import type {
   AdaptRepository,
   Clock,
   Logger,
   RewardRepository,
   SnapshotPublisher,
-} from './ports.js';
+} from './ports';
 
 /**
  * What a cycle is asked to do.

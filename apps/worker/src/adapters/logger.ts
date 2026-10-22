@@ -10,7 +10,7 @@
  * thing dashboards group on. Fields carry the numbers. Nothing here formats prose.
  */
 
-import type { Logger } from '../ports.js';
+import type { Logger } from '../ports';
 
 export type Level = 'info' | 'warn' | 'error';
 

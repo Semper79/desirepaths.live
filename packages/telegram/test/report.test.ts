@@ -12,10 +12,10 @@ import {
   packSections,
   percent,
   splitMessage,
-} from '../src/markdown.js';
-import { composeBrief, composeReport, isQuietHour } from '../src/compose.js';
-import { SAMPLE_QUIET_INPUT, SAMPLE_REPORT_INPUT } from '../src/sample.js';
-import type { ReportInput } from '../src/types.js';
+} from '../src/markdown';
+import { composeBrief, composeReport, isQuietHour } from '../src/compose';
+import { SAMPLE_QUIET_INPUT, SAMPLE_REPORT_INPUT } from '../src/sample';
+import type { ReportInput } from '../src/types';
 
 /** Every character Telegram requires to be escaped in MarkdownV2 body text. */
 const RESERVED = '_*[]()~`>#+-=|{}.!';

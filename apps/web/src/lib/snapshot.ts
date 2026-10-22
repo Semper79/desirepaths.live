@@ -26,8 +26,8 @@
  * refreshed is visible on the page rather than hidden behind it.
  */
 
-import type { PosteriorSnapshot } from './assignment.js';
-import { snapshotKv } from './bindings.js';
+import type { PosteriorSnapshot } from './assignment';
+import { snapshotKv } from './bindings';
 
 /** Shared with the worker. Changing it on one side only makes the site stop adapting. */
 const SNAPSHOT_KEY = 'morph:snapshot:current';

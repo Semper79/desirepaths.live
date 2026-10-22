@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { controllerFrom, missingControllerFields } from '../src/controller.js';
+import { controllerFrom, missingControllerFields } from '../src/controller';
 
 const COMPLETE = {
   MORPH_CONTROLLER_NAME: 'Example Operator Srl',

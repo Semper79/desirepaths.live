@@ -8,7 +8,7 @@
  */
 
 import { renderSitemap, type SitemapEntry } from '@morph/seo';
-import { STATIC_ROUTES, origin, publishedContent } from '../../lib/site.js';
+import { STATIC_ROUTES, origin, publishedContent } from '../../lib/site';
 
 /**
  * Dynamic, cached at the edge rather than at build time.

@@ -8,7 +8,7 @@ import {
   parseColor,
   relativeLuminance,
   rgbToHex,
-} from '../src/color.js';
+} from '../src/color';
 
 describe('parseColor', () => {
   it('reads six-digit hex', () => {

@@ -28,8 +28,8 @@
  */
 
 import { SURFACE_KEYS, type FullAssignment, type SurfaceKey } from '@morph/core';
-import type { AssignmentStore } from './assignment.js';
-import { assignmentKv } from './bindings.js';
+import type { AssignmentStore } from './assignment';
+import { assignmentKv } from './bindings';
 
 /**
  * Parse a stored assignment, requiring every surface to be present.

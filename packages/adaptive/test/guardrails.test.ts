@@ -9,9 +9,9 @@ import {
   uniformChoice,
   type HealthSample,
   type RollbackThresholds,
-} from '../src/guardrails.js';
-import { createRng } from '../src/rng.js';
-import type { Arm } from '../src/thompson.js';
+} from '../src/guardrails';
+import { createRng } from '../src/rng';
+import type { Arm } from '../src/thompson';
 
 const arm = (variantId: string, alpha: number, beta: number, impressions: number): Arm => ({
   variantId,

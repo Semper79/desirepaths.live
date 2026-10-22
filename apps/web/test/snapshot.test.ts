@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { COLD_SNAPSHOT, parseSnapshot } from '../src/lib/snapshot.js';
+import { COLD_SNAPSHOT, parseSnapshot } from '../src/lib/snapshot';
 
 const good = JSON.stringify({
   arms: {

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { EMBED_TEXT_LIMIT, embeddingText, runEmbed } from '../src/jobs/embed.js';
+import { EMBED_TEXT_LIMIT, embeddingText, runEmbed } from '../src/jobs/embed';
 import {
   deterministicEmbeddings,
   hashingVector,
-} from '../src/adapters/deterministic-embeddings.js';
-import { FakeDocuments, FakeLogger } from './fakes.js';
-import type { EmbeddingProvider, StoredDocument } from '../src/ports.js';
+} from '../src/adapters/deterministic-embeddings';
+import { FakeDocuments, FakeLogger } from './fakes';
+import type { EmbeddingProvider, StoredDocument } from '../src/ports';
 
 const DIMENSIONS = 8;
 

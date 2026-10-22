@@ -27,8 +27,8 @@ import {
   policyFrom,
   type RobotsFetchOutcome,
   type RobotsPolicy,
-} from './robots.js';
-import { DEFAULT_POLITENESS, PolitenessScheduler, type PolitenessConfig } from './politeness.js';
+} from './robots';
+import { DEFAULT_POLITENESS, PolitenessScheduler, type PolitenessConfig } from './politeness';
 
 export interface FetcherConfig {
   /**

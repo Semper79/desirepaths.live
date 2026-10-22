@@ -21,7 +21,7 @@
  */
 
 import { missingControllerFields } from '@morph/core';
-import { bindingReport } from '../../../lib/bindings.js';
+import { bindingReport } from '../../../lib/bindings';
 
 export const dynamic = 'force-dynamic';
 

@@ -20,9 +20,9 @@
  * belongs, and saying so here is better than implying this covers it.
  */
 
-import { escalationDecisions, commit, formatDuration, type AlertState } from '../lib/escalation.js';
+import { escalationDecisions, commit, formatDuration, type AlertState } from '../lib/escalation';
 import { escape, bold, type Alert } from '@morph/telegram';
-import type { Clock, Logger, MetricsRepository, ReportRepository } from '../ports.js';
+import type { Clock, Logger, MetricsRepository, ReportRepository } from '../ports';
 
 /**
  * How many failed jobs in one queue before it is an emergency rather than a statistic.

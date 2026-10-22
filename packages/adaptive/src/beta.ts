@@ -10,7 +10,7 @@
  * Everything here is deterministic and closed-form-or-quadrature. No RNG.
  */
 
-import { clamp01 } from './math.js';
+import { clamp01 } from './math';
 
 /** Lanczos approximation, g = 7, n = 9. Accurate to ~15 significant figures for x > 0. */
 const LANCZOS: readonly number[] = [

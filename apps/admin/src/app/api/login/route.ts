@@ -12,7 +12,7 @@ import {
   SESSION_MAX_AGE_SECONDS,
   isOperator,
   issueToken,
-} from '../../../lib/session.js';
+} from '../../../lib/session';
 
 export const dynamic = 'force-dynamic';
 

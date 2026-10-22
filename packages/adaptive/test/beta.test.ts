@@ -14,7 +14,7 @@ import {
   probabilityWorseThan,
   tinyGuard,
   standardNormalCdf,
-} from '../src/beta.js';
+} from '../src/beta';
 
 describe('lnGamma', () => {
   it('reproduces known values', () => {

@@ -5,9 +5,9 @@
  * transport lives in apps/worker, which owns the token and the retry policy.
  */
 
-export * from './markdown.js';
-export * from './types.js';
-export * from './compose.js';
-export * from './commands.js';
-export * from './prose.js';
-export { SAMPLE_REPORT_INPUT, SAMPLE_QUIET_INPUT } from './sample.js';
+export * from './markdown';
+export * from './types';
+export * from './compose';
+export * from './commands';
+export * from './prose';
+export { SAMPLE_REPORT_INPUT, SAMPLE_QUIET_INPUT } from './sample';

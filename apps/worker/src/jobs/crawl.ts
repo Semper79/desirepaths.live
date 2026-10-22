@@ -35,8 +35,8 @@ import type {
   Logger,
   SourceRepository,
   StoredDocument,
-} from '../ports.js';
-import type { CrawlJob } from '../queues.js';
+} from '../ports';
+import type { CrawlJob } from '../queues';
 
 export interface CrawlDeps {
   readonly fetcher: PoliteFetcher;

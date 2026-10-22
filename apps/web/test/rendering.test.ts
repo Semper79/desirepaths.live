@@ -16,10 +16,10 @@ import {
   encodeContext,
   buildContext,
   hourOfWeek,
-} from '../src/lib/request-context.js';
-import { motionAllowed, payloadOf, sectionOrder, tokensFor } from '../src/lib/render.js';
-import { STATIC_ROUTES, publishedContent, siteIdentity } from '../src/lib/site.js';
-import { SEED_CONTENT, toArticle } from '../src/lib/content.js';
+} from '../src/lib/request-context';
+import { motionAllowed, payloadOf, sectionOrder, tokensFor } from '../src/lib/render';
+import { STATIC_ROUTES, publishedContent, siteIdentity } from '../src/lib/site';
+import { SEED_CONTENT, toArticle } from '../src/lib/content';
 
 /** A minimal `Headers`-like object, so these tests need no framework. */
 const headersOf = (entries: Readonly<Record<string, string>>) => ({

@@ -16,7 +16,7 @@ import {
   isAttributable,
   type FoldableEvent,
   type SessionState,
-} from '../src/session-fold.js';
+} from '../src/session-fold';
 
 const T0 = Date.UTC(2026, 9, 21, 10, 0, 0);
 

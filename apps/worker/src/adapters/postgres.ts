@@ -41,7 +41,7 @@ import type {
   StoredDocument,
   TrendRepository,
   TrendSignalRecord,
-} from '../ports.js';
+} from '../ports';
 
 export type Database = PostgresJsDatabase;
 

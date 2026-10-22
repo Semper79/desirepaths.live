@@ -20,12 +20,12 @@
  * every machine. A convergence proof that changes between runs proves nothing.
  */
 
-import { decide, DEFAULT_ASSIGNMENT_CONFIG, type AssignmentConfig } from '../assign.js';
-import { createArm, decayArm, updateArm, type LinUcbArmState } from '../linucb.js';
-import { createRng } from '../rng.js';
-import type { Arm } from '../thompson.js';
-import { betaMean } from '../beta.js';
-import { decayPosterior } from '../reward.js';
+import { decide, DEFAULT_ASSIGNMENT_CONFIG, type AssignmentConfig } from '../assign';
+import { createArm, decayArm, updateArm, type LinUcbArmState } from '../linucb';
+import { createRng } from '../rng';
+import type { Arm } from '../thompson';
+import { betaMean } from '../beta';
+import { decayPosterior } from '../reward';
 
 export interface VariantTruth {
   readonly variantId: string;

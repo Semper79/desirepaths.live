@@ -8,8 +8,8 @@
  * whether workerd is the right place to test it.
  */
 
-import type { SurfaceCounters } from '../../src/counters.js';
-import type { SessionAggregate } from '../../src/session.js';
+import type { SurfaceCounters } from '../../src/counters';
+import type { SessionAggregate } from '../../src/session';
 
 declare module 'cloudflare:test' {
   interface ProvidedEnv {

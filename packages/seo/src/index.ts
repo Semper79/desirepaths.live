@@ -11,10 +11,10 @@
  * a sitemap entry or a feed item. See the note at the top of `meta.ts`.
  */
 
-export * from './xml.js';
-export * from './embed.js';
-export * from './jsonld.js';
-export * from './sitemap.js';
-export * from './feed.js';
-export * from './aeo.js';
-export * from './meta.js';
+export * from './xml';
+export * from './embed';
+export * from './jsonld';
+export * from './sitemap';
+export * from './feed';
+export * from './aeo';
+export * from './meta';

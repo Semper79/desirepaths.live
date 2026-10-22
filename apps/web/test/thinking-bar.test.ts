@@ -13,9 +13,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Arm, Sophistication } from '@morph/adaptive';
 import { SURFACE_KEYS } from '@morph/core';
-import { ThinkingBar } from '../src/components/thinking-bar.js';
-import { siteSophistication } from '../src/lib/sophistication.js';
-import type { PosteriorSnapshot } from '../src/lib/assignment.js';
+import { ThinkingBar } from '../src/components/thinking-bar';
+import { siteSophistication } from '../src/lib/sophistication';
+import type { PosteriorSnapshot } from '../src/lib/assignment';
 
 function arms(separated: boolean, impressions = 40_000): readonly Arm[] {
   return [

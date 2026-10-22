@@ -13,9 +13,9 @@
  */
 
 import { z } from 'zod';
-import { surfaceId, variantId, type VariantId } from '../brand.js';
-import { checkContrast } from '../color.js';
-import { readability } from '../text.js';
+import { surfaceId, variantId, type VariantId } from '../brand';
+import { checkContrast } from '../color';
+import { readability } from '../text';
 import type {
   A11yContract,
   AnySurface,
@@ -26,7 +26,7 @@ import type {
   Variant,
   VariantOrigin,
   VariantStatus,
-} from './types.js';
+} from './types';
 
 // -----------------------------------------------------------------------------
 // Defaults

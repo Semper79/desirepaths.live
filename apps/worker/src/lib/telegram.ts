@@ -17,7 +17,7 @@ import {
   type ParsedCommand,
   type Sender,
 } from '@morph/telegram';
-import type { PendingDraft } from '../ports.js';
+import type { PendingDraft } from '../ports';
 
 // -----------------------------------------------------------------------------
 // Callback data

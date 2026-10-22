@@ -9,8 +9,8 @@
  */
 
 import { z } from 'zod';
-import type { ContextBucket } from './brand.js';
-import { contextBucket } from './brand.js';
+import type { ContextBucket } from './brand';
+import { contextBucket } from './brand';
 
 export const DEVICE_CLASSES = ['phone', 'tablet', 'desktop', 'tv', 'bot'] as const;
 export type DeviceClass = (typeof DEVICE_CLASSES)[number];

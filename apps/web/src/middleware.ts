@@ -21,7 +21,7 @@ import {
   CONTEXT_HEADER,
   buildContext,
   encodeContext,
-} from './lib/request-context.js';
+} from './lib/request-context';
 
 const pepper = process.env['ANON_ID_PEPPER'] ?? '';
 const timezone = process.env['MORPH_TIMEZONE'] ?? 'Europe/Rome';

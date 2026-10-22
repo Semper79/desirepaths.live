@@ -5,7 +5,7 @@ import {
   TokenValue,
   tokensToStyleAttribute,
   tokenValueIssues,
-} from '../src/surfaces/tokens.js';
+} from '../src/surfaces/tokens';
 
 /**
  * This is the boundary a language-model-generated variant crosses on its way to a
