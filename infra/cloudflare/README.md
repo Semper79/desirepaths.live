@@ -155,9 +155,9 @@ the renderer before you have decided this — see "Publishing in two steps" belo
 
 ## 5. The domain
 
-In the Cloudflare dashboard, add `desirepath.live` as a zone and point the registrar's
+In the Cloudflare dashboard, add `desirepaths.live` as a zone and point the registrar's
 nameservers at the two Cloudflare gives you. Then, in the Worker's settings, add a custom
-domain for `desirepath.live`.
+domain for `desirepaths.live`.
 
 TLS is automatic and there is no certificate to manage.
 

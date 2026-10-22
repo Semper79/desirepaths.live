@@ -95,7 +95,7 @@
      * one deployment, because an indexed staging site outranks the real thing for its own
      * brand name and takes months to unwind.
      */
-    "MORPH_PUBLIC_URL": "https://desirepath.live",
+    "MORPH_PUBLIC_URL": "https://desirepaths.live",
     "MORPH_INDEXABLE": "0",
     "MORPH_ENVIRONMENT_NAME": "production",
 
@@ -146,7 +146,7 @@
     "staging": {
       "name": "desirepath-web-staging",
       "vars": {
-        "MORPH_PUBLIC_URL": "https://staging.desirepath.live",
+        "MORPH_PUBLIC_URL": "https://staging.desirepaths.live",
         "MORPH_INDEXABLE": "0",
         "MORPH_ENVIRONMENT_NAME": "staging",
       },

@@ -507,7 +507,7 @@ describe('canonical URLs and metadata', () => {
 
 describe('the feed self link', () => {
   const site: FeedSite = {
-    origin: 'https://desirepath.live',
+    origin: 'https://desirepaths.live',
     title: 'Desire Path',
     description: 'A site that changes itself.',
   };
@@ -519,7 +519,7 @@ describe('the feed self link', () => {
     // subscription and the subscriber silently stops receiving half of what they asked for.
     const xml = renderRss({ ...site, selfPath: '/changes.xml' }, [], new Date(0));
 
-    expect(xml).toContain('https://desirepath.live/changes.xml" rel="self"');
+    expect(xml).toContain('https://desirepaths.live/changes.xml" rel="self"');
     expect(xml).not.toContain('/feed.xml');
   });
 
@@ -530,6 +530,6 @@ describe('the feed self link', () => {
   it('applies to Atom as well, which had the same hard-coded path', () => {
     const xml = renderAtom({ ...site, selfPath: '/changes.atom' }, [], new Date(0));
 
-    expect(xml).toContain('https://desirepath.live/changes.atom');
+    expect(xml).toContain('https://desirepaths.live/changes.atom');
   });
 });

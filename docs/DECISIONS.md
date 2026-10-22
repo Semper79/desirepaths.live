@@ -94,6 +94,30 @@ this was built under. Renaming those is a migration with a downtime window that 
 a visitor can see. The rule is written at the top of `apps/web/src/lib/site.ts`: a comment
 describing the system may say MORPH; a string a person reads says Desire Path.
 
+**Amended — the product domain is `desirepaths.live`.** The record above says
+`desirepath.live` was decided "with `desirepaths.live` held defensively. Both registered."
+Only the plural was ever registered. The singular is registered to somebody else, at
+GoDaddy, serving a parking page.
+
+How it surfaced: the nameserver move appeared to do nothing for two hours. It had in fact
+worked on the first attempt — the delegation was being checked against the singular, which
+is what `MORPH_PUBLIC_URL` said, so every check read a stranger's parked domain and
+reported GoDaddy. The registry answer for the domain we actually hold had said
+`sue.ns.cloudflare.com` and `trey.ns.cloudflare.com` the whole time.
+
+The decision itself does not change: the product is still **Desire Path**, for every reason
+set out above. Only the address does, and the plural costs the name nothing a reader
+notices. `MORPH_PUBLIC_URL` in both Workers now points at it, and the canonical URLs, the
+sitemap, the feeds, the crawler's contact URL and the OAuth callbacks all derive from that
+one variable, which is why this was a seven-file change and not a migration.
+
+What is genuinely lost is the defensive registration itself. Nothing holds the singular, so
+the nearest typo of our own address is a parking page belonging to somebody else — which is
+exactly the exposure the original note thought it had closed. Worth buying if it ever comes
+free; not worth approaching the current holder over, because asking is what sets the price.
+
+---
+
 ### D3 — Hosting and jurisdiction — ~~**Taken: A**~~ **Superseded by D31**
 
 > The operator needs this on Cloudflare, so there is no Hetzner box and the reasoning below

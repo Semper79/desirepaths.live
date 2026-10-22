@@ -97,7 +97,7 @@
   ],
 
   "vars": {
-    "MORPH_PUBLIC_URL": "https://desirepath.live",
+    "MORPH_PUBLIC_URL": "https://desirepaths.live",
     "MORPH_TIMEZONE": "Europe/Rome",
 
     /**
