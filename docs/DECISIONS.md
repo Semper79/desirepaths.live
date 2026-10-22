@@ -94,35 +94,40 @@ this was built under. Renaming those is a migration with a downtime window that 
 a visitor can see. The rule is written at the top of `apps/web/src/lib/site.ts`: a comment
 describing the system may say MORPH; a string a person reads says Desire Path.
 
-**Amended — the published address is `desirepaths.live`; both names are held.** The record
-above decided the singular "with `desirepaths.live` held defensively. Both registered." The
-holding is real. Which of the two is published has changed, and the operator has since
-confirmed both are in the account.
+**Amended — the decision stands, after a detour worth recording.** `desirepath.live` is
+the published address, `desirepaths.live` is held and forwards to it. That is what the
+record above says, and it is where this ended up. What follows is why it moved twice, since
+a decisions log that shows only the conclusion teaches nobody anything.
 
-How it surfaced: a nameserver move appeared to do nothing for two hours. It had worked on
-the first attempt. The delegation was being checked against the singular — that is what
-`MORPH_PUBLIC_URL` said — while the domain actually moved to Cloudflare was the plural,
-whose registry answer had read `sue.ns.cloudflare.com` and `trey.ns.cloudflare.com` the
-whole time. Every check was authoritative, and about the wrong name.
+A nameserver move appeared to do nothing for two hours. It had worked on the first attempt.
+The delegation was being checked against the singular — that is what `MORPH_PUBLIC_URL`
+said — while the domain actually moved to Cloudflare was the plural. Every check was
+authoritative, including one run against the `.live` registry specifically to bypass
+caches, and every one of them was about the wrong name.
 
-An intermediate version of this amendment recorded that the singular belonged to somebody
-else. That was wrong, and it is worth leaving the correction visible rather than quietly
-rewriting it: RDAP showed both names at the same registrar with the same registration and
-expiry dates, which is strong evidence of one buyer and was read as the opposite. A
-redacted registrant is not evidence of who holds a domain, and the operator's own account
-is the only thing that settles it.
+The first correction was wrong in the other direction: it recorded that the singular
+belonged to somebody else, reasoning from RDAP showing both names at one registrar with
+identical registration and expiry dates. That is strong evidence of a single buyer and it
+was read as the opposite. A redacted registrant is not evidence of who holds a domain, and
+the operator's own account is the only thing that settles it. Both are held, as D2 said.
 
-The decision does not change: the product is **Desire Path**, for every reason set out
-above. Only the published address does, and the plural costs the name nothing a reader
-notices — "desire paths" is the same concept in the plural, not a mangling of it. The
-singular stays held and points here, which is the defensive registration doing exactly the
-job it was bought for, with the roles the other way round.
+The published address then followed whichever zone happened to be reachable — briefly the
+plural, because that was the one delegated to Cloudflare at the time. It settled back here
+on a count of steps rather than a matter of taste: the singular's zone already existed in
+the account that owns the Workers, so publishing it costs one nameserver change, while the
+plural would have needed its zone recreated there first. The shortest path and the original
+decision turned out to be the same path.
 
-Published rather than switched back because the plural was already delegated to Cloudflare
-and nothing downstream is registered against either name yet. The moment to stop moving is
-before Phase 4: OAuth callbacks, the crawler's contact URL and the certificates all key off
-`MORPH_PUBLIC_URL`, provider app review takes days to weeks, and D2 opened by saying this
-blocks more than it looks like it does.
+Two things are worth keeping from it. A domain name is not a detail that can be verified in
+passing, because every check reads whatever name it was handed and reports confidently. And
+the account matters as much as the name: a zone and the Workers it routes to must live in
+the same Cloudflare account, which is why `account_id` is now pinned in all three Worker
+configs rather than taken from whichever credentials happen to be active.
+
+The product is Desire Path either way. Only the address was ever in question, and it is
+settled before Phase 4 — OAuth callbacks, the crawler's contact URL and the certificates
+all key off `MORPH_PUBLIC_URL`, provider review takes days to weeks, and D2 opened by
+saying this blocks more than it looks like it does.
 
 ---
 

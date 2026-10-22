@@ -7,7 +7,7 @@ that it is always read and specific enough that it is always useful.
 
 ## The two names
 
-The product is **Desire Path** (`desirepaths.live`, D2). The repository, the `@morph/*`
+The product is **Desire Path** (`desirepath.live`, D2). The repository, the `@morph/*`
 package namespace, the `MORPH_*` environment variables and the database are **MORPH** —
 the codename this was built under. That split stays: renaming the infrastructure is a
 migration with a downtime window and buys nothing a visitor can see.

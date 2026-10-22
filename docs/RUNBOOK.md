@@ -322,7 +322,7 @@ was wrong.
 **Before trusting a deploy, check that the beacon has somewhere to go:**
 
 ```bash
-curl.exe -s -o /dev/null -w "%{http_code}\n" -X POST https://desirepaths.live/i -d '{}'
+curl.exe -s -o /dev/null -w "%{http_code}\n" -X POST https://desirepath.live/i -d '{}'
 ```
 
 Anything but a 4xx from the _collector_ means `/i` is not routed to it. 404 with an HTML

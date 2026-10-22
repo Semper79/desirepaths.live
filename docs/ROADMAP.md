@@ -358,15 +358,15 @@ project cannot notice: nothing errors, no probe fails, no metric moves — becau
 that would move is the one not arriving. `morph_ingest_requests_total` flat on a site with
 traffic is the signal, and `/i` returning 404 is the check.
 
-**The fix is zone configuration, and it is blocked on the domain.** `desirepaths.live` is
+**The fix is zone configuration, and it is blocked on the domain.** `desirepath.live` is
 registered but its nameservers are GoDaddy's (`ns29/ns30.domaincontrol.com`) and it resolves
 to a parking address, so there is no Cloudflare zone and no route can be created — adding
 one to a Wrangler config now fails the deploy with "zone not found". Neither Worker has any
 route at all, which is why both are reachable only on `workers.dev`. In order:
 
-1. Add `desirepaths.live` to the Cloudflare account and move the nameservers at GoDaddy.
-2. `apps/api`: `"routes": [{ "pattern": "desirepaths.live/i*", "zone_name": "desirepaths.live" }]`
-3. `apps/web`: `"routes": [{ "pattern": "desirepaths.live/*", "zone_name": "desirepaths.live" }]`
+1. Add `desirepath.live` to the Cloudflare account and move the nameservers at GoDaddy.
+2. `apps/api`: `"routes": [{ "pattern": "desirepath.live/i*", "zone_name": "desirepath.live" }]`
+3. `apps/web`: `"routes": [{ "pattern": "desirepath.live/*", "zone_name": "desirepath.live" }]`
    Cloudflare matches the most specific route first, so `/i*` wins over `/*`.
 4. Confirm `POST /i` is no longer a 404 before setting `MORPH_INDEXABLE` to `"1"`.
 

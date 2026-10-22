@@ -8,6 +8,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "desirepath-ingest",
+
+  /**
+   * Pinned, so a deploy cannot land in the wrong account.
+   *
+   * Wrangler otherwise uses whatever account the active credentials point at. During the
+   * domain work a `wrangler login` left this machine authenticated as a different
+   * Cloudflare account, and a local `wrangler deploy` would have created a second set of
+   * Workers there — new and empty, with none of the secrets, while the real ones kept
+   * serving. Nothing would have failed; there would simply have been two.
+   *
+   * This is also the account the zone has to live in. A Worker route can only point at a
+   * Worker in the same account as the zone, so the name and the account are one decision
+   * rather than two (D2).
+   */
+  "account_id": "689efbf4a87359404ef6aca3dfdd85e0",
   "main": "src/worker.ts",
 
   /** Pinned. A Worker whose semantics change because time passed is an outage nobody can bisect. */
@@ -97,7 +112,7 @@
   ],
 
   "vars": {
-    "MORPH_PUBLIC_URL": "https://desirepaths.live",
+    "MORPH_PUBLIC_URL": "https://desirepath.live",
     "MORPH_TIMEZONE": "Europe/Rome",
 
     /**
