@@ -94,27 +94,35 @@ this was built under. Renaming those is a migration with a downtime window that 
 a visitor can see. The rule is written at the top of `apps/web/src/lib/site.ts`: a comment
 describing the system may say MORPH; a string a person reads says Desire Path.
 
-**Amended — the product domain is `desirepaths.live`.** The record above says
-`desirepath.live` was decided "with `desirepaths.live` held defensively. Both registered."
-Only the plural was ever registered. The singular is registered to somebody else, at
-GoDaddy, serving a parking page.
+**Amended — the published address is `desirepaths.live`; both names are held.** The record
+above decided the singular "with `desirepaths.live` held defensively. Both registered." The
+holding is real. Which of the two is published has changed, and the operator has since
+confirmed both are in the account.
 
-How it surfaced: the nameserver move appeared to do nothing for two hours. It had in fact
-worked on the first attempt — the delegation was being checked against the singular, which
-is what `MORPH_PUBLIC_URL` said, so every check read a stranger's parked domain and
-reported GoDaddy. The registry answer for the domain we actually hold had said
-`sue.ns.cloudflare.com` and `trey.ns.cloudflare.com` the whole time.
+How it surfaced: a nameserver move appeared to do nothing for two hours. It had worked on
+the first attempt. The delegation was being checked against the singular — that is what
+`MORPH_PUBLIC_URL` said — while the domain actually moved to Cloudflare was the plural,
+whose registry answer had read `sue.ns.cloudflare.com` and `trey.ns.cloudflare.com` the
+whole time. Every check was authoritative, and about the wrong name.
 
-The decision itself does not change: the product is still **Desire Path**, for every reason
-set out above. Only the address does, and the plural costs the name nothing a reader
-notices. `MORPH_PUBLIC_URL` in both Workers now points at it, and the canonical URLs, the
-sitemap, the feeds, the crawler's contact URL and the OAuth callbacks all derive from that
-one variable, which is why this was a seven-file change and not a migration.
+An intermediate version of this amendment recorded that the singular belonged to somebody
+else. That was wrong, and it is worth leaving the correction visible rather than quietly
+rewriting it: RDAP showed both names at the same registrar with the same registration and
+expiry dates, which is strong evidence of one buyer and was read as the opposite. A
+redacted registrant is not evidence of who holds a domain, and the operator's own account
+is the only thing that settles it.
 
-What is genuinely lost is the defensive registration itself. Nothing holds the singular, so
-the nearest typo of our own address is a parking page belonging to somebody else — which is
-exactly the exposure the original note thought it had closed. Worth buying if it ever comes
-free; not worth approaching the current holder over, because asking is what sets the price.
+The decision does not change: the product is **Desire Path**, for every reason set out
+above. Only the published address does, and the plural costs the name nothing a reader
+notices — "desire paths" is the same concept in the plural, not a mangling of it. The
+singular stays held and points here, which is the defensive registration doing exactly the
+job it was bought for, with the roles the other way round.
+
+Published rather than switched back because the plural was already delegated to Cloudflare
+and nothing downstream is registered against either name yet. The moment to stop moving is
+before Phase 4: OAuth callbacks, the crawler's contact URL and the certificates all key off
+`MORPH_PUBLIC_URL`, provider app review takes days to weeks, and D2 opened by saying this
+blocks more than it looks like it does.
 
 ---
 
