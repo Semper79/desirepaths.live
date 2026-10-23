@@ -226,19 +226,33 @@ function HowItWorks(): React.JSX.Element {
 
 // -----------------------------------------------------------------------------
 
-const PROVIDER_LABEL: Readonly<Record<string, string>> = {
-  google: 'Continue with Google',
-  apple: 'Continue with Apple',
-  discord: 'Continue with Discord',
-  tiktok: 'Continue with TikTok',
-  x: 'Continue with X',
-  twitch: 'Continue with Twitch',
-  instagram: 'Continue with Instagram',
-  reddit: 'Continue with Reddit',
-  spotify: 'Continue with Spotify',
-  github: 'Continue with GitHub',
-  email: 'Email me a link',
-  passkey: 'Use a passkey',
+/**
+ * Provider names, without the promise.
+ *
+ * These read "Continue with Google" when sign-up works. It does not: Phase 4 is unbuilt
+ * and `/api/auth/signin/<provider>`, which every one of these linked to, is a 404 on the
+ * live site. "Continue with Google" is a specific commitment, and a button that makes it
+ * and then does not keep it is the one thing this site cannot afford to ship — its whole
+ * argument is that the numbers on `/proof` are real.
+ *
+ * The surface itself stays. `signup.providers_order` is one of the eleven, the order is
+ * still chosen per visitor, and which name a visitor reaches for is exactly the signal
+ * worth having *before* building Phase 4: it says which provider to implement first.
+ * Restoring the prefix is the last line of that work, not the first.
+ */
+const PROVIDER_NAME: Readonly<Record<string, string>> = {
+  google: 'Google',
+  apple: 'Apple',
+  discord: 'Discord',
+  tiktok: 'TikTok',
+  x: 'X',
+  twitch: 'Twitch',
+  instagram: 'Instagram',
+  reddit: 'Reddit',
+  spotify: 'Spotify',
+  github: 'GitHub',
+  email: 'Email link',
+  passkey: 'Passkey',
 };
 
 function Signup({ assignment }: { readonly assignment: FullAssignment }): React.JSX.Element {
@@ -250,14 +264,16 @@ function Signup({ assignment }: { readonly assignment: FullAssignment }): React.
     <section aria-labelledby="signup-heading">
       <h2 id="signup-heading">Join</h2>
       <p className="muted">
-        One tap. No password. We ask for nothing beyond what your provider already tells us.
+        Not open yet — this is the one part of the site still to be built. When it is: one tap, no
+        password, nothing asked beyond what your provider already tells us. Which of these you reach
+        for is what decides the order the next visitor sees.
       </p>
 
       <ul className="providers">
         {lead.map((provider) => (
           <li key={provider}>
-            <a className="provider" href={`/api/auth/signin/${provider}`}>
-              {PROVIDER_LABEL[provider] ?? provider}
+            <a className="provider" href="/join">
+              {PROVIDER_NAME[provider] ?? provider}
             </a>
           </li>
         ))}
@@ -266,13 +282,13 @@ function Signup({ assignment }: { readonly assignment: FullAssignment }): React.
       {rest.length > 0 && (
         <details style={{ marginBlockStart: 'calc(var(--space-unit) * 2)' }}>
           <summary style={{ cursor: 'pointer', minHeight: 'var(--tap-min)' }}>
-            Other ways to sign in
+            Other ways it will work
           </summary>
           <ul className="providers" style={{ marginBlockStart: 'var(--space-unit)' }}>
             {rest.map((provider) => (
               <li key={provider}>
-                <a className="provider" href={`/api/auth/signin/${provider}`}>
-                  {PROVIDER_LABEL[provider] ?? provider}
+                <a className="provider" href="/join">
+                  {PROVIDER_NAME[provider] ?? provider}
                 </a>
               </li>
             ))}
