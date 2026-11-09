@@ -768,6 +768,15 @@ export const AUTH_PROVIDERS = [
 
 export type AuthProvider = (typeof AUTH_PROVIDERS)[number];
 
+/**
+ * Auth.js hands the adapter a plain `string` for the provider. The database now refuses
+ * anything outside this list (`social_identity_provider_valid`), so the boundary parses
+ * instead of casting: an unknown id is a refused sign-in, not a failed write later.
+ */
+export function isAuthProvider(value: string): value is AuthProvider {
+  return (AUTH_PROVIDERS as readonly string[]).includes(value);
+}
+
 const ProvidersOrderPayload = z.object({
   /** The first three are rendered as full buttons; the rest collapse behind "more". */
   order: z.array(z.enum(AUTH_PROVIDERS)).min(3).max(AUTH_PROVIDERS.length),

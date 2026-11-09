@@ -142,6 +142,26 @@ deliberately empty rather than filled with plausible-looking references — see 
 
 ---
 
+## 3.1 Visitor authentication (Phase 4, D5)
+
+Visitor authentication allows individuals to sign in via OAuth 2.0 / OpenID Connect or Passkeys
+(WebAuthn) without creating a site-specific password:
+
+- **Minimal identity scopes only:** When visitors connect via Google, Apple, Discord, or TikTok,
+  only public profile and email scopes are requested. No social graph, follower lists, or posting
+  permissions are requested.
+- **No token persistence:** In accordance with CLAUDE.md guardrails 1 & 5, OAuth access and refresh
+  tokens are never written to D1. Only the external provider account ID is mapped to the internal user.
+- **Apple client secret dynamic signing:** Apple's client secret requires a signed ES256 JWT generated
+  from the developer private key (`.p8`) and team IDs. This is generated on-demand using Web Crypto
+  primitives (`jose`) without Node shims, expiring at 180 days.
+- **Passkeys / WebAuthn:** Registered authenticators store their public key and sign counter in D1;
+  private keys remain in the visitor's hardware authenticator.
+- **Absent provider degradation:** If OAuth credentials for a provider are absent, that provider drops
+  out of the active variant set (`signup.providers_order`) honestly rather than throwing an error.
+
+---
+
 ## 4. The approval queue
 
 **On-site content.** A generated draft reaches `content.status = 'published'` only through

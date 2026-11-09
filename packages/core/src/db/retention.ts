@@ -76,12 +76,55 @@ export const RETENTION_DAYS: Readonly<Record<string, number | null>> = {
    * request touches personal data and there is none here.
    */
   content: null,
+
+  /**
+   * Permanent until an erasure request is executed (Art. 17).
+   *
+   * A user account represents a visitor who opted in to personalisation and/or the digest.
+   * Purging active accounts on an arbitrary clock would violate user expectations and
+   * lose legitimate relationships; deletion is driven by explicit data subject request.
+   */
+  user: null,
+
+  /**
+   * Permanent until the parent user account is erased.
+   *
+   * Represents linked OAuth provider credentials (D5). Cascaded automatically when
+   * the user row is removed on erasure.
+   */
+  social_identity: null,
+
+  /**
+   * Permanent until the parent user account is erased.
+   *
+   * WebAuthn / passkey public keys and counters. Cascaded automatically when
+   * the user row is removed on erasure.
+   */
+  authenticator: null,
+
+  /**
+   * 30 days after expiry.
+   *
+   * Active visitor sessions. Once expired, retaining dead sessions consumes D1
+   * storage without benefit. Measured against `expires`.
+   */
+  auth_session: 30,
+
+  /**
+   * 1 day after expiry.
+   *
+   * One-time magic link verification tokens. These have a short operational lifetime
+   * and stale tokens are pruned promptly. Measured against `expires`.
+   */
+  verification_token: 1,
 };
 
 /** The column each table's retention is measured against. */
 export const RETENTION_COLUMN: Readonly<Record<string, string>> = {
   adaptation_log: 'occurred_at',
   posterior_snapshot: 'taken_at',
+  auth_session: 'expires',
+  verification_token: 'expires',
 };
 
 /**

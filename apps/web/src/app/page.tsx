@@ -11,6 +11,7 @@ import { SURFACES, type FullAssignment } from '@morph/core';
 import { faq, graph, serialiseJsonLd } from '@morph/seo';
 import { headers } from 'next/headers';
 import { ThinkingBar } from '../components/thinking-bar';
+import { ProviderLink, SignupTracker } from '../components/signup-client';
 import { assignmentForRequest, currentSnapshot } from '../lib/resolve';
 import { siteSophistication } from '../lib/sophistication';
 import { motionAllowed, payloadOf, sectionOrder } from '../lib/render';
@@ -262,19 +263,17 @@ function Signup({ assignment }: { readonly assignment: FullAssignment }): React.
 
   return (
     <section aria-labelledby="signup-heading">
+      <SignupTracker />
       <h2 id="signup-heading">Join</h2>
       <p className="muted">
-        Not open yet — this is the one part of the site still to be built. When it is: one tap, no
-        password, nothing asked beyond what your provider already tells us. Which of these you reach
-        for is what decides the order the next visitor sees.
+        One tap, no password, nothing asked beyond what your provider already tells us. Which of
+        these you reach for is what decides the order the next visitor sees.
       </p>
 
       <ul className="providers">
         {lead.map((provider) => (
           <li key={provider}>
-            <a className="provider" href="/join">
-              {PROVIDER_NAME[provider] ?? provider}
-            </a>
+            <ProviderLink provider={provider} label={PROVIDER_NAME[provider] ?? provider} />
           </li>
         ))}
       </ul>
@@ -282,14 +281,12 @@ function Signup({ assignment }: { readonly assignment: FullAssignment }): React.
       {rest.length > 0 && (
         <details style={{ marginBlockStart: 'calc(var(--space-unit) * 2)' }}>
           <summary style={{ cursor: 'pointer', minHeight: 'var(--tap-min)' }}>
-            Other ways it will work
+            Other ways to sign in
           </summary>
           <ul className="providers" style={{ marginBlockStart: 'var(--space-unit)' }}>
             {rest.map((provider) => (
               <li key={provider}>
-                <a className="provider" href="/join">
-                  {PROVIDER_NAME[provider] ?? provider}
-                </a>
+                <ProviderLink provider={provider} label={PROVIDER_NAME[provider] ?? provider} />
               </li>
             ))}
           </ul>

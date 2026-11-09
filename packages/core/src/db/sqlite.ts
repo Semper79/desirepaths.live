@@ -70,6 +70,7 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
+import { AUTH_PROVIDERS } from '../surfaces/registry';
 
 // -----------------------------------------------------------------------------
 // Enumerated domains
@@ -102,6 +103,13 @@ export const CONTENT_STATUS = [
   'archived',
 ] as const;
 
+/**
+ * A user row exists before its first provider link does: Auth.js calls `createUser` and
+ * only then `linkAccount`, and the adapter cannot know the provider at the first call.
+ * `pending` names that window honestly instead of storing a provider that is not true.
+ */
+export const FIRST_PROVIDER = [...AUTH_PROVIDERS, 'pending'] as const;
+
 /** Renders a tuple as a SQL value list, for embedding in a CHECK. */
 function inList(values: readonly string[]): string {
   return values.map((v) => `'${v}'`).join(', ');
@@ -111,21 +119,146 @@ const uuidDefault = (): string => crypto.randomUUID();
 const nowDefault = (): Date => new Date();
 
 // -----------------------------------------------------------------------------
+// Identity (Phase 4, D5)
+// -----------------------------------------------------------------------------
+
+/**
+ * Registered visitor account.
+ *
+ * Email is optional: several providers (e.g. Discord without email scope, TikTok)
+ * do not guarantee an email address. A MORPH visitor account exists to store
+ * personalisation consent and optional digest subscription, never an auth wall (D6).
+ */
+export const user = sqliteTable(
+  'user',
+  {
+    id: text('id').primaryKey().$defaultFn(uuidDefault),
+    email: text('email'),
+    emailVerifiedAt: integer('email_verified_at', { mode: 'timestamp_ms' }),
+    displayName: text('display_name'),
+    avatarUrl: text('avatar_url'),
+    locale: text('locale'),
+    firstProvider: text('first_provider', { enum: FIRST_PROVIDER }).notNull(),
+    signupAssignmentHash: text('signup_assignment_hash'),
+    signupContextBucket: text('signup_context_bucket'),
+    shadowBanned: integer('shadow_banned', { mode: 'boolean' }).notNull().default(false),
+    shadowBanReason: text('shadow_ban_reason'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowDefault),
+    lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowDefault),
+    deletedAt: integer('deleted_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    uniqueIndex('user_email_unique')
+      .on(t.email)
+      .where(sql`${t.email} IS NOT NULL AND ${t.deletedAt} IS NULL`),
+    index('user_created_at_idx').on(t.createdAt),
+    index('user_first_provider_idx').on(t.firstProvider),
+    check('user_first_provider_valid', sql.raw(`first_provider IN (${inList(FIRST_PROVIDER)})`)),
+  ],
+);
+
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
+export type SocialIdentity = typeof socialIdentity.$inferSelect;
+export type NewSocialIdentity = typeof socialIdentity.$inferInsert;
+export type AuthSession = typeof authSession.$inferSelect;
+export type NewAuthSession = typeof authSession.$inferInsert;
+export type VerificationToken = typeof verificationToken.$inferSelect;
+export type NewVerificationToken = typeof verificationToken.$inferInsert;
+export type Authenticator = typeof authenticator.$inferSelect;
+export type NewAuthenticator = typeof authenticator.$inferInsert;
+
+/**
+ * Linked OAuth provider account for a MORPH visitor (D5).
+ *
+ * One MORPH user can link multiple provider identities. Tokens are not stored
+ * here: MORPH never requests posting permissions on a visitor's account and
+ * never posts as a visitor (CLAUDE.md guardrails 1 & 5).
+ */
+export const socialIdentity = sqliteTable(
+  'social_identity',
+  {
+    id: text('id').primaryKey().$defaultFn(uuidDefault),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    provider: text('provider', { enum: AUTH_PROVIDERS }).notNull(),
+    providerAccountId: text('provider_account_id').notNull(),
+    verifiedEmail: text('verified_email'),
+    handle: text('handle'),
+    linkedAt: integer('linked_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowDefault),
+    linkConfirmedAt: integer('link_confirmed_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [
+    uniqueIndex('social_identity_provider_account_unique').on(t.provider, t.providerAccountId),
+    index('social_identity_user_idx').on(t.userId),
+    check('social_identity_provider_valid', sql.raw(`provider IN (${inList(AUTH_PROVIDERS)})`)),
+  ],
+);
+
+/** Passkeys (WebAuthn). The no-social, no-password path required by D5. */
+export const authenticator = sqliteTable(
+  'authenticator',
+  {
+    credentialId: text('credential_id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    publicKey: text('public_key').notNull(),
+    counter: integer('counter').notNull().default(0),
+    deviceType: text('device_type').notNull(),
+    backedUp: integer('backed_up', { mode: 'boolean' }).notNull().default(false),
+    transports: text('transports'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().$defaultFn(nowDefault),
+  },
+  (t) => [index('authenticator_user_idx').on(t.userId)],
+);
+
+/** Active sessions issued to visitors for authenticated API access. */
+export const authSession = sqliteTable(
+  'auth_session',
+  {
+    sessionToken: text('session_token').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    expires: integer('expires', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    index('auth_session_user_idx').on(t.userId),
+    index('auth_session_expires_idx').on(t.expires),
+  ],
+);
+
+/** Verification tokens for magic-link sign-ins. Short-lived. */
+export const verificationToken = sqliteTable(
+  'verification_token',
+  {
+    identifier: text('identifier').notNull(),
+    token: text('token').notNull(),
+    expires: integer('expires', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.identifier, t.token] })],
+);
+
+// -----------------------------------------------------------------------------
 // Consent and data-subject rights
 // -----------------------------------------------------------------------------
 
 /**
  * Every consent state this site has been given, append-only.
  *
- * `user_id` carries no foreign key here, unlike the Postgres original: the identity
- * tables are Phase 4 and have not been ported, and a reference to a table that does not
- * exist is a migration that will not apply. It comes back with them.
+ * `user_id` is nullable because most consent is given anonymously, before any account
+ * exists; those rows are keyed by `anon_id_hash` alone. When it is set it references
+ * `user.id` and cascades, so erasing an account erases its consent history with it — the
+ * Art. 17 behaviour `DELETE /api/me` promises, enforced by the database rather than by
+ * a delete the handler has to remember to issue.
  */
 export const consentRecord = sqliteTable(
   'consent_record',
   {
     id: text('id').primaryKey().$defaultFn(uuidDefault),
-    userId: text('user_id'),
+    userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
     anonIdHash: text('anon_id_hash'),
     mask: integer('mask').notNull(),
     /** `banner`, `settings`, `api`, `withdrawal`. */

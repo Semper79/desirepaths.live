@@ -167,6 +167,29 @@ export function Beacon(): null {
 
     enqueue('page_view');
 
+    // Check for sign-up completion from OAuth callback redirect (Phase 4, D5)
+    const signupMatch = document.cookie.match(/(?:^|;\s*)morph_signup=([a-zA-Z0-9_-]+)/);
+    if (signupMatch?.[1]) {
+      const provider = signupMatch[1];
+      document.cookie = 'morph_signup=; Path=/; Max-Age=0; SameSite=Lax';
+      enqueue('signup_complete', 1, { provider });
+    }
+
+    const onCustomEvent = (event: Event): void => {
+      if (event instanceof CustomEvent && event.detail) {
+        const detail = event.detail as {
+          type?: ClientEvent['type'];
+          value?: number;
+          props?: Record<string, string>;
+        };
+        if (detail.type) {
+          enqueue(detail.type, detail.value ?? 0, detail.props ?? {});
+        }
+      }
+    };
+
+    window.addEventListener('morph:event', onCustomEvent);
+
     const timer = window.setInterval(() => {
       tick();
       maybeFlush();
@@ -182,6 +205,7 @@ export function Beacon(): null {
       window.clearInterval(timer);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('pagehide', onHide);
+      window.removeEventListener('morph:event', onCustomEvent);
       document.removeEventListener('visibilitychange', tick);
       onHide();
     };
@@ -214,4 +238,22 @@ function depth_(): number {
   } catch {
     return 1;
   }
+}
+
+/**
+ * Dispatch an analytics event through the client beacon.
+ *
+ * Events flow into the in-memory/localStorage queue and are flushed to `/i`.
+ */
+export function emitClientEvent(
+  type: ClientEvent['type'],
+  value = 0,
+  props: Record<string, string> = {},
+): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent('morph:event', {
+      detail: { type, value, props },
+    }),
+  );
 }

@@ -119,13 +119,135 @@ describe('the D1 migration', () => {
 
     expect(tables.map((t) => t.name)).toEqual([
       'adaptation_log',
+      'auth_session',
+      'authenticator',
       'consent_record',
       'content',
       'data_subject_request',
       'engine_config',
       'posterior_snapshot',
+      'social_identity',
+      'user',
       'variant',
+      'verification_token',
     ]);
+  });
+});
+
+describe('user invariants (Phase 4)', () => {
+  it('accepts a valid user row', () => {
+    const db = freshDatabase();
+    const userId = crypto.randomUUID();
+    expect(() => {
+      db.prepare(
+        `INSERT INTO user (id, email, first_provider, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)`,
+      ).run(userId, 'user@example.com', 'google', Date.now(), Date.now());
+    }).not.toThrow();
+  });
+
+  it('permits null email (Discord without email scope, TikTok)', () => {
+    const db = freshDatabase();
+    expect(() => {
+      db.prepare(
+        `INSERT INTO user (id, email, first_provider, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)`,
+      ).run(crypto.randomUUID(), null, 'discord', Date.now(), Date.now());
+      db.prepare(
+        `INSERT INTO user (id, email, first_provider, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)`,
+      ).run(crypto.randomUUID(), null, 'tiktok', Date.now(), Date.now());
+    }).not.toThrow();
+  });
+
+  it('enforces email uniqueness for non-deleted accounts', () => {
+    const db = freshDatabase();
+    const email = 'unique@example.com';
+    db.prepare(
+      `INSERT INTO user (id, email, first_provider, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)`,
+    ).run(crypto.randomUUID(), email, 'google', Date.now(), Date.now());
+
+    expect(() => {
+      db.prepare(
+        `INSERT INTO user (id, email, first_provider, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)`,
+      ).run(crypto.randomUUID(), email, 'apple', Date.now(), Date.now());
+    }).toThrow();
+  });
+});
+
+describe('provider domains and consent ownership (Phase 4)', () => {
+  const insertUser = (db: SqliteDatabase, id: string, firstProvider: string): void => {
+    db.prepare(
+      `INSERT INTO user (id, email, first_provider, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?)`,
+    ).run(id, null, firstProvider, Date.now(), Date.now());
+  };
+
+  const insertConsent = (db: SqliteDatabase, userId: string | null, anon: string | null): void => {
+    db.prepare(
+      `INSERT INTO consent_record (id, user_id, anon_id_hash, mask, source, policy_version, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(crypto.randomUUID(), userId, anon, 1, 'banner', 'v1', Date.now());
+  };
+
+  it('refuses a first_provider outside the enumerated domain', () => {
+    // Without the CHECK, Drizzle's `enum` is a type-level comfort and 'banana' is stored.
+    const db = freshDatabase();
+    expect(() => {
+      insertUser(db, crypto.randomUUID(), 'banana');
+    }).toThrow(/CHECK constraint failed/i);
+  });
+
+  it("accepts 'pending', the honest value between createUser and linkAccount", () => {
+    const db = freshDatabase();
+    expect(() => {
+      insertUser(db, crypto.randomUUID(), 'pending');
+    }).not.toThrow();
+  });
+
+  it('refuses a social_identity provider outside the enumerated domain', () => {
+    const db = freshDatabase();
+    const userId = crypto.randomUUID();
+    insertUser(db, userId, 'google');
+    const link = (provider: string): void => {
+      db.prepare(
+        `INSERT INTO social_identity (id, user_id, provider, provider_account_id, linked_at) VALUES (?, ?, ?, ?, ?)`,
+      ).run(crypto.randomUUID(), userId, provider, crypto.randomUUID(), Date.now());
+    };
+    expect(() => {
+      link('banana');
+    }).toThrow(/CHECK constraint failed/i);
+    expect(() => {
+      link('google');
+    }).not.toThrow();
+  });
+
+  it('refuses consent attributed to a user that does not exist', () => {
+    const db = freshDatabase();
+    expect(() => {
+      insertConsent(db, crypto.randomUUID(), null);
+    }).toThrow(/FOREIGN KEY constraint failed/i);
+  });
+
+  it("erases an account's consent history with the account, and nobody else's", () => {
+    // The Art. 17 guarantee DELETE /api/me promises, held by the database.
+    const db = freshDatabase();
+    const userId = crypto.randomUUID();
+    insertUser(db, userId, 'google');
+    insertConsent(db, userId, null);
+    insertConsent(db, null, 'anon-hash-1');
+
+    db.prepare(`DELETE FROM user WHERE id = ?`).run(userId);
+
+    const rows = db.prepare(`SELECT user_id, anon_id_hash FROM consent_record`).all() as {
+      user_id: string | null;
+      anon_id_hash: string | null;
+    }[];
+    expect(rows).toEqual([{ user_id: null, anon_id_hash: 'anon-hash-1' }]);
+  });
+
+  it('still refuses consent with no subject after the table was rebuilt to gain its key', () => {
+    // The migration rebuilds consent_record through a __new_ table. If the CHECK kept
+    // pointing at the temporary name, it would stop rejecting anything.
+    const db = freshDatabase();
+    expect(() => {
+      insertConsent(db, null, null);
+    }).toThrow(/CHECK constraint failed/i);
   });
 });
 

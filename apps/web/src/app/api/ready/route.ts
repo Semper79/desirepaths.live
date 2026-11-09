@@ -11,6 +11,11 @@
  * site is not measuring anybody — but it should also not be taking traffic as though it
  * were finished.
  *
+ * A missing or weak `AUTH_SECRET` is also not ready (Phase 4). Without it Auth.js cannot
+ * sign session tokens or verify CSRF state, rendering visitor sign-up entirely broken.
+ * An unset provider credential, by contrast, is NOT a readiness failure: D5 specifies
+ * that unset providers drop out of the variant space, which is a supported state.
+ *
  * WHY THE BINDINGS ARE REPORTED BUT DO NOT FAIL THE PROBE
  * `bindingReport()` can tell a laptop from a misconfigured Worker, and on Workers a
  * missing binding is a deployment fault. It is reported rather than fatal because the
@@ -21,6 +26,7 @@
  */
 
 import { missingControllerFields } from '@morph/core';
+import { AUTH_SECRET_MIN_LENGTH } from '../../../lib/auth/secret';
 import { bindingReport } from '../../../lib/bindings';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +34,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(): Promise<Response> {
   const missing = [
     ...((process.env['ANON_ID_PEPPER'] ?? '').length >= 32 ? [] : ['ANON_ID_PEPPER']),
+    ...((process.env['AUTH_SECRET'] ?? '').length >= AUTH_SECRET_MIN_LENGTH ? [] : ['AUTH_SECRET']),
     ...((process.env['MORPH_PUBLIC_URL'] ?? '').length > 0 ? [] : ['MORPH_PUBLIC_URL']),
     ...missingControllerFields({
       MORPH_CONTROLLER_NAME: process.env['MORPH_CONTROLLER_NAME'],

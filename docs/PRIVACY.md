@@ -101,6 +101,16 @@ anon_id = sha256( pepper ‖ daily_salt ‖ ip ‖ user_agent )[0..16]
   (`infra/otel/config.yaml`).
 - No cookie is set for measurement. Session continuity uses a `sessionStorage` id that
   dies with the tab.
+- **Cookies that exist, and none of them measure you.** Signing in is the only thing that
+  sets any, and only once you start it. They are strictly necessary to provide the service
+  you asked for, so they need no consent under ePrivacy Art. 5(3) — and they are listed here
+  because "no cookies" would not be true after Phase 4:
+  - the Auth.js state, PKCE and CSRF cookies, which last for the length of one sign-in
+    round-trip (minutes) and exist so a forged callback cannot be completed;
+  - the Auth.js session cookie, which lasts up to 30 days and is cleared by signing out;
+  - `morph_signup`, which lasts 60 seconds. It carries the provider name from the sign-in
+    callback to the page so the beacon can record that a sign-up happened, and the page
+    deletes it on reading. It is readable by script on purpose and holds no identifier.
 
 **What this buys:** the identifier is pseudonymous, not anonymous — it is still personal
 data under GDPR, and this document does not pretend otherwise. What the rotation buys is
@@ -139,21 +149,22 @@ The banner is a real gate, not a formality:
 
 ## 4. Retention
 
-| Data                               | Where                   | Retention                     | Enforced by                   |
-| ---------------------------------- | ----------------------- | ----------------------------- | ----------------------------- |
-| Raw behavioural events             | ClickHouse `events`     | **90 days**                   | `TTL ... DELETE` on the table |
-| Hourly aggregates (no identifiers) | ClickHouse MVs          | 25 months                     | table TTL                     |
-| Session folds                      | ClickHouse `sessions`   | 25 months                     | table TTL                     |
-| Dead-letter payloads               | ClickHouse `events_dlq` | 14 days                       | table TTL                     |
-| Account and linked identities      | Postgres                | until erasure                 | erasure job                   |
-| Consent records                    | Postgres                | 25 months after last activity | retention job                 |
-| Adaptation log                     | Postgres                | 25 months                     | monthly partition drop        |
-| Data-subject request log           | Postgres                | indefinite                    | —                             |
+| Data                               | Where            | Retention                | Enforced by                   |
+| ---------------------------------- | ---------------- | ------------------------ | ----------------------------- |
+| Raw behavioural events             | Analytics Engine | **90 days**              | Cloudflare dataset retention  |
+| Sticky assignments                 | Workers KV       | 24 hours                 | daily salt rotation           |
+| Visitor accounts (`user`)          | D1               | until erasure            | `DELETE /api/me` (Art. 17)    |
+| Linked identities (`social_id...`) | D1               | until erasure            | `DELETE /api/me` (Art. 17)    |
+| Authenticators (`authenticator`)   | D1               | until erasure            | `DELETE /api/me` (Art. 17)    |
+| Auth sessions (`auth_session`)     | D1               | 30 days after expiration | retention cron (Art. 5(1)(e)) |
+| Verification tokens                | D1               | 1 day after expiration   | retention cron                |
+| Consent records (`consent_record`) | D1               | 25 months after activity | retention cron / erasure      |
+| Adaptation log                     | D1               | 25 months                | retention cron                |
+| Data-subject request log           | D1               | indefinite               | audit log (opaque subjectRef) |
 
-Retention is enforced by the storage engine, not by a cron job somebody can forget.
-`RAW_EVENT_RETENTION_DAYS` in `.env.example` documents the 90-day commitment; changing
-it without changing this file is a compliance bug, and the CI check treats a mismatch as
-a failure.
+Retention policies for every table in D1 are declared in code at `packages/core/src/db/retention.ts`
+and enforced by a scheduled retention cron job. `packages/core/test/retention.test.ts` reads the
+migration off disk and fails the build if any table lacks an explicit retention policy.
 
 The data-subject request log is retained indefinitely **on purpose**: it holds no
 personal data beyond an opaque reference that resolves to nothing once erasure
@@ -164,20 +175,19 @@ done everything right.
 
 ## 5. Data-subject rights
 
-| Right                              | Endpoint                  | Behaviour                                                                                                                                                                              |
-| ---------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Access / portability (Art. 15, 20) | `GET /api/v1/me/export`   | Authenticated. Returns JSON: profile, linked identities, consent history, referrals, and the last 90 days of that user's events. Delivered within 30 days, in practice within minutes. |
-| Erasure (Art. 17)                  | `DELETE /api/v1/me`       | Two-step with email or provider re-confirmation. Postgres rows deleted in a transaction; ClickHouse rows removed by a bounded lightweight delete in the same job.                      |
-| Rectification (Art. 16)            | `/settings`               | Direct edit.                                                                                                                                                                           |
-| Objection (Art. 21)                | Consent banner → withdraw | Pins the visitor to the baseline immediately.                                                                                                                                          |
-| Restriction (Art. 18)              | Contact address           | Manual; the account is flagged and excluded from all processing.                                                                                                                       |
+| Right                              | Endpoint                             | Behaviour                                                                                                                                                                                        |
+| ---------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Access / portability (Art. 15, 20) | `GET /api/me/export` (`/api/v1/...`) | Authenticated via session. Returns structured JSON: profile, linked social identities, consent history records, and authenticators. Request recorded in `data_subject_request`.                  |
+| Erasure (Art. 17)                  | `DELETE /api/me` (`/api/v1/...`)     | Authenticated via session. Immediately deletes personal records across `user`, `social_identity`, `authenticator`, `auth_session`, and `consent_record`. Clears session cookies; logs audit row. |
+| Rectification (Art. 16)            | `/settings` or provider update       | Profile synced from OAuth provider or edited directly.                                                                                                                                           |
+| Objection (Art. 21)                | Consent banner → withdraw            | Pins the visitor to the baseline immediately.                                                                                                                                                    |
+| Restriction (Art. 18)              | Contact address                      | Manual; the account is flagged and excluded from all processing.                                                                                                                                 |
 
-**The honest limit on erasure.** ClickHouse rows are reachable only through `user_id`
-(for authenticated events) or through an `anon_id` from the last 90 days. Because the
-salt rotates daily, events older than the raw retention window cannot be tied to a
-person by anyone, including the operator — which is why the retention window and the
-erasure reach are the same 90 days. Aggregates contain no identifier and are outside the
-scope of an erasure request; that is a factual statement about the data, not a refusal.
+**The honest limit on erasure.** Raw behavioural events in Analytics Engine contain only
+pseudonymous daily hashes (`anon_id`) with no direct user identifiers; because the salt rotates
+daily, events older than the 90-day retention window cannot be tied to a person by anyone.
+Aggregates contain no identifiers and are outside the scope of an erasure request; that is a
+factual statement about the data, not a refusal.
 
 ---
 
@@ -199,12 +209,18 @@ scope of an erasure request; that is a factual statement about the data, not a r
 
 At launch, personal data is processed only by:
 
-| Processor             | Purpose                                     | Location                                 |
-| --------------------- | ------------------------------------------- | ---------------------------------------- |
-| Hosting provider (D3) | All application and database processing     | EU                                       |
-| OAuth providers       | Authentication, at the visitor's initiation | Various — the visitor's own relationship |
-| Anthropic             | Content and variant generation              | US — **no personal data is sent**        |
-| Telegram              | Operator reporting                          | **Aggregates only — no personal data**   |
+| Processor                | Purpose                                     | Location                                 |
+| ------------------------ | ------------------------------------------- | ---------------------------------------- |
+| Cloudflare (Workers, D1) | Application runtime and D1 EU storage (D31) | EU jurisdiction (`--jurisdiction eu`)    |
+| OAuth providers (D5)     | Authentication, at the visitor's initiation | Various — the visitor's own relationship |
+| Anthropic                | Content and variant generation              | US — **no personal data is sent**        |
+| Telegram                 | Operator reporting                          | **Aggregates only — no personal data**   |
+
+OAuth providers (Google, Apple, Discord, TikTok) are contacted only when the visitor explicitly
+chooses to sign in with them. Only minimal identity scopes (profile, email) are requested; no
+social posting tokens, feed read tokens, or social write scopes are requested or stored (CLAUDE.md
+guardrail 1). Passkeys (WebAuthn) store public credentials in D1 while private keys never leave the
+visitor's authenticator.
 
 The Anthropic and Telegram rows carry the important qualifier. Generation prompts
 contain trend clusters and aggregate performance statistics; the hourly report contains
@@ -217,7 +233,8 @@ has no field that could carry one — the type system is the enforcement.
 ## 8. Security measures (Art. 32)
 
 - TLS 1.3 everywhere; HSTS with preload; strict CSP with no `unsafe-inline` for scripts.
-- OAuth refresh tokens encrypted at rest with AES-256-GCM; the key lives in the
+- Tokens are never stored (CLAUDE.md guardrails 1 & 5). **No platform passwords are stored, ever** — there
+  is no column for one. Authentication uses OAuth 2.0 / OIDC and WebAuthn (Passkeys).
   environment, never in the database. **No platform passwords are stored, ever** — there
   is no column for one.
 - Least-privilege database roles per service (`infra/postgres/init/001_bootstrap.sql`).

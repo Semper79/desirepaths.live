@@ -30,7 +30,11 @@ function tablesInMigration(): readonly string[] {
     const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8');
     for (const match of sql.matchAll(/CREATE TABLE(?: IF NOT EXISTS)? `([a-z_]+)`/g)) {
       const name = match[1];
-      if (name !== undefined) found.add(name);
+      // drizzle-kit rebuilds a table to add a constraint by creating `__new_<table>`, copying
+      // into it and renaming it over the original within the same migration. The temporary
+      // name never survives, and the real one is already counted from the migration that
+      // first created it.
+      if (name !== undefined && !name.startsWith('__new_')) found.add(name);
     }
   }
 
