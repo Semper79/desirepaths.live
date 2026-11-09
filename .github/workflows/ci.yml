@@ -201,8 +201,24 @@ jobs:
       # This is only defensible because the production findings are fixed rather than
       # scoped away: drizzle-orm's SQL injection advisory and Next's were both upgraded
       # when this flag was added, not hidden behind it.
+      #
+      # ONE ADVISORY IS IGNORED, and it is the exception to the paragraph above, so the
+      # reasoning is here rather than only in package.json (pnpm.auditConfig.ignoreGhsas):
+      # GHSA-mrhx-c7xc-m3w5, zod memory exhaustion via oversized arrays. The audit matches on
+      # version, and zod 3.25.x is inside the range; but the vulnerable code (handleArrayResult
+      # in $ZodArray) exists only under zod/v4/core, and this repository imports from 'zod'
+      # alone, which is the v3 API. Zod 3 has no patched release; the fix is the move to zod 4.
+      # REMOVE THE IGNORE when that move happens, or the day any file imports zod/v4.
       - name: Audit production dependencies
         run: pnpm audit --prod --audit-level=high
+
+      # The condition the ignored advisory above depends on, checked instead of remembered.
+      - name: Confirm nothing imports the zod v4 API
+        run: |
+          if grep -rEn "from ['\"]zod/(v4|mini)" apps packages --include=*.ts --include=*.tsx --exclude-dir=node_modules --exclude-dir=.next; then
+            echo "A file imports zod/v4: the GHSA-mrhx-c7xc-m3w5 ignore in package.json no longer holds." >&2
+            exit 1
+          fi
 
       # A secret in the repository is a rotation emergency, not a review comment.
       - name: Scan for committed secrets
