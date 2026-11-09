@@ -12,6 +12,7 @@ import { faq, graph, serialiseJsonLd } from '@morph/seo';
 import { headers } from 'next/headers';
 import { ThinkingBar } from '../components/thinking-bar';
 import { ProviderLink, SignupTracker } from '../components/signup-client';
+import { providerHref, providerSignsIn } from '../lib/auth/availability';
 import { assignmentForRequest, currentSnapshot } from '../lib/resolve';
 import { siteSophistication } from '../lib/sophistication';
 import { motionAllowed, payloadOf, sectionOrder } from '../lib/render';
@@ -228,18 +229,18 @@ function HowItWorks(): React.JSX.Element {
 // -----------------------------------------------------------------------------
 
 /**
- * Provider names, without the promise.
+ * Provider names. Whether each one carries a promise is decided per request.
  *
- * These read "Continue with Google" when sign-up works. It does not: Phase 4 is unbuilt
- * and `/api/auth/signin/<provider>`, which every one of these linked to, is a 404 on the
- * live site. "Continue with Google" is a specific commitment, and a button that makes it
- * and then does not keep it is the one thing this site cannot afford to ship — its whole
- * argument is that the numbers on `/proof` are real.
+ * D5 implements five of these; the rest are declared so the surface has a variant space
+ * to explore. A name with credentials behind it renders "Continue with <name>" and goes
+ * to Auth.js. Every other one renders bare and goes to `/join`, which says where sign-up
+ * actually stands — the alternative, briefly live on the site, was a button that made a
+ * specific commitment and answered 500, on a site whose whole argument is that the
+ * numbers on `/proof` are real.
  *
- * The surface itself stays. `signup.providers_order` is one of the eleven, the order is
- * still chosen per visitor, and which name a visitor reaches for is exactly the signal
- * worth having *before* building Phase 4: it says which provider to implement first.
- * Restoring the prefix is the last line of that work, not the first.
+ * The surface itself is unaffected. `signup.providers_order` is one of the eleven, the
+ * order is still chosen per visitor, and which name a visitor reaches for is still
+ * recorded — which is the signal that says which provider to register next.
  */
 const PROVIDER_NAME: Readonly<Record<string, string>> = {
   google: 'Google',
@@ -273,7 +274,12 @@ function Signup({ assignment }: { readonly assignment: FullAssignment }): React.
       <ul className="providers">
         {lead.map((provider) => (
           <li key={provider}>
-            <ProviderLink provider={provider} label={PROVIDER_NAME[provider] ?? provider} />
+            <ProviderLink
+              provider={provider}
+              label={PROVIDER_NAME[provider] ?? provider}
+              href={providerHref(provider)}
+              signsIn={providerSignsIn(provider)}
+            />
           </li>
         ))}
       </ul>
@@ -286,7 +292,12 @@ function Signup({ assignment }: { readonly assignment: FullAssignment }): React.
           <ul className="providers" style={{ marginBlockStart: 'var(--space-unit)' }}>
             {rest.map((provider) => (
               <li key={provider}>
-                <ProviderLink provider={provider} label={PROVIDER_NAME[provider] ?? provider} />
+                <ProviderLink
+                  provider={provider}
+                  label={PROVIDER_NAME[provider] ?? provider}
+                  href={providerHref(provider)}
+                  signsIn={providerSignsIn(provider)}
+                />
               </li>
             ))}
           </ul>

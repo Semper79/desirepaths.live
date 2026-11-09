@@ -19,11 +19,17 @@ import {
   user,
 } from '@morph/core/db/sqlite';
 import { auth } from '../../../../lib/auth';
+import { signInAvailable } from '../../../../lib/auth/availability';
 import { database } from '../../../../lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(): Promise<Response> {
+  // Same reasoning as `/api/me`: unconfigured is 503, not a claim about the caller.
+  if (!signInAvailable()) {
+    return Response.json({ error: 'sign_in_not_configured' }, { status: 503 });
+  }
+
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {

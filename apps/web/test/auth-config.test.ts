@@ -201,3 +201,71 @@ describe('Passkey opt-in', () => {
     expect((await createAuthConfig()).experimental).toEqual({ enableWebAuthn: true });
   });
 });
+
+describe('What the pages are allowed to offer', () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('offers nothing while AUTH_SECRET is unset, however many providers have keys', async () => {
+    const { signInAvailable, providerHref, providerSignsIn } =
+      await import('../src/lib/auth/availability');
+    delete process.env['AUTH_SECRET'];
+    process.env['AUTH_GOOGLE_ID'] = 'id';
+    process.env['AUTH_GOOGLE_SECRET'] = 'secret';
+
+    expect(signInAvailable()).toBe(false);
+    expect(providerSignsIn('google')).toBe(false);
+    // The defect this replaces: the button pointed at a route that answered 500.
+    expect(providerHref('google')).toBe('/join');
+  });
+
+  it('offers only the providers that hold credentials', async () => {
+    const { availableProviders, providerHref, signInAvailable } =
+      await import('../src/lib/auth/availability');
+    process.env['AUTH_SECRET'] = 'a'.repeat(32);
+    process.env['AUTH_GOOGLE_ID'] = 'id';
+    process.env['AUTH_GOOGLE_SECRET'] = 'secret';
+
+    expect(signInAvailable()).toBe(true);
+    expect(availableProviders()).toEqual(['google']);
+    expect(providerHref('google')).toBe('/api/auth/signin/google');
+    // Declared in the surface's variant space, but nobody registered an application.
+    expect(providerHref('tiktok')).toBe('/join');
+    expect(providerHref('spotify')).toBe('/join');
+  });
+
+  it('keeps the order the adaptive surface chose', async () => {
+    const { availableProviders } = await import('../src/lib/auth/availability');
+    process.env['AUTH_SECRET'] = 'a'.repeat(32);
+    process.env['AUTH_DISCORD_ID'] = 'id';
+    process.env['AUTH_DISCORD_SECRET'] = 'secret';
+    process.env['AUTH_GOOGLE_ID'] = 'id';
+    process.env['AUTH_GOOGLE_SECRET'] = 'secret';
+
+    expect(availableProviders(['discord', 'google'])).toEqual(['discord', 'google']);
+    expect(availableProviders(['google', 'discord'])).toEqual(['google', 'discord']);
+  });
+
+  it('accepts either a static Apple secret or the key it can sign one with', async () => {
+    const { providerConfigured } = await import('../src/lib/auth/availability');
+    process.env['AUTH_APPLE_ID'] = 'com.example.service';
+    expect(providerConfigured('apple')).toBe(false);
+
+    process.env['AUTH_APPLE_SECRET'] = 'pre-generated-jwt';
+    expect(providerConfigured('apple')).toBe(true);
+
+    delete process.env['AUTH_APPLE_SECRET'];
+    process.env['AUTH_APPLE_KEY_ID'] = 'KEY';
+    process.env['AUTH_APPLE_TEAM_ID'] = 'TEAM';
+    expect(providerConfigured('apple')).toBe(false);
+    process.env['AUTH_APPLE_PRIVATE_KEY'] = '-----BEGIN PRIVATE KEY-----';
+    expect(providerConfigured('apple')).toBe(true);
+  });
+});

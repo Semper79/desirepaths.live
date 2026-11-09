@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/d1';
 import type { D1Database, D1PreparedStatement, D1Result } from '@cloudflare/workers-types';
 import {
@@ -138,11 +138,35 @@ import { GET as exportGet } from '../src/app/api/me/export/route';
 describe('/api/me (Profile, Erasure, and Export)', () => {
   let rawDb: SqliteDatabase;
 
+  const originalEnv = { ...process.env };
+
   beforeEach(() => {
     rawDb = freshDb();
     const d1 = mockD1(rawDb);
     currentDrizzle = drizzle(d1);
     mockSession = null;
+    // These routes refuse to act at all unless sign-in is configured, so a suite that
+    // asserts 401 and 200 has to stand up the deployment those answers belong to.
+    process.env = { ...originalEnv };
+    process.env['AUTH_SECRET'] = 'a'.repeat(32);
+    process.env['AUTH_GOOGLE_ID'] = 'test-client-id';
+    process.env['AUTH_GOOGLE_SECRET'] = 'test-client-secret';
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  describe('before any provider is connected', () => {
+    it('answers 503 rather than 500, on every data-subject method', async () => {
+      delete process.env['AUTH_SECRET'];
+      mockSession = { user: { id: 'whoever' } };
+
+      for (const res of [await meGet(), await meDelete(), await exportGet()]) {
+        expect(res.status).toBe(503);
+        expect(((await res.json()) as { error: string }).error).toBe('sign_in_not_configured');
+      }
+    });
   });
 
   describe('GET /api/me', () => {

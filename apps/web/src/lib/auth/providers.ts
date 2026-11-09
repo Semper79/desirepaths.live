@@ -1,9 +1,10 @@
 /**
  * Configured OAuth and passwordless authentication providers (D5).
  *
- * Each provider is optional: an unset client ID or secret omits that provider
- * from the active Auth.js configuration. The adaptive surface (`signup.providers_order`)
- * and the registry adapt variant space accordingly.
+ * Each provider is optional: without credentials it is omitted from the Auth.js
+ * configuration, and the pages omit its button, because both ask `availability.ts`.
+ * That module owns which env vars a provider needs and hands back a checked pair; this
+ * one owns how to turn that into an Auth.js provider.
  *
  * Decided by D5:
  *   - Google, Apple, Discord, TikTok, Passkey (WebAuthn), Email link.
@@ -17,47 +18,29 @@ import TikTok from 'next-auth/providers/tiktok';
 import Passkey from 'next-auth/providers/passkey';
 import type { Provider } from 'next-auth/providers';
 import { getAppleClientSecret } from './apple';
+import { appleClientId, oauthCredentials, passkeyEnabled } from './availability';
 
-export function passkeyEnabled(): boolean {
-  const flag = process.env['AUTH_PASSKEY_ENABLED'];
-  return flag === 'true' || flag === '1';
-}
+export { passkeyEnabled };
 
 export async function configuredProviders(): Promise<Provider[]> {
   const providers: Provider[] = [];
 
-  // Google (D5)
-  const googleId = process.env['AUTH_GOOGLE_ID'];
-  const googleSecret = process.env['AUTH_GOOGLE_SECRET'];
-  if (googleId && googleSecret) {
-    providers.push(Google({ clientId: googleId, clientSecret: googleSecret }));
+  const google = oauthCredentials('google');
+  if (google !== null) providers.push(Google(google));
+
+  const apple = appleClientId();
+  if (apple !== null) {
+    const clientSecret = await getAppleClientSecret();
+    if (clientSecret !== null) providers.push(Apple({ clientId: apple, clientSecret }));
   }
 
-  // Apple (D5)
-  const appleId = process.env['AUTH_APPLE_ID'];
-  const appleSecret = await getAppleClientSecret();
-  if (appleId && appleSecret) {
-    providers.push(Apple({ clientId: appleId, clientSecret: appleSecret }));
-  }
+  const discord = oauthCredentials('discord');
+  if (discord !== null) providers.push(Discord(discord));
 
-  // Discord (D5)
-  const discordId = process.env['AUTH_DISCORD_ID'];
-  const discordSecret = process.env['AUTH_DISCORD_SECRET'];
-  if (discordId && discordSecret) {
-    providers.push(Discord({ clientId: discordId, clientSecret: discordSecret }));
-  }
+  const tiktok = oauthCredentials('tiktok');
+  if (tiktok !== null) providers.push(TikTok(tiktok));
 
-  // TikTok (D5)
-  const tiktokId = process.env['AUTH_TIKTOK_ID'];
-  const tiktokSecret = process.env['AUTH_TIKTOK_SECRET'];
-  if (tiktokId && tiktokSecret) {
-    providers.push(TikTok({ clientId: tiktokId, clientSecret: tiktokSecret }));
-  }
-
-  // Passkey / WebAuthn (D5)
-  if (passkeyEnabled()) {
-    providers.push(Passkey({}));
-  }
+  if (passkeyEnabled()) providers.push(Passkey({}));
 
   return providers;
 }

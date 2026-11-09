@@ -21,11 +21,28 @@ import {
   user,
 } from '@morph/core/db/sqlite';
 import { auth } from '../../../lib/auth';
+import { signInAvailable } from '../../../lib/auth/availability';
 import { database } from '../../../lib/db';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Why this answers 503 and not 401.
+ *
+ * `auth()` cannot run without `AUTH_SECRET`: `authSecret()` throws, and the route used to
+ * answer 500 — the wrong thing for an endpoint a data subject is exercising a right
+ * against. 401 would be wrong too: it says the caller is not authorised, when the truth is
+ * that this deployment cannot authenticate anyone yet. 503 says the endpoint exists and is
+ * not serving, which is the only accurate answer, and it disappears the moment the operator
+ * sets the secret.
+ */
+function signInNotConfigured(): Response {
+  return Response.json({ error: 'sign_in_not_configured' }, { status: 503 });
+}
+
 export async function GET(): Promise<Response> {
+  if (!signInAvailable()) return signInNotConfigured();
+
   const session = await auth();
   if (!session?.user?.id) {
     return Response.json({ error: 'unauthorized' }, { status: 401 });
@@ -55,6 +72,8 @@ export async function GET(): Promise<Response> {
 }
 
 export async function DELETE(): Promise<Response> {
+  if (!signInAvailable()) return signInNotConfigured();
+
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {
